@@ -62,4 +62,4 @@ jobs:
             "ODIN_IMAGE_VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}"
       - name: Output Image Info
         run: |
-          echo "${{ env.DOCKER_METADATA_OUTPUT_TAGS }}" >> $GITHUB_STEP_SUMMARY
+          echo "Exported Image:\n\`\`\`\n${{ env.DOCKER_METADATA_OUTPUT_TAGS }}\n\`\`\`" >> $GITHUB_STEP_SUMMARY
