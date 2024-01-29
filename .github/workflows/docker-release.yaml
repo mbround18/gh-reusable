@@ -60,3 +60,6 @@ jobs:
             "GITHUB_REF=${GITHUB_REF}"
             "GITHUB_REPOSITORY=${GITHUB_REPOSITORY}"
             "ODIN_IMAGE_VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}"
+      - name: Output Image Info
+        run: |
+          echo "${{ steps.docker_build.outputs.metadata.image.name }}" >> $GITHUB_STEP_SUMMARY
