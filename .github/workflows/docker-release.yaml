@@ -8,7 +8,6 @@ on:
         description: "Image Name"
       dockerfile:
         type: "string"
-        required: true
         default: "./Dockerfile"
         description: "Dockerfile"
     secrets: 
