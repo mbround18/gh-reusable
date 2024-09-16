@@ -97,10 +97,10 @@ runs:
         ls -lh
         if [[ "$ASSET" == *.tar.gz ]]; then
           echo "Extracting tar.gz archive..."
-          mv GITHUB_ACTION_PATH/cli_download GITHUB_ACTION_PATH/cli_download.tar.gz
+          cp GITHUB_ACTION_PATH/cli_download GITHUB_ACTION_PATH/cli_download.tar.gz
           mkdir -p $GITHUB_ACTION_PATH/cli_temp
           tar -xzf $GITHUB_ACTION_PATH/cli_download.tar.gz -C $GITHUB_ACTION_PATH/cli_temp
-          mv GITHUB_ACTION_PATH/cli_download.tar.gz GITHUB_ACTION_PATH/cli_download
+          rm GITHUB_ACTION_PATH/cli_download.tar.gz
           cd $GITHUB_ACTION_PATH/cli_temp 
           ls -lh
         elif [[ "$ASSET" == *.tar ]]; then
