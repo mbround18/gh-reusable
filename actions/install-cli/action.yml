@@ -91,6 +91,8 @@ runs:
       shell: bash
       run: |
         ASSET=${{ env.ASSET }}
+        cd $GITHUB_ACTION_PATH/
+        ls -lh
         if [[ "$ASSET" == *.tar.gz ]]; then
           echo "Extracting tar.gz archive..."
           mkdir -p $GITHUB_ACTION_PATH/cli_temp
