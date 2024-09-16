@@ -24,7 +24,7 @@ jobs:
         uses: ./actions/install-cli
         with:
           repository: "schollz/croc"
-          version: "10.0.12"
+          version: "v10.0.12"
           asset: "croc_v%VERSION%_Linux-64bit.tar.gz"
           override-name: "croc"
 
@@ -38,7 +38,6 @@ jobs:
         uses: ./actions/install-cli
         with:
           repository: "astral-sh/uv"
-          version: "0.4.10"
           asset: "uv-x86_64-unknown-linux-gnu.tar.gz"
           override-name: "uv"
 
