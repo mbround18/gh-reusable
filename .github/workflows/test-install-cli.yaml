@@ -1,0 +1,55 @@
+name: "Test | Install CLI Action"
+
+on:
+  # Trigger when a pull request is opened or synchronized
+  pull_request:
+    branches:
+      - main
+
+  # Trigger when code is pushed to the 'main' branch
+  push:
+    branches:
+      - main
+
+jobs:
+  install-cli:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Install Croc CLI using the custom action
+      - name: Install Croc CLI
+        uses: ./actions/install-cli
+        with:
+          repository: "schollz/croc"
+          version: "10.0.12"
+          asset: "croc_v$VERSION_Linux-64bit.tar.gz"
+          override-name: "croc"
+
+      # Verify Croc CLI Installation
+      - name: Verify Croc CLI Installation
+        run: |
+          croc --version
+
+      # Install UV CLI using the custom action
+      - name: Install UV CLI
+        uses: ./actions/install-cli
+        with:
+          repository: "astral-sh/uv"
+          version: "0.4.10"
+          asset: "uv-x86_64-unknown-linux-gnu.tar.gz"
+          override-name: "uv"
+
+      # Verify UV CLI Installation
+      - name: Verify UV CLI Installation
+        run: |
+          uv --version
+
+      # Additional step to ensure both tools are usable
+      - name: Test Croc and UV Commands
+        run: |
+          echo "Testing croc and uv commands"
+          croc --help
+          uv --help
