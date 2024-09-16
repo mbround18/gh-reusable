@@ -67,7 +67,7 @@ runs:
         fi
 
         # Replace $VERSION in the asset pattern with the actual version
-        ASSET=$(echo $ASSET_PATTERN | sed "s/\\\$VERSION/$VERSION/g")
+        ASSET=$(echo $ASSET_PATTERN | sed "s/\\\%VERSION%/$VERSION/g")
 
         echo "ASSET=$ASSET" >> $GITHUB_ENV
         echo "VERSION=$VERSION" >> $GITHUB_ENV
@@ -84,14 +84,6 @@ runs:
         # Check if the downloaded file is valid and non-empty
         if [ ! -s "$GITHUB_ACTION_PATH/cli_download" ]; then
           echo "Error: Downloaded file is empty or missing."
-          exit 1
-        fi
-
-        # Optional: Check if the file is of the correct type
-        FILE_TYPE=$(file --mime-type -b $GITHUB_ACTION_PATH/cli_download)
-        echo "Downloaded file type: $FILE_TYPE"
-        if [[ "$FILE_TYPE" != "application/x-gzip" && "$FILE_TYPE" != "application/zip" ]]; then
-          echo "Error: Unexpected file type. Expected gzip or zip."
           exit 1
         fi
 
