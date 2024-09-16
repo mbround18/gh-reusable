@@ -110,6 +110,7 @@ runs:
 
     - name: Cache CLI Binary
       if: steps.cache-cli.outputs.cache-hit != 'true'
+      shell: bash
       run: |
         mkdir -p $GITHUB_ACTION_PATH/cli_cache
         cp $GITHUB_ACTION_PATH/bin/${{ inputs.override-name || env.REPO }} $GITHUB_ACTION_PATH/cli_cache/
