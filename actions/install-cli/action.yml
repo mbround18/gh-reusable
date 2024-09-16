@@ -96,13 +96,13 @@ runs:
         if [[ "$ASSET" == *.tar.gz ]]; then
           echo "Extracting tar.gz archive..."
           mkdir -p $GITHUB_ACTION_PATH/cli_temp
-          tar -xzf $GITHUB_ACTION_PATH/cli_download -C $GITHUB_ACTION_PATH/cli_temp --strip-components=1
+          tar -xzf $GITHUB_ACTION_PATH/cli_download -C $GITHUB_ACTION_PATH/cli_temp
           cd $GITHUB_ACTION_PATH/cli_temp 
           ls -lh
         elif [[ "$ASSET" == *.tar ]]; then
           echo "Extracting tar archive..."
           mkdir -p $GITHUB_ACTION_PATH/cli_temp
-          tar -xf $GITHUB_ACTION_PATH/cli_download -C $GITHUB_ACTION_PATH/cli_temp --strip-components=1
+          tar -xf $GITHUB_ACTION_PATH/cli_download -C $GITHUB_ACTION_PATH/cli_temp
         elif [[ "$ASSET" == *.zip ]]; then
           echo "Extracting zip archive..."
           mkdir -p $GITHUB_ACTION_PATH/cli_temp
