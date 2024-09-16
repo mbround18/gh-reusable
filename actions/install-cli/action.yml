@@ -95,6 +95,8 @@ runs:
           echo "Extracting tar.gz archive..."
           mkdir -p $GITHUB_ACTION_PATH/cli_temp
           tar -xzf $GITHUB_ACTION_PATH/cli_download -C $GITHUB_ACTION_PATH/cli_temp --strip-components=1
+          cd $GITHUB_ACTION_PATH/cli_temp 
+          ls -lh
         elif [[ "$ASSET" == *.tar ]]; then
           echo "Extracting tar archive..."
           mkdir -p $GITHUB_ACTION_PATH/cli_temp
