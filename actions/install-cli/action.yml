@@ -78,7 +78,7 @@ runs:
       shell: bash
       run: |
         DOWNLOAD_URL="https://github.com/${{ env.OWNER }}/${{ env.REPO }}/releases/download/v${{ env.VERSION }}/${{ env.ASSET }}"
-        echo "Downloading $REPO version $VERSION from $DOWNLOAD_URL..."
+        echo "Downloading $REPO version $VERSION from $DOWNLOAD_URL ..."
         curl -L $DOWNLOAD_URL --output $GITHUB_ACTION_PATH/cli_download
 
         # Check if the downloaded file is valid and non-empty
@@ -91,18 +91,13 @@ runs:
       shell: bash
       run: |
         set -eux
-
         ASSET=${{ env.ASSET }}
-        cd $GITHUB_ACTION_PATH/
-        ls -lh
         if [[ "$ASSET" == *.tar.gz ]]; then
           echo "Extracting tar.gz archive..."
           cp $GITHUB_ACTION_PATH/cli_download $GITHUB_ACTION_PATH/cli_download.tar.gz
           mkdir -p $GITHUB_ACTION_PATH/cli_temp
           tar -xzf $GITHUB_ACTION_PATH/cli_download.tar.gz -C $GITHUB_ACTION_PATH/cli_temp
           rm $GITHUB_ACTION_PATH/cli_download.tar.gz
-          cd $GITHUB_ACTION_PATH/cli_temp 
-          ls -lh
         elif [[ "$ASSET" == *.tar ]]; then
           echo "Extracting tar archive..."
           mkdir -p $GITHUB_ACTION_PATH/cli_temp
