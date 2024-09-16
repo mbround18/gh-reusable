@@ -90,6 +90,8 @@ runs:
     - name: Extract CLI if Necessary
       shell: bash
       run: |
+        set -eux
+
         ASSET=${{ env.ASSET }}
         cd $GITHUB_ACTION_PATH/
         ls -lh
