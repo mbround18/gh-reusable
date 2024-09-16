@@ -57,7 +57,7 @@ runs:
         fetch_latest_version() {
           curl -s -H "Authorization: token $GITHUB_TOKEN" \
             "https://api.github.com/repos/$OWNER/$REPO/releases/latest" \
-            | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/v//'
+            | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'
         }
 
         # If version is "latest", fetch the latest release version
@@ -77,7 +77,7 @@ runs:
     - name: Download Asset
       shell: bash
       run: |
-        DOWNLOAD_URL="https://github.com/${{ env.OWNER }}/${{ env.REPO }}/releases/download/v${{ env.VERSION }}/${{ env.ASSET }}"
+        DOWNLOAD_URL="https://github.com/${{ env.OWNER }}/${{ env.REPO }}/releases/download/${{ env.VERSION }}/${{ env.ASSET }}"
         echo "Downloading $REPO version $VERSION from $DOWNLOAD_URL ..."
         curl -L $DOWNLOAD_URL --output $GITHUB_ACTION_PATH/cli_download
 
