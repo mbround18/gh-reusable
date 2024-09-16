@@ -30,9 +30,17 @@ runs:
       id: cache-cli
       uses: actions/cache@v4
       with:
-        path: $GITHUB_ACTION_PATH/bin/${{ inputs.override-name || inputs.repository.split('/')[1] }}
+        path: $GITHUB_ACTION_PATH/bin/${{ inputs.override-name != '' && inputs.override-name || 'extracted_name' }}
         key: cli-${{ inputs.repository }}-${{ inputs.version }}
         restore-keys: cli-${{ inputs.repository }}-
+
+    - name: Extract Repository Name
+      id: extract-repo-name
+      shell: bash
+      run: |
+        REPOSITORY=${{ inputs.repository }}
+        REPO_NAME=$(echo $REPOSITORY | cut -d'/' -f2)
+        echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
 
     - name: Fetch Version and Asset URL
       id: fetch-version
@@ -94,18 +102,18 @@ runs:
           cd -
         else
           echo "Downloaded file is executable."
-          mv $GITHUB_ACTION_PATH/cli_download $GITHUB_ACTION_PATH/bin/${{ inputs.override-name || env.REPO }}
+          mv $GITHUB_ACTION_PATH/cli_download $GITHUB_ACTION_PATH/bin/${{ inputs.override-name != '' && inputs.override-name || env.REPO_NAME }}
         fi
 
     - name: Move and Install CLI Binary
       shell: bash
       run: |
         if [[ -d "$GITHUB_ACTION_PATH/cli_temp" ]]; then
-          BINARY_NAME=${{ inputs.override-name || env.REPO }}
+          BINARY_NAME=${{ inputs.override-name != '' && inputs.override-name || env.REPO_NAME }}
           sudo mv $GITHUB_ACTION_PATH/cli_temp/* $GITHUB_ACTION_PATH/bin/$BINARY_NAME
           sudo chmod +x $GITHUB_ACTION_PATH/bin/$BINARY_NAME
-        elif [[ -f "$GITHUB_ACTION_PATH/bin/${{ inputs.override-name || env.REPO }}" ]]; then
-          sudo chmod +x $GITHUB_ACTION_PATH/bin/${{ inputs.override-name || env.REPO }}
+        elif [[ -f "$GITHUB_ACTION_PATH/bin/${{ inputs.override-name != '' && inputs.override-name || env.REPO_NAME }}" ]]; then
+          sudo chmod +x $GITHUB_ACTION_PATH/bin/${{ inputs.override-name != '' && inputs.override-name || env.REPO_NAME }}
         fi
 
     - name: Cache CLI Binary
@@ -113,4 +121,4 @@ runs:
       shell: bash
       run: |
         mkdir -p $GITHUB_ACTION_PATH/cli_cache
-        cp $GITHUB_ACTION_PATH/bin/${{ inputs.override-name || env.REPO }} $GITHUB_ACTION_PATH/cli_cache/
+        cp $GITHUB_ACTION_PATH/bin/${{ inputs.override-name != '' && inputs.override-name || env.REPO_NAME }} $GITHUB_ACTION_PATH/cli_cache/
