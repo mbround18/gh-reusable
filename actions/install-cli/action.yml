@@ -67,7 +67,7 @@ runs:
         fi
 
         # Replace $VERSION in the asset pattern with the actual version
-        ASSET=$(echo $ASSET_PATTERN | sed "s/\\\%VERSION%/$VERSION/g")
+        ASSET=$(echo "$ASSET_PATTERN" | sed "s/%VERSION%/$VERSION/g")
 
         echo "ASSET=$ASSET" >> $GITHUB_ENV
         echo "VERSION=$VERSION" >> $GITHUB_ENV
