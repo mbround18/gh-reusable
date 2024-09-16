@@ -81,6 +81,20 @@ runs:
         echo "Downloading $REPO version $VERSION from $DOWNLOAD_URL..."
         curl -L $DOWNLOAD_URL --output $GITHUB_ACTION_PATH/cli_download
 
+        # Check if the downloaded file is valid and non-empty
+        if [ ! -s "$GITHUB_ACTION_PATH/cli_download" ]; then
+          echo "Error: Downloaded file is empty or missing."
+          exit 1
+        fi
+
+        # Optional: Check if the file is of the correct type
+        FILE_TYPE=$(file --mime-type -b $GITHUB_ACTION_PATH/cli_download)
+        echo "Downloaded file type: $FILE_TYPE"
+        if [[ "$FILE_TYPE" != "application/x-gzip" && "$FILE_TYPE" != "application/zip" ]]; then
+          echo "Error: Unexpected file type. Expected gzip or zip."
+          exit 1
+        fi
+
     - name: Extract CLI if Necessary
       shell: bash
       run: |
