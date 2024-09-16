@@ -114,12 +114,24 @@ runs:
     - name: Move and Install CLI Binary
       shell: bash
       run: |
+        BINARY_NAME=${{ inputs.override-name != '' && inputs.override-name || env.REPO_NAME }}
+
         if [[ -d "$GITHUB_ACTION_PATH/cli_temp" ]]; then
-          BINARY_NAME=${{ inputs.override-name != '' && inputs.override-name || env.REPO_NAME }}
-          sudo mv $GITHUB_ACTION_PATH/cli_temp/* $GITHUB_ACTION_PATH/bin/$BINARY_NAME
+          CLI_BINARY=$(find $GITHUB_ACTION_PATH/cli_temp -type f -executable -name "$REPO_NAME*" -o -name "$BINARY_NAME*")
+
+          if [[ -n "$CLI_BINARY" ]]; then
+            echo "Moving $CLI_BINARY to $GITHUB_ACTION_PATH/bin/$BINARY_NAME"
+            sudo mv "$CLI_BINARY" $GITHUB_ACTION_PATH/bin/$BINARY_NAME
+            sudo chmod +x $GITHUB_ACTION_PATH/bin/$BINARY_NAME
+          else
+            echo "No executable binary found in $GITHUB_ACTION_PATH/cli_temp"
+            exit 1
+          fi
+        elif [[ -f "$GITHUB_ACTION_PATH/bin/$BINARY_NAME" ]]; then
           sudo chmod +x $GITHUB_ACTION_PATH/bin/$BINARY_NAME
-        elif [[ -f "$GITHUB_ACTION_PATH/bin/${{ inputs.override-name != '' && inputs.override-name || env.REPO_NAME }}" ]]; then
-          sudo chmod +x $GITHUB_ACTION_PATH/bin/${{ inputs.override-name != '' && inputs.override-name || env.REPO_NAME }}
+        else
+          echo "CLI binary not found."
+          exit 1
         fi
 
     - name: Cache CLI Binary
