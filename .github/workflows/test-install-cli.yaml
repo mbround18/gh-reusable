@@ -12,7 +12,8 @@ on:
       - main
 
 jobs:
-  install-cli:
+  test:
+    name: "Test CLI Install | ${{ matrix.config.repository }}@${{ matrix.config.version || 'latest' }}"
     runs-on: ubuntu-latest
     strategy:
       matrix:
