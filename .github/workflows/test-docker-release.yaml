@@ -9,32 +9,11 @@ on:
       - main
 
 jobs:
-  seed_files:
-    name: Seed Required Files, including Dockerfile
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      # Add your seeding steps here
-      - name: Seed test files
-        run: |
-          echo "Seeding test files and Dockerfile for Docker release..."
-          mkdir -p test-seed
-
-          # Example of seeding a Dockerfile
-          cat <<EOF > test-seed/Dockerfile
-          FROM ubuntu:latest
-          RUN apt-get update && apt-get install -y curl
-          CMD ["echo", "Hello from the seeded Dockerfile!"]
-          EOF
-
   call_docker_release:
     name: Call Docker Release Workflow
-    needs: seed_files
     uses: ./.github/workflows/docker-release.yaml
     with:
-      image: "mbround18/example" # Specify the test image name here
-      dockerfile: "test-seed/Dockerfile" # Path to the seeded Dockerfile
+      image: "mbround18/gh-reusable-testing" # Specify the test image name here
+      dockerfile: "tests/docker" # Path to the seeded Dockerfile
     secrets:
-      DOCKER_TOKEN: "${{ secrets.DOCKER_TOKEN }}"
+      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
