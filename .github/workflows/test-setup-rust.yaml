@@ -1,0 +1,41 @@
+name: "Test | Setup Rust"
+
+on:
+  # Trigger when a pull request is opened or synchronized
+  pull_request:
+    branches:
+      - main
+
+  # Trigger when code is pushed to the 'main' branch
+  push:
+    branches:
+      - main
+
+jobs:
+  test-base:
+    name: "Setup Rust | Base"
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: ./actions/setup-rust
+        with:
+          components: clippy
+
+  test-wasm:
+    name: "Setup Rust | WASM | Trunk"
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: ./actions/setup-rust
+        with:
+          components: clippy
+          target: wasm32-unknown-unknown
+          crates: trunk
