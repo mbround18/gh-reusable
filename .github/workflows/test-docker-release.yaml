@@ -6,7 +6,7 @@ on:
       - main
   push:
     tags:
-      - "*"
+      - '*'
     branches:
       - main
 
@@ -20,4 +20,4 @@ jobs:
       ghcr: true
     secrets:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
-      GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
