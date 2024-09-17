@@ -1,6 +1,3 @@
-Here’s a `README.md` template for your GitHub Action:
-
-````markdown
 # Setup Rust Action
 
 This GitHub Action sets up a Rust toolchain, installs additional components and targets, caches Cargo dependencies, and installs specified CLI crates. It's designed to streamline Rust development workflows in CI environments by automating the setup and caching process.
@@ -44,6 +41,7 @@ jobs:
           target: "wasm32-unknown-unknown"
           crates: "wasm-pack,trunk"
 ```
+
 ````
 
 ### Inputs
@@ -84,3 +82,4 @@ The following caches are created:
 
 - Cargo registry: `~/.cargo/registry`
 - Cargo index: `~/.cargo/git`
+````

@@ -45,6 +45,7 @@ runs:
           ${{ runner.os }}-cargo-index-
 
     - name: Install Rust Crates
+      shell: bash
       run: |
         IFS=',' read -ra CRATES <<< "${{ inputs.crates }}"
         for crate in "${CRATES[@]}"; do
