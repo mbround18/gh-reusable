@@ -14,7 +14,7 @@ inputs:
   crates:
     description: "Comma-separated list of CLI crates to install (e.g., trunk, wasm-bindgen)."
     required: true
-    default: "crate1,crate2,trunk"
+    default: ""
 
 runs:
   using: "composite"
