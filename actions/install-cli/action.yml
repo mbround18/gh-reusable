@@ -65,7 +65,7 @@ runs:
             | grep "tag_name" | cut -d '"' -f4
         }
 
-        if [ "$VERSION" == "latest" ]; then
+        if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
           VERSION=$(fetch_latest_version)
           echo "Using latest version: $VERSION"
         fi
