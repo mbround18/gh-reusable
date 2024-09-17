@@ -14,41 +14,34 @@ on:
 jobs:
   install-cli:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config:
+          - repository: "schollz/croc"
+            version: "v10.0.12"
+            asset: "croc_%VERSION%_Linux-64bit.tar.gz"
+            test-command: "croc --version"
+          - repository: "astral-sh/uv"
+            asset: "uv-x86_64-unknown-linux-gnu.tar.gz"
+            test-command: uv --version
+          - repository: jqlang/jq
+            asset: jq-linux-amd64
+            override-name: "jq"
+            test-command: jq --version
     steps:
       # Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Install Croc CLI using the custom action
-      - name: Install Croc CLI
+      - name: Install CLI
         uses: ./actions/install-cli
         with:
-          repository: "schollz/croc"
-          version: "v10.0.12"
-          asset: "croc_%VERSION%_Linux-64bit.tar.gz"
-          override-name: "croc"
+          repository: ${{ matrix.config.repository }}
+          version: ${{ matrix.config.version }}
+          asset: ${{ matrix.config.asset }}
+          override-name: ${{ matrix.config.override-name }}
 
       # Verify Croc CLI Installation
-      - name: Verify Croc CLI Installation
+      - name: Verify CLI
         run: |
-          croc --version
-
-      # Install UV CLI using the custom action
-      - name: Install UV CLI
-        uses: ./actions/install-cli
-        with:
-          repository: "astral-sh/uv"
-          asset: "uv-x86_64-unknown-linux-gnu.tar.gz"
-          override-name: "uv"
-
-      # Verify UV CLI Installation
-      - name: Verify UV CLI Installation
-        run: |
-          uv --version
-
-      # Additional step to ensure both tools are usable
-      - name: Test Croc and UV Commands
-        run: |
-          echo "Testing croc and uv commands"
-          croc --help
-          uv --help
+          ${{ matrix.config.test-command }}
