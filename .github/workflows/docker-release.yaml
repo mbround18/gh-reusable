@@ -1,7 +1,7 @@
-on:  
+on:
   workflow_call:
     inputs:
-      image: 
+      image:
         type: "string"
         required: true
         default: "mbround18/example"
@@ -10,17 +10,17 @@ on:
         type: "string"
         default: "./Dockerfile"
         description: "Dockerfile"
-    secrets: 
+    secrets:
       DOCKER_TOKEN:
         required: true
-        
+
   # push:
   #   tags:
   #     - '*'
 env:
   IMAGE_NAME: ${{ inputs.image }}
 
-jobs: 
+jobs:
   release:
     runs-on: ubuntu-latest
     steps:
@@ -43,7 +43,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_NAME }}          
+          images: ${{ env.IMAGE_NAME }}
 
       - name: Build ${{ env.IMAGE_NAME }}
         id: docker_build

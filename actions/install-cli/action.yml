@@ -1,0 +1,151 @@
+name: "Install CLI from GitHub"
+description: "Download and install a CLI from a GitHub release into GITHUB_ACTION_PATH/bin."
+author: "mbround18"
+inputs:
+  repository:
+    description: "GitHub repository in the format 'owner/repo' (e.g., 'trunk-rs/trunk')."
+    required: true
+  version:
+    description: "Version of the release to install (default is latest)."
+    required: false
+    default: "latest"
+  asset:
+    description: "Asset file name pattern with %VERSION% placeholder (e.g., 'cli-%VERSION%-linux-amd64.tar.gz')."
+    required: true
+  override-name:
+    description: "Optional. Rename the CLI binary to this name."
+    required: false
+    default: ""
+  github-token:
+    description: "GitHub token for API requests."
+    required: false
+    default: "${{ github.token }}"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create bin directory and add to path
+      shell: bash
+      run: |
+        mkdir -p "${GITHUB_ACTION_PATH}/bin"
+        echo "${GITHUB_ACTION_PATH}/bin" >> $GITHUB_PATH
+
+    - name: Setup Directories
+      shell: bash
+      run: |
+        BIN_DIR="${GITHUB_ACTION_PATH}/bin"
+        STAGING_DIR="${GITHUB_ACTION_PATH}/staging"    
+        mkdir -p "$BIN_DIR" "$STAGING_DIR"
+        echo "BIN_DIR=$BIN_DIR" >> $GITHUB_ENV
+        echo "STAGING_DIR=$STAGING_DIR" >> $GITHUB_ENV
+
+    - name: Cache CLI Binary
+      id: cache-cli
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.BIN_DIR }}
+        key: cli-${{ inputs.repository }}-${{ inputs.version }}
+        restore-keys: cli-${{ inputs.repository }}-
+
+    - name: Fetch Version and Asset URL
+      id: fetch-version
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        REPOSITORY="${{ inputs.repository }}"
+        OWNER=$(echo "$REPOSITORY" | cut -d'/' -f1)
+        REPO=$(echo "$REPOSITORY" | cut -d'/' -f2)
+        VERSION="${{ inputs.version }}"
+        ASSET_PATTERN="${{ inputs.asset }}"
+
+        fetch_latest_version() {
+          curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$OWNER/$REPO/releases/latest" \
+            | grep "tag_name" | cut -d '"' -f4
+        }
+
+        if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
+          VERSION=$(fetch_latest_version)
+          echo "Using latest version: $VERSION"
+        fi
+
+        ASSET=$(echo "$ASSET_PATTERN" | sed "s/%VERSION%/$VERSION/g")
+
+        echo "ASSET=$ASSET" >> $GITHUB_ENV
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "OWNER=$OWNER" >> $GITHUB_ENV
+        echo "REPO=$REPO" >> $GITHUB_ENV
+
+    - name: Download Asset
+      shell: bash
+      env:
+        OWNER: ${{ env.OWNER }}
+        REPO: ${{ env.REPO }}
+        VERSION: ${{ env.VERSION }}
+        ASSET: ${{ env.ASSET }}
+        STAGING_DIR: ${{ env.STAGING_DIR }}
+      run: |
+        DOWNLOAD_URL="https://github.com/$OWNER/$REPO/releases/download/$VERSION/$ASSET"
+        EXTENSION=".${ASSET##*.}"
+        if [[ "$EXTENSION" == ".gz" ]] && [[ "$ASSET" == *tar* ]]; then
+            EXTENSION=".tar.gz"
+        fi
+
+        curl -L "$DOWNLOAD_URL" \
+            --output "$STAGING_DIR/cli_download$EXTENSION"
+
+        echo "ASSET_STAGING_PATH=$STAGING_DIR/cli_download$EXTENSION" >> $GITHUB_ENV
+
+    - name: Extract CLI if Necessary
+      shell: bash
+      env:
+        ASSET_STAGING_PATH: ${{ env.ASSET_STAGING_PATH }}
+        OVERRIDE_EXECUTABLE_NAME: ${{ inputs.override-name }}
+        BIN_DIR: ${{ env.BIN_DIR }}
+        STAGING_DIR: ${{ env.STAGING_DIR }}
+      run: |
+        asset_path="$ASSET_STAGING_PATH"
+
+        if [[ "$asset_path" == *.tar.gz ]]; then
+            echo "Extracting tar.gz archive..."
+            tar -xzf "$asset_path" -C "$BIN_DIR"
+
+        elif [[ "$asset_path" == *.tar ]]; then
+            echo "Extracting tar archive..."
+            tar -xf "$asset_path" -C "$BIN_DIR" 
+
+        elif [[ "$asset_path" == *.zip ]]; then
+            echo "Extracting zip archive..."
+            unzip -q "$asset_path" -d "$STAGING_DIR"
+            
+            cd "$STAGING_DIR"
+            find . -mindepth 2 -type f -exec mv -t . {} +
+            cd -
+
+        else
+            echo "Downloaded file is executable."
+            if [[ -n "$OVERRIDE_EXECUTABLE_NAME" ]]; then
+                mv "$asset_path" "$STAGING_DIR/$OVERRIDE_EXECUTABLE_NAME"
+                asset_path="$STAGING_DIR/$OVERRIDE_EXECUTABLE_NAME"
+            fi
+
+            mv "$asset_path" "$BIN_DIR/"
+        fi
+
+    - name: Flatten Bin
+      shell: bash
+      env:
+        BIN_DIR: ${{ env.BIN_DIR }}
+      run: |
+        find "$BIN_DIR" -mindepth 2 -type f -exec mv -t "$BIN_DIR" {} +
+        find "$BIN_DIR" -type d -empty -delete
+
+    - name: Ensure Executable
+      shell: bash
+      env:
+        BIN_DIR: ${{ env.BIN_DIR }}
+        STAGING_DIR: ${{ env.STAGING_DIR }}
+      run: |
+        chmod +x "$BIN_DIR"/*
+        rm -rf "$STAGING_DIR"
