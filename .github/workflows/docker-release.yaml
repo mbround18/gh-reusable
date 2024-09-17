@@ -35,11 +35,12 @@ jobs:
         with:
           images: ${{ inputs.image }}
           tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            type=ref,event=branch
-            type=ref,event=pr
             type=sha
 
       - name: Build and push Docker image
