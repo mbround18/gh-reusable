@@ -14,6 +14,6 @@ jobs:
     uses: ./.github/workflows/docker-release.yaml
     with:
       image: "mbround18/gh-reusable-testing" # Specify the test image name here
-      dockerfile: "tests/docker" # Path to the seeded Dockerfile
+      dockerfile: "tests/docker/Dockerfile" # Path to the seeded Dockerfile
     secrets:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
