@@ -18,7 +18,7 @@ on:
         type: string
         default: "mbround18"
         description: Who to log into ghcr as.zs
-      dockerhub_username: 
+      dockerhub_username:
         type: string
         default: "mbround18"
         description: Who to log into dockerhub as.
@@ -50,20 +50,19 @@ jobs:
           registry: ghcr.io
           username: ${{ inputs.ghcr_username }}
           password: ${{ secrets.GHCR_TOKEN }}
-          
 
       - name: Images List
         run: |
           IMAGES=("docker.io/${{ inputs.image }}")
-      
+
           if [ "${{ inputs.ghcr }}" == "true" ]; then
               IMAGES+=("ghcr.io/${{ inputs.image }}")
           fi
-      
+
           IMAGES_STR=$(IFS=,; echo "${IMAGES[*]}")
-      
+
           echo "IMAGES=$IMAGES_STR" >> $GITHUB_ENV
-      
+
       - name: Generate Docker metadata
         id: meta
         uses: docker/metadata-action@v5
