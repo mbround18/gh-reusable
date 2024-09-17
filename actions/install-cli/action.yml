@@ -27,51 +27,49 @@ runs:
     - name: Create bin directory and add to path
       shell: bash
       run: |
-        mkdir -p $GITHUB_ACTION_PATH/bin
-        echo "$GITHUB_ACTION_PATH/bin" >> $GITHUB_PATH
+        mkdir -p "${GITHUB_ACTION_PATH}/bin"
+        echo "${GITHUB_ACTION_PATH}/bin" >> $GITHUB_PATH
+
+    - name: Setup Directories
+      shell: bash
+      run: |
+        BIN_DIR="${GITHUB_ACTION_PATH}/bin"
+        STAGING_DIR="${GITHUB_ACTION_PATH}/staging"    
+        mkdir -p "$BIN_DIR" "$STAGING_DIR"
+        echo "BIN_DIR=$BIN_DIR" >> $GITHUB_ENV
+        echo "STAGING_DIR=$STAGING_DIR" >> $GITHUB_ENV
 
     - name: Cache CLI Binary
       id: cache-cli
       uses: actions/cache@v4
       with:
-        path: $GITHUB_ACTION_PATH/bin/${{ inputs.override-name != '' && inputs.override-name || 'extracted_name' }}
+        path: ${{ env.BIN_DIR }}
         key: cli-${{ inputs.repository }}-${{ inputs.version }}
         restore-keys: cli-${{ inputs.repository }}-
-
-    - name: Extract Repository Name
-      id: extract-repo-name
-      shell: bash
-      run: |
-        REPOSITORY=$INPUT_REPOSITORY
-        REPO_NAME=$(echo "$REPOSITORY" | cut -d'/' -f2)
-        echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
 
     - name: Fetch Version and Asset URL
       id: fetch-version
       shell: bash
       env:
-        GITHUB_TOKEN: $INPUT_GITHUB_TOKEN
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
-        REPOSITORY=$INPUT_REPOSITORY
+        REPOSITORY="${{ inputs.repository }}"
         OWNER=$(echo "$REPOSITORY" | cut -d'/' -f1)
         REPO=$(echo "$REPOSITORY" | cut -d'/' -f2)
-        VERSION=$INPUT_VERSION
-        ASSET_PATTERN=$INPUT_ASSET
+        VERSION="${{ inputs.version }}"
+        ASSET_PATTERN="${{ inputs.asset }}"
 
-        # Function to fetch the latest version
         fetch_latest_version() {
           curl -s -H "Authorization: token $GITHUB_TOKEN" \
             "https://api.github.com/repos/$OWNER/$REPO/releases/latest" \
             | grep "tag_name" | cut -d '"' -f4
         }
 
-        # If version is "latest", fetch the latest release version
         if [ "$VERSION" == "latest" ]; then
           VERSION=$(fetch_latest_version)
           echo "Using latest version: $VERSION"
         fi
 
-        # Replace %VERSION% in the asset pattern with the actual version
         ASSET=$(echo "$ASSET_PATTERN" | sed "s/%VERSION%/$VERSION/g")
 
         echo "ASSET=$ASSET" >> $GITHUB_ENV
@@ -82,95 +80,72 @@ runs:
     - name: Download Asset
       shell: bash
       env:
-        OWNER: $OWNER
-        REPO: $REPO
-        VERSION: $VERSION
-        ASSET: $ASSET
+        OWNER: ${{ env.OWNER }}
+        REPO: ${{ env.REPO }}
+        VERSION: ${{ env.VERSION }}
+        ASSET: ${{ env.ASSET }}
+        STAGING_DIR: ${{ env.STAGING_DIR }}
       run: |
         DOWNLOAD_URL="https://github.com/$OWNER/$REPO/releases/download/$VERSION/$ASSET"
-        echo "Downloading $REPO version $VERSION from $DOWNLOAD_URL ..."
-        curl -L "$DOWNLOAD_URL" --output "$GITHUB_ACTION_PATH/cli_download"
-
-        # Check if the downloaded file is valid and non-empty
-        if [ ! -s "$GITHUB_ACTION_PATH/cli_download" ]; then
-          echo "Error: Downloaded file is empty or missing."
-          exit 1
+        EXTENSION=".${ASSET##*.}"
+        if [[ "$EXTENSION" == ".gz" ]] && [[ "$ASSET" == *tar* ]]; then
+            EXTENSION=".tar.gz"
         fi
+
+        curl -L "$DOWNLOAD_URL" \
+            --output "$STAGING_DIR/cli_download$EXTENSION"
+
+        echo "ASSET_STAGING_PATH=$STAGING_DIR/cli_download$EXTENSION" >> $GITHUB_ENV
 
     - name: Extract CLI if Necessary
       shell: bash
       env:
-        ASSET: $ASSET
-        INPUT_OVERRIDE_NAME: $INPUT_OVERRIDE_NAME
-        REPO_NAME: $REPO_NAME
+        ASSET_STAGING_PATH: ${{ env.ASSET_STAGING_PATH }}
+        OVERRIDE_EXECUTABLE_NAME: ${{ inputs.override-name }}
+        BIN_DIR: ${{ env.BIN_DIR }}
+        STAGING_DIR: ${{ env.STAGING_DIR }}
       run: |
-        set -eux
-        if [[ "$ASSET" == *.tar.gz ]]; then
-          echo "Extracting tar.gz archive..."
-          mkdir -p "$GITHUB_ACTION_PATH/cli_temp"
-          tar -xzf "$GITHUB_ACTION_PATH/cli_download" -C "$GITHUB_ACTION_PATH/cli_temp" --strip-components=1
-        elif [[ "$ASSET" == *.tar ]]; then
-          echo "Extracting tar archive..."
-          mkdir -p "$GITHUB_ACTION_PATH/cli_temp"
-          tar -xf "$GITHUB_ACTION_PATH/cli_download" -C "$GITHUB_ACTION_PATH/cli_temp" --strip-components=1
-        elif [[ "$ASSET" == *.zip ]]; then
-          echo "Extracting zip archive..."
-          mkdir -p "$GITHUB_ACTION_PATH/cli_temp"
-          unzip -q "$GITHUB_ACTION_PATH/cli_download" -d "$GITHUB_ACTION_PATH/cli_temp"
-          cd "$GITHUB_ACTION_PATH/cli_temp"
-          find . -mindepth 2 -type f -exec mv -t . {} +
-          cd -
+        asset_path="$ASSET_STAGING_PATH"
+
+        if [[ "$asset_path" == *.tar.gz ]]; then
+            echo "Extracting tar.gz archive..."
+            tar -xzf "$asset_path" -C "$BIN_DIR"
+
+        elif [[ "$asset_path" == *.tar ]]; then
+            echo "Extracting tar archive..."
+            tar -xf "$asset_path" -C "$BIN_DIR" 
+
+        elif [[ "$asset_path" == *.zip ]]; then
+            echo "Extracting zip archive..."
+            unzip -q "$asset_path" -d "$STAGING_DIR"
+            
+            cd "$STAGING_DIR"
+            find . -mindepth 2 -type f -exec mv -t . {} +
+            cd -
+
         else
-          echo "Downloaded file is executable."
-          if [ -n "$INPUT_OVERRIDE_NAME" ]; then
-            BINARY_NAME="$INPUT_OVERRIDE_NAME"
-          else
-            BINARY_NAME="$REPO_NAME"
-          fi
-          mv "$GITHUB_ACTION_PATH/cli_download" "$GITHUB_ACTION_PATH/bin/$BINARY_NAME"
+            echo "Downloaded file is executable."
+            if [[ -n "$OVERRIDE_EXECUTABLE_NAME" ]]; then
+                mv "$asset_path" "$STAGING_DIR/$OVERRIDE_EXECUTABLE_NAME"
+                asset_path="$STAGING_DIR/$OVERRIDE_EXECUTABLE_NAME"
+            fi
+
+            mv "$asset_path" "$BIN_DIR/"
         fi
 
-    - name: Move and Install CLI Binary
+    - name: Flatten Bin
       shell: bash
       env:
-        INPUT_OVERRIDE_NAME: $INPUT_OVERRIDE_NAME
-        REPO_NAME: $REPO_NAME
+        BIN_DIR: ${{ env.BIN_DIR }}
       run: |
-        if [ -n "$INPUT_OVERRIDE_NAME" ]; then
-          BINARY_NAME="$INPUT_OVERRIDE_NAME"
-        else
-          BINARY_NAME="$REPO_NAME"
-        fi
+        find "$BIN_DIR" -mindepth 2 -type f -exec mv -t "$BIN_DIR" {} +
+        find "$BIN_DIR" -type d -empty -delete
 
-        if [[ -d "$GITHUB_ACTION_PATH/cli_temp" ]]; then
-          CLI_BINARY=$(find "$GITHUB_ACTION_PATH/cli_temp" -type f -executable -name "$REPO_NAME*" -o -name "$BINARY_NAME*")
-
-          if [[ -n "$CLI_BINARY" ]]; then
-            echo "Moving $CLI_BINARY to $GITHUB_ACTION_PATH/bin/$BINARY_NAME"
-            mv "$CLI_BINARY" "$GITHUB_ACTION_PATH/bin/$BINARY_NAME"
-            chmod +x "$GITHUB_ACTION_PATH/bin/$BINARY_NAME"
-          else
-            echo "No executable binary found in $GITHUB_ACTION_PATH/cli_temp"
-            exit 1
-          fi
-        elif [[ -f "$GITHUB_ACTION_PATH/bin/$BINARY_NAME" ]]; then
-          chmod +x "$GITHUB_ACTION_PATH/bin/$BINARY_NAME"
-        else
-          echo "CLI binary not found."
-          exit 1
-        fi
-
-    - name: Cache CLI Binary
-      if: steps.cache-cli.outputs.cache-hit != 'true'
+    - name: Ensure Executable
       shell: bash
       env:
-        INPUT_OVERRIDE_NAME: $INPUT_OVERRIDE_NAME
-        REPO_NAME: $REPO_NAME
+        BIN_DIR: ${{ env.BIN_DIR }}
+        STAGING_DIR: ${{ env.STAGING_DIR }}
       run: |
-        if [ -n "$INPUT_OVERRIDE_NAME" ]; then
-          BINARY_NAME="$INPUT_OVERRIDE_NAME"
-        else
-          BINARY_NAME="$REPO_NAME"
-        fi
-        mkdir -p "$GITHUB_ACTION_PATH/cli_cache"
-        cp "$GITHUB_ACTION_PATH/bin/$BINARY_NAME" "$GITHUB_ACTION_PATH/cli_cache/"
+        chmod +x "$BIN_DIR"/*
+        rm -rf "$STAGING_DIR"
