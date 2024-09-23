@@ -24,3 +24,5 @@ jobs:
       - name: Negative Test
         continue-on-error: true
         uses: ./actions/ensure-repository
+        with:
+          repository: mbround18/this-repo-does-not-exist-193913
