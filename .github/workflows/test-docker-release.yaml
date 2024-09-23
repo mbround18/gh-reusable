@@ -11,6 +11,13 @@ on:
       - main
 
 jobs:
+  ensure_repository:
+    name: Ensure Repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Repo is mbround18/gh-reusable
+        uses: mbround18/gh-reusable/actions/ensure-repository@main
+
   call_docker_release:
     name: Call Docker Release Workflow
     uses: ./.github/workflows/docker-release.yaml

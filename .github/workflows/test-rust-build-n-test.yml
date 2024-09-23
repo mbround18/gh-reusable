@@ -11,6 +11,12 @@ on:
       - main
 
 jobs:
+  ensure_repository:
+    name: Ensure Repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Repo is mbround18/gh-reusable
+        uses: mbround18/gh-reusable/actions/ensure-repository@main
   call_build_and_test_workflow:
     name: Call Rust Build and Test Workflow
     uses: ./.github/workflows/rust-build-n-test.yml
