@@ -1,0 +1,20 @@
+name: Ensure Repository
+description: "Ensures the repository that the action or workflow is running on is a known element."
+author: "mbround18"
+inputs:
+  repository:
+    description: "Specific repository (eg: mbround18/gh-reusable)"
+    type: string
+    required: true
+    default: "mbround18/gh-reusable"
+runs:
+  using: "composite"
+  steps:
+    - name: Check that the repository is ${{ inputs.repository }}
+      shell: bash
+      run: |
+        if [ "${{ github.repository }}" != "${{ inputs.repository }}" ]; then
+          echo "Repository mismatch! Exiting..."
+          echo "You are seeing this because this is not for usage outside of ${{ inputs.repository }}"
+          exit 1
+        fi

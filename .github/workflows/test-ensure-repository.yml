@@ -1,0 +1,28 @@
+name: "Test | Ensure Repository"
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    tags:
+      - "*"
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Test | Ensure Repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Positive Test
+        uses: ./actions/ensure-repository
+
+      - name: Negative Test
+        continue-on-error: true
+        uses: ./actions/ensure-repository
+        with:
+          repository: mbround18/this-repo-does-not-exist-193913
