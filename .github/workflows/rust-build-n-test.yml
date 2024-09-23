@@ -1,0 +1,54 @@
+name: Rust Build and Test
+
+on:
+  workflow_call:
+    inputs:
+      toolchain:
+        required: false
+        type: string
+        description: "Rust toolchain to use (e.g., stable, nightly, beta)."
+        default: "stable"
+      components:
+        required: false
+        type: string
+        description: "Comma-separated list of Rust components to install (e.g., rustfmt, clippy)."
+        default: "clippy rustfmt"
+      target:
+        required: false
+        type: string
+        description: "Comma-separated list of additional Rust compilation targets."
+        default: ""
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NAME: "Rust Test"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup | Rust | ${{ inputs.toolchain }}
+        uses: mbround18/gh-reusable/actions/setup-rust@main
+        with:
+          toolchain: ${{ inputs.toolchain }}
+          components: ${{ inputs.components }}
+          target: ${{ inputs.target }}
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run tests
+        run: cargo test --verbose
+
+      - name: Lint
+        run: cargo fmt -- --check
+
+      - name: Clippy
+        run: cargo clippy
