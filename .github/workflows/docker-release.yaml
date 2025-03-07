@@ -6,6 +6,10 @@ on:
         required: true
         default: "mbround18/example"
         description: "Image Name"
+      canary_label:
+        type: string
+        required: true
+        default: "canary"
       dockerfile:
         type: string
         default: "./Dockerfile"
@@ -81,7 +85,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           file: ${{ inputs.dockerfile }}
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, inputs.canary_label) }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ inputs.image }}:buildcache
