@@ -104,4 +104,4 @@ jobs:
       - name: Output image information
         run: |
           echo "Exported Image:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`${{ steps.meta.outputs.tags }}\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`\n${{ steps.meta.outputs.tags }}\n\`\`\`" >> $GITHUB_STEP_SUMMARY
