@@ -41,7 +41,7 @@ jobs:
   release:
     name: >
       Docker Release for ${{ inputs.image }} @
-      ${{ github.event_name == 'pull_request' && format('PR #{}', github.event.pull_request.number) || github.ref_name }}
+      ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
