@@ -1,3 +1,4 @@
+name: Docker Release Workflow
 on:
   workflow_call:
     inputs:
@@ -6,6 +7,10 @@ on:
         required: true
         default: "mbround18/example"
         description: "Image Name"
+      canary_label:
+        type: string
+        required: false
+        default: "canary"
       dockerfile:
         type: string
         default: "./Dockerfile"
@@ -28,8 +33,15 @@ on:
       GHCR_TOKEN:
         required: false
 
+run-name: >
+  Docker Release for ${{ inputs.image }} @
+  ${{ github.event_name == 'pull_request' && format('PR #{}', github.event.pull_request.number) || github.ref_name }}z
+
 jobs:
   release:
+    name: >
+      Docker Release for ${{ inputs.image }} @
+      ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +93,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           file: ${{ inputs.dockerfile }}
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, inputs.canary_label) }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ inputs.image }}:buildcache
@@ -95,4 +107,4 @@ jobs:
       - name: Output image information
         run: |
           echo "Exported Image:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`${{ steps.meta.outputs.tags }}\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`\n${{ steps.meta.outputs.tags }}\n\`\`\`" >> $GITHUB_STEP_SUMMARY
