@@ -8,7 +8,7 @@ on:
         description: "Image Name"
       canary_label:
         type: string
-        required: true
+        required: false
         default: "canary"
       dockerfile:
         type: string
