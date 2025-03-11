@@ -3,7 +3,7 @@ on:
   push:
 
 env:
-  WOKRING_DIR: ./actions/install-cli
+  WORKING_DIR: ./actions/install-cli
 
 
 
