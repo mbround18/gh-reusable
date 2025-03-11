@@ -15,4 +15,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: ls -l 
-    
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dir-test
+          path: ./action.yaml
+
+  new:
+    needs:
+     - test
+    runs-on: ubuntu-latest 
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dir-test
+      - run: ls -l
