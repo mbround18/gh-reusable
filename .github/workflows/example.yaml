@@ -2,12 +2,9 @@ name: test ci
 on:
   push:
 
-env:
-  DIR_TEST: ./actions/install-cli
-
 defaults:
   run:
-    working-directory: ${{env.DIR_TEST}}
+    working-directory: ./actions/install-cli
 
 jobs:
   test:
