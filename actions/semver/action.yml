@@ -90,14 +90,4 @@ runs:
           new_version="$prefix$new_version"
         fi
 
-        echo "new_version=$new_version" >> $GITHUB_ENV
-
-    - name: Output new version
-      shell: bash
-      run: echo "New version: $new_version"
-  
-    - id: out
-      shell: bash
-      run: |
         echo "new_version=$new_version" >> $GITHUB_OUTPUT
-
