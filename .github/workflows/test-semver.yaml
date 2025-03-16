@@ -26,6 +26,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Call Semver Action
+        id: semver
         uses: ./actions/semver
         with:
           base: ""
@@ -35,4 +36,4 @@ jobs:
           patch-label: "patch"
 
       - name: Verify Semver Output
-        run: echo "New version: ${{ steps.increment_version.outputs.new_version }}"
+        run: echo "New version: ${{ steps.semver.outputs.new_version }}"
