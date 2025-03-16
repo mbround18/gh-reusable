@@ -1,0 +1,19 @@
+name: Generate Changelog
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Changelog
+        uses: ./actions/changelog
+        with:
+          path: "CHANGELOG.md"
+          write: true
+          version: "v1.0.0"
+          token: ${{ secrets.GITHUB_TOKEN }}

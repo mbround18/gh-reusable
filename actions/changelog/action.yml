@@ -1,0 +1,64 @@
+name: Generate Changelog
+description: "Generates a changelog from commits since the last tag."
+author: "mbround18"
+inputs:
+  path:
+    description: "Path to the changelog file."
+    required: true
+    default: "CHANGELOG.md"
+  write:
+    description: "Whether to commit the changelog to the current branch."
+    required: true
+    default: false
+  version:
+    description: "Version to use for the changelog."
+    required: false
+    default: ""
+  token:
+    description: "GitHub token for authentication."
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ inputs.token }}
+
+    - name: Get the last tag
+      id: get_last_tag
+      shell: bash
+      run: |
+        last_tag=$(git describe --tags --abbrev=0)
+        echo "last_tag=$last_tag" >> $GITHUB_ENV
+
+    - name: Generate changelog
+      id: generate_changelog
+      shell: bash
+      run: |
+        changelog=$(git log $last_tag..HEAD --pretty=format:"%h - %s (%an, %ar)" --abbrev-commit)
+        echo "changelog=$changelog" >> $GITHUB_ENV
+
+    - name: Format changelog
+      id: format_changelog
+      shell: bash
+      run: |
+        formatted_changelog="# Changelog\n\n## ${{ inputs.version }}\n\n$changelog"
+        echo "formatted_changelog=$formatted_changelog" >> $GITHUB_ENV
+
+    - name: Write changelog to file
+      id: write_changelog
+      shell: bash
+      run: |
+        echo "$formatted_changelog" > ${{ inputs.path }}
+
+    - name: Commit changelog
+      if: ${{ inputs.write }}
+      shell: bash
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add ${{ inputs.path }}
+        git commit -m "Update changelog for version ${{ inputs.version }}"
+        git push
