@@ -17,21 +17,27 @@ None.
 
 ```yaml
 name: Generate Changelog
+
 on:
   push:
     tags:
       - "*"
-  workflow_dispatch:
 
 jobs:
   changelog:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          ref: main
+
       - name: Generate Changelog
         uses: ./actions/changelog
         with:
           path: "CHANGELOG.md"
           write: true
-          version: "v1.0.0"
+          version: "${{ github.ref_name	}}"
           token: ${{ secrets.GITHUB_TOKEN }}
 ```
