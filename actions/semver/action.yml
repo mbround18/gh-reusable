@@ -91,6 +91,7 @@ runs:
         fi
 
         echo "new_version=$new_version" >> $GITHUB_ENV
+        echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
     - name: Output new version
       run: echo "New version: $new_version"
