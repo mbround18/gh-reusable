@@ -23,6 +23,11 @@ inputs:
     required: false
     default: "patch"
 
+outputs:
+  new_version:
+    description: "Outputs the incremented verson based on input parameters"
+    value: ${{ steps.increment_version.outputs.new_version }}
+
 runs:
   using: "composite"
   steps:
