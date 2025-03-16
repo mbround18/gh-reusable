@@ -16,7 +16,7 @@ jobs:
 
       - name: Increment version
         id: semver
-        uses: mbround18/gh-reusable/actions/semver@v1
+        uses: mbround18/gh-reusable/actions/semver@v0.0.5
         with:
           base: "" # Optional: specify base version or leave empty to use the last tag
           increment: "patch" # Optional: specify increment (major, minor, patch)
