@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup Rust
-        uses: mbround18/gh-reusable/actions/setup-rust@v1
+        uses: mbround18/gh-reusable/actions/setup-rust@v0.0.5
         with:
           toolchain: "stable"
           components: "clippy,rustfmt"

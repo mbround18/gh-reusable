@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Verify Repo is mbround18/gh-reusable
-        uses: mbround18/gh-reusable/actions/ensure-repository@main
+        uses: mbround18/gh-reusable/actions/ensure-repository@v0.0.5
 ```
 
 ## Inputs
