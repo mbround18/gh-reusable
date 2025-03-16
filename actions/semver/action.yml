@@ -26,7 +26,7 @@ inputs:
 outputs:
   new_version:
     description: "Outputs the calculated new version"
-    value: ${{ steps.increment_version.outputs.new_version }}
+    value: ${{ steps.out.outputs.new_version }}
 
 runs:
   using: "composite"
@@ -96,7 +96,13 @@ runs:
         fi
 
         echo "new_version=$new_version" >> $GITHUB_ENV
-        echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
     - name: Output new version
+      shell: bash
       run: echo "New version: $new_version"
+  
+    - id: out
+      shell: bash
+      run: |
+        echo "new_version=$new_version" >> $GITHUB_OUTPUT
+
