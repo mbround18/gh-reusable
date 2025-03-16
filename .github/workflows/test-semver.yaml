@@ -21,6 +21,7 @@ jobs:
   call_semver_action:
     name: Call Semver Action
     runs-on: ubuntu-latest
+    needs: ensure_repository
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -29,11 +30,9 @@ jobs:
         id: semver
         uses: ./actions/semver
         with:
-          base: ""
+          base: "0.0.1"
           increment: "patch"
-          major-label: "major"
-          minor-label: "minor"
-          patch-label: "patch"
 
       - name: Verify Semver Output
-        run: echo "New version: ${{ steps.semver.outputs.new_version }}"
+        run: |
+          echo "New version: ${{ steps.semver.outputs.new_version }}"
