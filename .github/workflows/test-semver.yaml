@@ -26,13 +26,35 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Call Semver Action
-        id: semver
+      - name: Call Semver Action - Patch Increment
+        id: semver_patch
         uses: ./actions/semver
         with:
-          base: "0.0.1"
+          base: "1.2.3"
           increment: "patch"
 
-      - name: Verify Semver Output
+      - name: Verify Semver Output - Patch
         run: |
-          echo "New version: ${{ steps.semver.outputs.new_version }}"
+          [[ "${{ steps.semver_patch.outputs.new_version }}" == "1.2.4" ]] || exit 1
+
+      - name: Call Semver Action - Minor Increment
+        id: semver_minor
+        uses: ./actions/semver
+        with:
+          base: "2.3.4"
+          increment: "minor"
+
+      - name: Verify Semver Output - Minor
+        run: |
+          [[ "${{ steps.semver_minor.outputs.new_version }}" == "2.4.0" ]] || exit 1
+
+      - name: Call Semver Action - Major Increment
+        id: semver_major
+        uses: ./actions/semver
+        with:
+          base: "3.4.5"
+          increment: "major"
+
+      - name: Verify Semver Output - Major
+        run: |
+          [[ "${{ steps.semver_major.outputs.new_version }}" == "4.0.0" ]] || exit 1
