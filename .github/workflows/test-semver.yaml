@@ -21,18 +21,40 @@ jobs:
   call_semver_action:
     name: Call Semver Action
     runs-on: ubuntu-latest
+    needs: ensure_repository
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Call Semver Action
+      - name: Call Semver Action - Patch Increment
+        id: semver_patch
         uses: ./actions/semver
         with:
-          base: ""
+          base: "1.2.3"
           increment: "patch"
-          major-label: "major"
-          minor-label: "minor"
-          patch-label: "patch"
 
-      - name: Verify Semver Output
-        run: echo "New version: ${{ steps.increment_version.outputs.new_version }}"
+      - name: Verify Semver Output - Patch
+        run: |
+          [[ "${{ steps.semver_patch.outputs.new_version }}" == "1.2.4" ]] || exit 1
+
+      - name: Call Semver Action - Minor Increment
+        id: semver_minor
+        uses: ./actions/semver
+        with:
+          base: "2.3.4"
+          increment: "minor"
+
+      - name: Verify Semver Output - Minor
+        run: |
+          [[ "${{ steps.semver_minor.outputs.new_version }}" == "2.4.0" ]] || exit 1
+
+      - name: Call Semver Action - Major Increment
+        id: semver_major
+        uses: ./actions/semver
+        with:
+          base: "3.4.5"
+          increment: "major"
+
+      - name: Verify Semver Output - Major
+        run: |
+          [[ "${{ steps.semver_major.outputs.new_version }}" == "4.0.0" ]] || exit 1

@@ -15,6 +15,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Increment version
+        id: semver
         uses: mbround18/gh-reusable/actions/semver@v1
         with:
           base: "" # Optional: specify base version or leave empty to use the last tag
@@ -22,6 +23,9 @@ jobs:
           major-label: "major" # Optional: specify label to identify a major increment
           minor-label: "minor" # Optional: specify label to identify a minor increment
           patch-label: "patch" # Optional: specify label to identify a patch increment
+      
+      - name: Output
+        run: echo "${{ steps.semver.outputs.new_version }}"
 ```
 
 ## Inputs

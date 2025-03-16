@@ -23,6 +23,11 @@ inputs:
     required: false
     default: "patch"
 
+outputs:
+  new_version:
+    description: "Outputs the incremented verson based on input parameters"
+    value: ${{ steps.increment_version.outputs.new_version }}
+
 runs:
   using: "composite"
   steps:
@@ -90,7 +95,4 @@ runs:
           new_version="$prefix$new_version"
         fi
 
-        echo "new_version=$new_version" >> $GITHUB_ENV
-
-    - name: Output new version
-      run: echo "New version: $new_version"
+        echo "new_version=$new_version" >> $GITHUB_OUTPUT
