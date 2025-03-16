@@ -34,10 +34,19 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup Rust
-        uses: ./path/to/your/action
+        uses: mbround18/gh-reusable/actions/setup-rust@v1
         with:
           toolchain: "stable"
           components: "clippy,rustfmt"
           target: "wasm32-unknown-unknown"
           crates: "wasm-pack,trunk"
 ```
+
+## Inputs
+
+| Name        | Description                                      | Required | Default            |
+|-------------|--------------------------------------------------|----------|--------------------|
+| `toolchain` | Rust toolchain to use (e.g., stable, nightly)    | No       | `stable`           |
+| `components`| Comma-separated list of Rust components to install | No       | `""`               |
+| `target`    | Comma-separated list of additional Rust compilation targets | No       | `""`               |
+| `crates`    | Comma-separated list of CLI crates to install    | No       | `""`               |
