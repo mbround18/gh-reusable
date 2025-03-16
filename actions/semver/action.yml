@@ -23,11 +23,6 @@ inputs:
     required: false
     default: "patch"
 
-outputs:
-  new_version:
-    description: "Outputs the calculated new version"
-    value: ${{ steps.out.outputs.new_version }}
-
 runs:
   using: "composite"
   steps:
