@@ -52,6 +52,7 @@ runs:
       shell: bash
       run: |
         echo "$formatted_changelog" > ${{ inputs.path }}
+        echo "$formatted_changelog" >> $GITHUB_STEP_SUMMARY
 
     - name: Commit changelog
       if: ${{ inputs.write }}
