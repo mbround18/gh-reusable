@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install CLI
-        uses: mbround18/install-cli-action@v1
+        uses: mbround18/gh-reusable/actions/install-cli@v1
         with:
           repository: "owner/repo" # e.g., trunk-rs/trunk
           version: "latest" # Optional: specify version or use 'latest'
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install trunk CLI
-        uses: mbround18/install-cli-action@v1
+        uses: mbround18/gh-reusable/actions/install-cli@v1
         with:
           repository: "trunk-rs/trunk"
           version: "v0.13.0"
