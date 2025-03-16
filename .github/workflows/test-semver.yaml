@@ -1,0 +1,38 @@
+name: "Test | Semver Action"
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    tags:
+      - "*"
+    branches:
+      - main
+
+jobs:
+  ensure_repository:
+    name: Ensure Repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Repo is mbround18/gh-reusable
+        uses: mbround18/gh-reusable/actions/ensure-repository@main
+
+  call_semver_action:
+    name: Call Semver Action
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Call Semver Action
+        uses: ./actions/semver
+        with:
+          base: ""
+          increment: "patch"
+          major-label: "major"
+          minor-label: "minor"
+          patch-label: "patch"
+
+      - name: Verify Semver Output
+        run: echo "New version: ${{ steps.increment_version.outputs.new_version }}"
