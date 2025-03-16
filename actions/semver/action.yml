@@ -83,6 +83,13 @@ runs:
         esac
 
         new_version="$major.$minor.$patch"
+
+        # Determine if the base has a prefix and apply that to the output
+        if [[ "$last_tag" =~ ^[a-zA-Z]+ ]]; then
+          prefix=$(echo "$last_tag" | grep -o '^[a-zA-Z]*')
+          new_version="$prefix$new_version"
+        fi
+
         echo "new_version=$new_version" >> $GITHUB_ENV
 
     - name: Output new version
