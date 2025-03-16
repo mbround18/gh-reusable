@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup | Rust | ${{ inputs.toolchain }}
-        uses: mbround18/gh-reusable/actions/setup-rust@main
+        uses: mbround18/gh-reusable/actions/setup-rust@v0.0.5
         with:
           toolchain: ${{ inputs.toolchain }}
           components: ${{ inputs.components }}

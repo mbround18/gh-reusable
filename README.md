@@ -32,12 +32,12 @@ To use any of the actions provided:
    ```yaml
    steps:
      - name: Use Reusable Action
-       uses: mbround18/gh-reusable/actions/<action-name>@v0.0.4
+       uses: mbround18/gh-reusable/actions/<action-name>@v0.0.5
        with:
          # action inputs
    ```
 
-   Replace `<action-name>` with the name of the action and `v0.0.4` with the tag or commit SHA you wish to use.
+   Replace `<action-name>` with the name of the action and `v0.0.5` with the tag or commit SHA you wish to use.
 
 ### Using Reusable Workflows
 
@@ -48,12 +48,12 @@ To include a reusable workflow:
    ```yaml
    jobs:
      my_job:
-       uses: mbround18/gh-reusable/.github/workflows/<workflow-name>.yaml@v0.0.4
+       uses: mbround18/gh-reusable/.github/workflows/<workflow-name>.yaml@v0.0.5
        with:
          # workflow inputs
    ```
 
-   Replace `<workflow-name>` with the workflow's filename (excluding any `test-` prefixed workflows) and `v0.0.4` with the desired tag or commit SHA.
+   Replace `<workflow-name>` with the workflow's filename (excluding any `test-` prefixed workflows) and `v0.0.5` with the desired tag or commit SHA.
 
 ## Docker Release Workflow
 
@@ -66,7 +66,7 @@ To use the Docker Release Workflow, reference it in your workflow file:
 ```yaml
 jobs:
   docker-release:
-    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@v0.0.4
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@v0.0.5
     with:
       image: "mbround18/example"
       canary_label: "canary"
@@ -108,7 +108,7 @@ To use the Rust Build and Test Workflow, reference it in your workflow file:
 ```yaml
 jobs:
   rust-build-and-test:
-    uses: mbround18/gh-reusable/.github/workflows/rust-build-n-test.yml@v0.0.4
+    uses: mbround18/gh-reusable/.github/workflows/rust-build-n-test.yml@v0.0.5
     with:
       toolchain: "stable"
       components: "clippy,rustfmt"
@@ -137,7 +137,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Verify Repo is mbround18/gh-reusable
-        uses: mbround18/gh-reusable/actions/ensure-repository@v0.0.4
+        uses: mbround18/gh-reusable/actions/ensure-repository@v0.0.5
 ```
 
 ### Inputs
@@ -163,7 +163,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install CLI
-        uses: mbround18/gh-reusable/actions/install-cli@v0.0.4
+        uses: mbround18/gh-reusable/actions/install-cli@v0.0.5
         with:
           repository: "owner/repo" # e.g., trunk-rs/trunk
           version: "latest" # Optional: specify version or use 'latest'
@@ -198,7 +198,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Increment version
-        uses: mbround18/gh-reusable/actions/semver@v0.0.4
+        uses: mbround18/gh-reusable/actions/semver@v0.0.5
         with:
           base: "" # Optional: specify base version or leave empty to use the last tag
           increment: "patch" # Optional: specify increment (major, minor, patch)
@@ -234,7 +234,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup Rust
-        uses: mbround18/gh-reusable/actions/setup-rust@v0.0.4
+        uses: mbround18/gh-reusable/actions/setup-rust@v0.0.5
         with:
           toolchain: "stable"
           components: "clippy,rustfmt"
