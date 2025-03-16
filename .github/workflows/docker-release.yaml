@@ -15,6 +15,10 @@ on:
         type: string
         default: "./Dockerfile"
         description: "Dockerfile"
+      context:
+        type: string
+        default: "."
+        description: "Context of docker build"
       ghcr:
         type: boolean
         default: false
@@ -95,6 +99,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
+          context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
           push: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, inputs.canary_label) }}
           tags: ${{ steps.meta.outputs.tags }}
