@@ -39,7 +39,10 @@ runs:
       shell: bash
       run: |
         changelog=$(git log $last_tag..HEAD --pretty=format:"%h - %s (%an, %ar)" --abbrev-commit)
-        echo "changelog=$changelog" >> $GITHUB_ENV
+        echo "changelog<<EOF" >> $GITHUB_ENV
+        echo "$changelog" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
 
     - name: Format changelog
       id: format_changelog
