@@ -43,13 +43,19 @@ runs:
         echo "$changelog" >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
 
-
     - name: Format changelog
       id: format_changelog
       shell: bash
       run: |
-        formatted_changelog="# Changelog\n\n## ${{ inputs.version }}\n\n$changelog"
-        echo "formatted_changelog=$formatted_changelog" >> $GITHUB_ENV
+        {
+          echo "formatted_changelog<<EOF"
+          echo "# Changelog"
+          echo ""
+          echo "## ${{ inputs.version }}"
+          echo ""
+          echo "$CHANGELOG"
+          echo "EOF"
+        } >> $GITHUB_ENV
 
     - name: Write changelog to file
       id: write_changelog
