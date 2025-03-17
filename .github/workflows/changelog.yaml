@@ -14,6 +14,7 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
           ref: main
+          fetch-depth: 0
     
       - name: Generate Changelog
         uses: ./actions/changelog
