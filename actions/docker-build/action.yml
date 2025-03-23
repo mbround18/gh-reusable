@@ -1,0 +1,114 @@
+name: Docker Build
+description: Build Docker images with build arguments, secrets, and multi-platform support
+
+inputs:
+  image:
+    description: "Name of the image to be built"
+    required: true
+    default: "mbround18/test"
+  registries:
+    description: "Comma separated list of registries to re-tag the image with"
+    required: false
+    default: ""
+  dockerfile_path:
+    description: "Path to the Dockerfile relative to the context"
+    required: true
+    default: "./Dockerfile"
+  context:
+    description: "Build context directory"
+    required: true
+    default: "."
+  version:
+    description: "Image tag version"
+    required: true
+    default: "latest"
+  push:
+    description: "Whether to push the image"
+    required: false
+    default: "false"
+  platforms:
+    description: "Comma separated list of target platforms (e.g., linux/amd64,linux/arm64)"
+    required: false
+    default: "linux/amd64"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Extract Build Args and Secrets
+      id: build-args
+      shell: bash
+      run: |
+        BUILD_ARGS=""
+        SECRET_ARGS=""
+        
+        # Process build arguments from env variables prefixed with BUILD_ARG_
+        for var in $(env | grep "^BUILD_ARG_" | cut -d= -f1); do
+          ARG_NAME=${var#BUILD_ARG_}
+          ARG_VALUE=${!var}
+          BUILD_ARGS+="${ARG_NAME}=${ARG_VALUE}\n"
+        done
+        
+        # Process build secrets from env variables prefixed with BUILD_SECRET_
+        for var in $(env | grep "^BUILD_SECRET_" | cut -d= -f1); do
+          SECRET_NAME=${var#BUILD_SECRET_}
+          SECRET_VALUE=${!var}
+          # Create a temporary file for each secret
+          SECRET_FILE=$(mktemp)
+          echo "${SECRET_VALUE}" > "${SECRET_FILE}"
+          SECRET_ARGS+="id=${SECRET_NAME},src=${SECRET_FILE} "
+        done
+        
+        # Export build and secret args to GitHub environment variables
+        {
+          echo "build_args<<EOF"
+          echo -e "${BUILD_ARGS}"
+          echo "EOF"
+        } >> $GITHUB_ENV
+        
+        echo "secret_args=${SECRET_ARGS}" >> $GITHUB_ENV
+
+    - name: Prepare Tags
+      id: prep-tags
+      shell: bash
+      run: |
+        TAGS="${{ inputs.image }}:${{ inputs.version }}"
+        if [ -n "${{ inputs.registries }}" ]; then
+          IFS=',' read -ra REGISTRY_ARRAY <<< "${{ inputs.registries }}"
+          for registry in "${REGISTRY_ARRAY[@]}"; do
+            if [ -n "$registry" ]; then
+              TAGS+=",${registry}/${{ inputs.image }}:${{ inputs.version }}"
+            fi
+          done
+        fi
+        echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+
+    - name: Build and Push Docker Image
+      id: docker-push
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.dockerfile_path }}
+        push: ${{ inputs.push }}
+        tags: ${{ steps.prep-tags.outputs.tags }}
+        build-args: ${{ env.build_args }}
+        secrets: ${{ env.secret_args }}
+        platforms: ${{ inputs.platforms }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        provenance: false
+
+    - name: Output Image Info
+      shell: bash
+      run: |
+        echo "## Docker Image Built" >> $GITHUB_STEP_SUMMARY
+        echo "- Image: \`${{ inputs.image }}:${{ inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- Pushed: ${{ inputs.push }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Dockerfile: \`${{ inputs.dockerfile_path }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- Context: \`${{ inputs.context }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- Platforms: \`${{ inputs.platforms }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- Build Action Outputs:" >> $GITHUB_STEP_SUMMARY
+        echo "  - Image ID: \`${{ steps.docker-push.outputs.imageid }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "  - Digest: \`${{ steps.docker-push.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
