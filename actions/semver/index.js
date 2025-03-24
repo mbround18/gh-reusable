@@ -30,7 +30,10 @@ async function run() {
 
     if (!lastTag) {
       core.startGroup("🔎 Fetching Last Tag");
-      const getLastTagQuery = fs.readFileSync(path.join(__dirname, "get_last_tag.gql"), "utf8");
+      const getLastTagQuery = fs.readFileSync(
+        path.join(__dirname, "get_last_tag.gql"),
+        "utf8",
+      );
       const res = await octokit.graphql(getLastTagQuery, { owner, repo });
       const nodes = res?.repository?.refs?.nodes || [];
       const tags = nodes.map((n) => n.name);
@@ -38,8 +41,10 @@ async function run() {
       if (hasVPrefix) prefix = "v";
 
       const matching = tags
-          .filter((tag) => tag.startsWith(prefix))
-          .sort((a, b) => compareSemverDesc(a.replace(prefix, ""), b.replace(prefix, "")));
+        .filter((tag) => tag.startsWith(prefix))
+        .sort((a, b) =>
+          compareSemverDesc(a.replace(prefix, ""), b.replace(prefix, "")),
+        );
 
       lastTag = matching.length > 0 ? matching[0] : `${prefix}0.0.0`;
       core.info(`Resolved last tag: ${lastTag}`);
@@ -51,7 +56,10 @@ async function run() {
 
     if (!incrementInput && isPR) {
       core.startGroup("🏷️ Detecting PR Labels");
-      const prLabelsQuery = fs.readFileSync(path.join(__dirname, "pr_labels.gql"), "utf8");
+      const prLabelsQuery = fs.readFileSync(
+        path.join(__dirname, "pr_labels.gql"),
+        "utf8",
+      );
       const res = await octokit.graphql(prLabelsQuery, {
         owner,
         repo,
@@ -69,8 +77,14 @@ async function run() {
 
     if (!incrementInput && !isPR) {
       core.startGroup("🔍 Detecting Commit Labels on Default Branch");
-      const commitQuery = fs.readFileSync(path.join(__dirname, "commit_associated_pr.gql"), "utf8");
-      const branchQuery = fs.readFileSync(path.join(__dirname, "default_branch.gql"), "utf8");
+      const commitQuery = fs.readFileSync(
+        path.join(__dirname, "commit_associated_pr.gql"),
+        "utf8",
+      );
+      const branchQuery = fs.readFileSync(
+        path.join(__dirname, "default_branch.gql"),
+        "utf8",
+      );
 
       const commitRes = await octokit.graphql(commitQuery, {
         owner,
@@ -84,7 +98,8 @@ async function run() {
 
       let labels = [];
       if (refBranch === defaultBranch) {
-        const pr = commitRes.data.repository.object.associatedPullRequests.nodes[0];
+        const pr =
+          commitRes.data.repository.object.associatedPullRequests.nodes[0];
         labels = pr?.labels?.nodes?.map((l) => l.name) || [];
       }
 

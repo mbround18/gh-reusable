@@ -19,8 +19,8 @@ function coerceVariables(query, variables) {
     let varDefs = [];
     for (const definition of ast.definitions) {
       if (
-          definition.kind === "OperationDefinition" &&
-          definition.variableDefinitions
+        definition.kind === "OperationDefinition" &&
+        definition.variableDefinitions
       ) {
         varDefs = definition.variableDefinitions;
         break;
@@ -42,14 +42,16 @@ function coerceVariables(query, variables) {
           case "Boolean":
             newVars[varName] = newVars[varName].toLowerCase() === "true";
             break;
-            // Strings and others are passed as-is
+          // Strings and others are passed as-is
         }
       }
     }
 
     return newVars;
   } catch (err) {
-    core.error(`❌ Failed to parse query for variable coercion: ${err.message}`);
+    core.error(
+      `❌ Failed to parse query for variable coercion: ${err.message}`,
+    );
     return variables;
   }
 }
@@ -79,9 +81,9 @@ async function run() {
     const variables = {};
     if (argsInput) {
       const pairs = argsInput
-          .split(/[\n,]+/)
-          .map((pair) => pair.trim())
-          .filter((pair) => pair);
+        .split(/[\n,]+/)
+        .map((pair) => pair.trim())
+        .filter((pair) => pair);
 
       pairs.forEach((pair) => {
         const [key, value] = pair.split("=").map((s) => s.trim());
@@ -92,7 +94,9 @@ async function run() {
     }
 
     const coercedVariables = coerceVariables(queryInput, variables);
-    core.info(`Coerced Variables: ${JSON.stringify(coercedVariables, null, 2)}`);
+    core.info(
+      `Coerced Variables: ${JSON.stringify(coercedVariables, null, 2)}`,
+    );
     core.endGroup();
 
     // Construct and log payload
