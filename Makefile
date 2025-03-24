@@ -1,4 +1,4 @@
-.PHONY: install lint update
+.PHONY: install lint update readme
 
 install:
 	@echo "🔍 Installing npm dependencies..."
@@ -17,3 +17,11 @@ lint:
 	@npx -y prettier --write .
 	@cargo fmt
 	@cargo clippy --all-targets --all-features -- -D warnings
+
+readme:
+	@cd actions/github-catalog && docker build -t actions/github-catalog .
+	@docker run --rm \
+		--env=INPUT_TOKEN=$(shell echo "$$GITHUB_TOKEN") \
+		--env=GITHUB_REPOSITORY=mbround18/gh-reusable \
+		-v $(shell pwd):/github/workspace \
+		-w /github/workspace actions/github-catalog

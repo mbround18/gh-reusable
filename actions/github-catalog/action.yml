@@ -1,0 +1,12 @@
+name: "GitHub Catalog Generator"
+description: "Generates a GitHub catalog of reusable workflows and actions, and inserts HTML tables into README.md."
+author: "Michael Bruno"
+inputs:
+  token:
+    description: "GitHub token with write access to the repository"
+    required: true
+    default: "${{ github.token }}"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"

@@ -1,4 +1,5 @@
 name: Docker Release Workflow
+
 on:
   workflow_call:
     inputs:
