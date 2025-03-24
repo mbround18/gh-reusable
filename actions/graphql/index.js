@@ -18,7 +18,10 @@ function coerceVariables(query, variables) {
     const ast = parse(query);
     let varDefs = [];
     for (const definition of ast.definitions) {
-      if (definition.kind === "OperationDefinition" && definition.variableDefinitions) {
+      if (
+        definition.kind === "OperationDefinition" &&
+        definition.variableDefinitions
+      ) {
         varDefs = definition.variableDefinitions;
         break;
       }
@@ -62,9 +65,9 @@ async function run() {
     if (argsInput) {
       // Split by comma or newline and filter out any empty strings.
       const pairs = argsInput
-          .split(/[\n,]+/)
-          .map((pair) => pair.trim())
-          .filter((pair) => pair);
+        .split(/[\n,]+/)
+        .map((pair) => pair.trim())
+        .filter((pair) => pair);
       pairs.forEach((pair) => {
         const [key, value] = pair.split("=").map((s) => s.trim());
         if (key && value !== undefined) {

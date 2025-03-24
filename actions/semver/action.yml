@@ -41,6 +41,7 @@ runs:
 
     - name: Get the last tag using GraphQL
       id: get_last_tag
+      if: ${{ inputs.base == '' }}
       uses: mbround18/gh-reusable/actions/graphql@docker-workflow-flex
       with:
         query: "${{ github.action_path }}/get_last_tag.gql"
@@ -53,8 +54,12 @@ runs:
       id: set_last_tag
       shell: bash
       run: |
-        last_tag=$(echo '${{ steps.get_last_tag.outputs.result }}' | jq -r '.data.repository.refs.nodes[0].name')
-        echo "last_tag=$last_tag" >> $GITHUB_ENV
+        if [ -z "${{ inputs.base }}" ]; then
+          last_tag=$(echo '${{ steps.get_last_tag.outputs.result }}' | jq -r '.data.repository.refs.nodes[0].name')
+          echo "last_tag=$last_tag" >> $GITHUB_ENV
+        else
+          echo "last_tag=${{ inputs.base }}" >> $GITHUB_ENV
+        fi
 
     - name: Get PR labels via GraphQL
       id: get_pr_labels
@@ -135,10 +140,19 @@ runs:
           short_sha=${GITHUB_SHA:0:7}
           new_version="${last_tag}-${short_sha}"
         else
-          IFS='.' read -r -a version_parts <<< "$last_tag"
+          # Extract prefix and numeric part
+          prefix=""
+          numeric_tag="$last_tag"
+          if [[ "$last_tag" =~ ^[a-zA-Z]+ ]]; then
+            prefix=$(echo "$last_tag" | grep -o '^[a-zA-Z]*')
+            numeric_tag=${last_tag#$prefix}
+          fi
+
+          IFS='.' read -r -a version_parts <<< "$numeric_tag"
           major=${version_parts[0]}
           minor=${version_parts[1]}
           patch=${version_parts[2]}
+
           case $increment in
             major)
               major=$((major + 1))
@@ -153,10 +167,8 @@ runs:
               patch=$((patch + 1))
               ;;
           esac
-          new_version="$major.$minor.$patch"
-          if [[ "$last_tag" =~ ^[a-zA-Z]+ ]]; then
-            prefix=$(echo "$last_tag" | grep -o '^[a-zA-Z]*')
-            new_version="$prefix$new_version"
-          fi
+
+          new_numeric_version="$major.$minor.$patch"
+          new_version="$prefix$new_numeric_version"
         fi
         echo "new_version=$new_version" >> $GITHUB_OUTPUT
