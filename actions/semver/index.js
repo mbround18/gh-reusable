@@ -9,7 +9,7 @@ async function run() {
     try {
         const token = core.getInput('token') || process.env.GITHUB_TOKEN;
         const base = core.getInput('base');
-        const prefix = core.getInput('prefix') || ''; // new input
+        let prefix = core.getInput('prefix') || ''; // new input
         const incrementInput = core.getInput('increment') || 'patch';
         const majorLabel = core.getInput('major-label') || 'major';
         const minorLabel = core.getInput('minor-label') || 'minor';
@@ -24,9 +24,11 @@ async function run() {
             const getLastTagQuery = fs.readFileSync(path.join(__dirname, 'get_last_tag.gql'), 'utf8');
             const res = await octokit.graphql(getLastTagQuery, { owner, repo });
             const nodes = res?.repository?.refs?.nodes || [];
+            const tags = nodes.map(n => n.name);
+            const hasVPrefix = tags.some(tag => tag.startsWith('v'));
+            if (hasVPrefix) prefix = 'v';
 
-            const matching = nodes
-                .map(n => n.name)
+            const matching = tags
                 .filter(tag => tag.startsWith(prefix))
                 .sort((a, b) => {
                     const va = a.replace(prefix, '');

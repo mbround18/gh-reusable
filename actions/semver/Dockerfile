@@ -1,4 +1,3 @@
-# Use Node 18 (with built-in fetch support) as the base image
 FROM node:22-alpine
 
 # Set the working directory
