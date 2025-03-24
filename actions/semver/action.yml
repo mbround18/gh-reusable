@@ -49,7 +49,7 @@ runs:
       id: get_last_tag
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         if [ -z "${{ inputs.base }}" ]; then
           owner=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
@@ -68,7 +68,7 @@ runs:
       id: determine_increment
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         if [ -z "${{ inputs.increment }}" ]; then
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
