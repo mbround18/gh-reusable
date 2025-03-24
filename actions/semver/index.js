@@ -25,7 +25,7 @@ async function run() {
             const res = await octokit.graphql(getLastTagQuery, { owner, repo });
             const nodes = res?.repository?.refs?.nodes || [];
             const tags = nodes.map(n => n.name);
-            const hasVPrefix = tags.some(tag => tag.startsWith('v'));
+            const hasVPrefix = tags.every(tag => tag.startsWith('v'));
             if (hasVPrefix) prefix = 'v';
 
             const matching = tags
