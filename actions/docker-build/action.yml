@@ -40,7 +40,7 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - uses: mbround18/gh-reusable/actions/docker-facts@docker-workflow-flex
+    - uses: mbround18/gh-reusable/actions/docker-facts@main
       id: facts
       with:
         image: ${{ inputs.image }}
