@@ -65,41 +65,6 @@ jobs:
           asset: "yq_linux_amd64"
           override-name: "yq"
 
-      - name: Get Facts
-        id: facts
-        run: |
-          if [ "${{ inputs.compose }}" == "true" ]; then
-            DOCKERFILE=$(yq eval ".services.* | select(.image | test(\"^${{ inputs.image }}:\")) | .build.dockerfile" docker-compose.yml)
-            CONTEXT=$(yq eval ".services.* | select(.image | test(\"^${{ inputs.image }}:\")) | .build.context" docker-compose.yml)
-            BUILD_ARGS=$(yq eval ".services.* | select(.image | test(\"^${{ inputs.image }}:\")) | .build.args" docker-compose.yml)
-
-            if [ -z "$DOCKERFILE" ] || [ -z "$CONTEXT" ]; then
-              echo "Error: Dockerfile or context not found in docker-compose.yml for image ${{ inputs.image }}" >&2
-              exit 1
-            fi
-            
-            echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
-            echo "context=$CONTEXT" >> $GITHUB_OUTPUT
-            
-            for arg in $(echo "$BUILD_ARGS" | jq -r 'keys[]'); do
-              value=$(echo "$BUILD_ARGS" | jq -r --arg key "$arg" '.[$key]')
-              echo "BUILD_ARG_${arg}=${value}" >> $GITHUB_ENV
-            done
-          else
-            echo "dockerfile=${{ inputs.dockerfile }}" >> $GITHUB_OUTPUT
-            echo "context=${{ inputs.context }}" >> $GITHUB_OUTPUT
-          fi
-          
-          if [ "${{ github.event_name }}" == "pull_request" ] && contains(github.event.pull_request.labels.*.name, inputs.canary_label); then
-            echo "push=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.ref }}" == "refs/heads/${{ github.repository.default_branch }}" ]; then
-            echo "push=true" >> $GITHUB_OUTPUT
-          elif startsWith(github.ref, "refs/tags/"); then
-            echo "push=true" >> $GITHUB_OUTPUT
-          else
-            echo "push=false" >> $GITHUB_OUTPUT   
-          fi
-
       - id: semver
         uses: mbround18/gh-reusable/actions/semver@docker-workflow-flex
 
@@ -138,14 +103,9 @@ jobs:
           BUILD_ARG_GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}
         with:
           image: ${{ inputs.image }}
-          dockerfile_path: ${{ steps.facts.outputs.dockerfile }}
-          context: ${{ steps.facts.outputs.context }}
+          dockerfile_path: ${{ inputs.dockerfile }}
+          context: ${{ inputs.context }}
           version: ${{ steps.semver.outputs.new_version }}
-          push: "${{ steps.facts.outputs.push }}"
+          canary_label: ${{ inputs.canary_label }}
           platforms: "linux/amd64,linux/arm64"
           registries: ${{ steps.registries.outputs.list }}
-
-      - name: Output image information
-        run: |
-          echo "Exported Image:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`\n${{ steps.meta.outputs.tags }}\n\`\`\`" >> $GITHUB_STEP_SUMMARY

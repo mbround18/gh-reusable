@@ -1,0 +1,26 @@
+name: "Docker Facts"
+description: "Extracts dockerfile, context, and build args from docker-compose.yml"
+author: "Michael Bruno"
+inputs:
+  image:
+    description: "Base image name (e.g., mbround18/steamcmd)"
+    required: true
+  dockerfile:
+    description: "Default Dockerfile path if not found in compose"
+    required: false
+  context:
+    description: "Default context path if not found in compose"
+    required: false
+  canary_label:
+    description: "Label to trigger canary pushes"
+    required: false
+outputs:
+  dockerfile:
+    description: "Resolved Dockerfile path"
+  context:
+    description: "Resolved context path"
+  push:
+    description: "Whether to push the image"
+runs:
+  using: "docker"
+  image: "Dockerfile"

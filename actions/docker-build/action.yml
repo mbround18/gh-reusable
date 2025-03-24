@@ -10,7 +10,7 @@ inputs:
     description: "Comma separated list of registries to re-tag the image with"
     required: false
     default: ""
-  dockerfile_path:
+  dockerfile:
     description: "Path to the Dockerfile relative to the context"
     required: true
     default: "./Dockerfile"
@@ -26,6 +26,9 @@ inputs:
     description: "Whether to push the image"
     required: false
     default: "false"
+  canary_label:
+    description: "Label to trigger canary pushes"
+    required: false
   platforms:
     description: "Comma separated list of target platforms (e.g., linux/amd64,linux/arm64)"
     required: false
@@ -36,6 +39,14 @@ runs:
   steps:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+
+    - uses: mbround18/gh-reusable/actions/docker-facts@docker-workflow-flex
+      id: facts
+      with:
+        image: ${{ inputs.image }}
+        dockerfile: ${{ inputs.dockerfile }}
+        context: ${{ inputs.context }}
+        canary_label: ${{ inputs.canary_label }}
 
     - name: Extract Build Args and Secrets
       id: build-args

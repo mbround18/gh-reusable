@@ -1,0 +1,15 @@
+{
+  "name": "docker-facts",
+  "version": "1.0.0",
+  "description": "Extract docker build facts from docker-compose.yml",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "node index.js"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0",
+    "js-yaml": "^4.1.0"
+  }
+}

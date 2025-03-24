@@ -29,8 +29,6 @@ jobs:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
 
-
-
   call_docker_release_compose_1:
     name: Call Docker Release Workflow (Compose)
     uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@docker-workflow-flex
@@ -52,4 +50,3 @@ jobs:
     secrets:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-
