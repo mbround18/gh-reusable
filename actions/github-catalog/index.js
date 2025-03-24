@@ -115,7 +115,7 @@ async function run() {
       actions,
       version: latestVersion,
       owner,
-      repo
+      repo,
     });
 
     const readmePath = "./README.md";

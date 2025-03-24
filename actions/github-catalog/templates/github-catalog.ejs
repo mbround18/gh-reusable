@@ -12,13 +12,21 @@
       <td><%= wf.description %></td>
       <td><%= wf.workflow %></td>
       <td>
-        <pre><code><%= wf.usage.replace('<OWNER>', owner).replace('<REPO>', repo).replace('<FILE>', wf.name).replace('<VERSION>', version) %></code></pre>
-        <% if (wf.required.length > 0) { %>
-          <strong>Required Inputs:</strong> <%= wf.required.join(', ') %><br>
-        <% } %>
-        <% if (wf.optional.length > 0) { %>
-          <strong>Optional Inputs:</strong> <%= wf.optional.join(', ') %>
-        <% } %>
+        <pre><code>
+uses: <%= owner %>/<%= repo %>/.github/workflows/<%= wf.name %>@<%= version %>
+            <% if (wf.required.length > 0) { %>
+              <strong>Required Inputs:</strong>
+              <% wf.required.forEach(input => { %>
+                - <%= input %>
+              <% }) %>
+            <% } %>
+            <% if (wf.optional.length > 0) { %>
+              <strong>Optional Inputs:</strong>
+              <% wf.optional.forEach(input => { %>
+                - <%= input %>
+              <% }) %>
+            <% } %>
+          </code></pre>
       </td>
     </tr>
   <% }) %>
@@ -36,13 +44,21 @@
       <td><%= a.name %></td>
       <td><%= a.description %></td>
       <td>
-        <pre><code><%= a.usage.replace('<NAME>', a.name) %></code></pre>
-        <% if (a.required.length > 0) { %>
-          <strong>Required Inputs:</strong> <%= a.required.join(', ') %><br>
-        <% } %>
-        <% if (a.optional.length > 0) { %>
-          <strong>Optional Inputs:</strong> <%= a.optional.join(', ') %>
-        <% } %>
+        <pre><code>
+uses: ./actions/<%= a.name %>
+            <% if (a.required.length > 0) { %>
+              <strong>Required Inputs:</strong>
+              <% a.required.forEach(input => { %>
+                - <%= input %>
+              <% }) %>
+            <% } %>
+            <% if (a.optional.length > 0) { %>
+              <strong>Optional Inputs:</strong>
+              <% a.optional.forEach(input => { %>
+                - <%= input %>
+              <% }) %>
+            <% } %>
+          </code></pre>
       </td>
     </tr>
   <% }) %>
