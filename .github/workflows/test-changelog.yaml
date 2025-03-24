@@ -1,0 +1,34 @@
+name: "Test | Changelog Action"
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  call_changelog_action:
+    name: Call Changelog Action
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Call Changelog Action
+        uses: ./actions/changelog
+        with:
+          path: "CHANGELOG.md"
+          write: false
+          version: "v1.0.0"
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify Changelog
+        run: |
+          if ! grep -q "## v1.0.0" CHANGELOG.md; then
+            echo "Changelog verification failed!"
+            exit 1
+          fi

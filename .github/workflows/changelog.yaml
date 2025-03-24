@@ -1,0 +1,25 @@
+name: Generate Changelog
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          ref: main
+          fetch-depth: 0
+    
+      - name: Generate Changelog
+        uses: ./actions/changelog
+        with:
+          path: "CHANGELOG.md"
+          write: true
+          version: "${{ github.ref_name	}}"
+          token: ${{ secrets.GITHUB_TOKEN }}
