@@ -89,6 +89,16 @@ jobs:
             echo "dockerfile=${{ inputs.dockerfile }}" >> $GITHUB_OUTPUT
             echo "context=${{ inputs.context }}" >> $GITHUB_OUTPUT
           fi
+          
+          if [ "${{ github.event_name }}" == "pull_request" ] && contains(github.event.pull_request.labels.*.name, inputs.canary_label); then
+            echo "push=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/${{ github.repository.default_branch }}" ]; then
+            echo "push=true" >> $GITHUB_OUTPUT
+          elif startsWith(github.ref, "refs/tags/"); then
+            echo "push=true" >> $GITHUB_OUTPUT
+          else
+            echo "push=false" >> $GITHUB_OUTPUT   
+          fi
 
       - id: semver
         uses: mbround18/gh-reusable/actions/semver@docker-workflow-flex
@@ -128,10 +138,10 @@ jobs:
           BUILD_ARG_GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}
         with:
           image: ${{ inputs.image }}
-          dockerfile_path: ${{ inputs.dockerfile }}
-          context: ${{ inputs.context }}
+          dockerfile_path: ${{ steps.facts.outputs.dockerfile }}
+          context: ${{ steps.facts.outputs.context }}
           version: ${{ steps.semver.outputs.new_version }}
-          push: "true"
+          push: "${{ steps.facts.outputs.push }}"
           platforms: "linux/amd64,linux/arm64"
           registries: ${{ steps.registries.outputs.list }}
 
