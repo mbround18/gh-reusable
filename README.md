@@ -10,15 +10,88 @@ Welcome to the **GH Reusable** repository! This repository contains a collection
 > **Note**: Any workflow prefixed with `test-` is intended for internal testing purposes and should **not** be used outside this repository.
 
 <!-- GENERATED:GITHUB-CATALOG:START -->
+<h3>Reusable Workflows</h3>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Workflow Name</th>
+        <th>Usage</th>
+    </tr>
+        <tr>
+        <td>rust-build-n-test.yml</td>
+        <td></td>
+        <td>Rust Build and Test</td>
+        <td>
+            <pre><code>uses: mbround18/gh-reusable/.github/workflows/rust-build-n-test.yml@v0.0.1</code></pre><strong>Optional Inputs:</strong><ul><li><code>toolchain</code></li><li><code>components</code></li><li><code>target</code></li></ul>
+        </td>
+    </tr>
+    </table>
 
-| Action Name                  | Description                                                                                                                         | Link                                  |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| Docker Release Workflow      | Automates the process of building and releasing Docker images.                                                                      | [Link](#docker-release-workflow)      |
-| Rust Build and Test Workflow | Automates the process of building and testing Rust projects.                                                                        | [Link](#rust-build-and-test-workflow) |
-| Ensure Repository Action     | Ensures that the repository the action or workflow is running on is a known element.                                                | [Link](#ensure-repository-action)     |
-| Install CLI Action           | Downloads and installs a CLI from a GitHub release into the `${GITHUB_ACTION_PATH}/bin` directory.                                  | [Link](#install-cli-action)           |
-| Semver Action                | Increments the base or last tag by the increment or version.                                                                        | [Link](#semver-action)                |
-| Setup Rust Action            | Sets up a Rust toolchain, installs additional components and targets, caches Cargo dependencies, and installs specified CLI crates. | [Link](#setup-rust-action)            |
+<h3>Reusable Actions</h3>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Usage</th>
+    </tr>
+        <tr>
+        <td>setup-rust</td>
+        <td>Sets up Rust toolchains, components, and additional CLI tools as needed.</td>
+        <td>
+            <pre><code>uses: ./actions/setup-rust</code></pre><strong>Required Inputs:</strong><ul><li><code>crates</code></li></ul><strong>Optional Inputs:</strong><ul><li><code>toolchain</code></li><li><code>components</code></li><li><code>target</code></li></ul>
+        </td>
+    </tr>
+        <tr>
+        <td>semver</td>
+        <td>Increments the base or last tag by the increment or version, supports custom prefixes like chart-name-1.2.3.</td>
+        <td>
+            <pre><code>uses: ./actions/semver</code></pre><strong>Optional Inputs:</strong><ul><li><code>token</code></li><li><code>base</code></li><li><code>prefix</code></li><li><code>increment</code></li><li><code>major-label</code></li><li><code>minor-label</code></li><li><code>patch-label</code></li></ul>
+        </td>
+    </tr>
+        <tr>
+        <td>install-cli</td>
+        <td>Download and install a CLI from a GitHub release into GITHUB_ACTION_PATH/bin.</td>
+        <td>
+            <pre><code>uses: ./actions/install-cli</code></pre><strong>Required Inputs:</strong><ul><li><code>repository</code></li><li><code>asset</code></li></ul><strong>Optional Inputs:</strong><ul><li><code>version</code></li><li><code>override-name</code></li><li><code>github-token</code></li></ul>
+        </td>
+    </tr>
+        <tr>
+        <td>graphql</td>
+        <td>Executes a GraphQL query or mutation using provided inputs</td>
+        <td>
+            <pre><code>uses: ./actions/graphql</code></pre><strong>Required Inputs:</strong><ul><li><code>query</code></li><li><code>token</code></li></ul><strong>Optional Inputs:</strong><ul><li><code>args</code></li><li><code>url</code></li></ul>
+        </td>
+    </tr>
+        <tr>
+        <td>github-catalog</td>
+        <td>Generates a GitHub catalog of reusable workflows and actions, and inserts HTML tables into README.md.</td>
+        <td>
+            <pre><code>uses: ./actions/github-catalog</code></pre><strong>Required Inputs:</strong><ul><li><code>token</code></li></ul>
+        </td>
+    </tr>
+        <tr>
+        <td>ensure-repository</td>
+        <td>Ensures the repository that the action or workflow is running on is a known element.</td>
+        <td>
+            <pre><code>uses: ./actions/ensure-repository</code></pre><strong>Required Inputs:</strong><ul><li><code>repository</code></li></ul>
+        </td>
+    </tr>
+        <tr>
+        <td>docker-facts</td>
+        <td>Extracts dockerfile, context, and build args from docker-compose.yml</td>
+        <td>
+            <pre><code>uses: ./actions/docker-facts</code></pre><strong>Required Inputs:</strong><ul><li><code>image</code></li></ul><strong>Optional Inputs:</strong><ul><li><code>dockerfile</code></li><li><code>context</code></li><li><code>canary_label</code></li></ul>
+        </td>
+    </tr>
+        <tr>
+        <td>docker-build</td>
+        <td>Build Docker images with build arguments, secrets, and multi-platform support</td>
+        <td>
+            <pre><code>uses: ./actions/docker-build</code></pre><strong>Required Inputs:</strong><ul><li><code>image</code></li><li><code>dockerfile</code></li><li><code>context</code></li><li><code>version</code></li></ul><strong>Optional Inputs:</strong><ul><li><code>registries</code></li><li><code>push</code></li><li><code>canary_label</code></li><li><code>platforms</code></li></ul>
+        </td>
+    </tr>
+    </table>
 
 <!-- GENERATED:GITHUB-CATALOG:STOP -->
 

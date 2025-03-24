@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Extract docker build facts from docker-compose.yml",
   "main": "index.js",
+  "scripts": {
+    "action": "node index.js"
+  },
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.0",
