@@ -1,7 +1,7 @@
 {
-  "name": "semver-action",
+  "name": "github-catalog-action",
   "version": "1.0.0",
-  "description": "GitHub Action to increment semver based on tags, labels, and custom prefixes",
+  "description": "GitHub Action to generate a catalog of all actions in a repository",
   "main": "index.js",
   "author": "mbround18",
   "license": "MIT",

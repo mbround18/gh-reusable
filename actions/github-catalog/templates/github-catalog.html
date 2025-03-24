@@ -1,0 +1,33 @@
+<h3>Reusable Workflows</h3>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Workflow Name</th>
+        <th>Usage</th>
+    </tr>
+    {% for wf in workflows %}
+    <tr>
+        <td>{{ wf.name }}</td>
+        <td>{{ wf.description }}</td>
+        <td>{{ wf.workflow }}</td>
+        <td><pre><code>{{ wf.usage }}</code></pre></td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h3>Reusable Actions</h3>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Usage</th>
+    </tr>
+    {% for a in actions %}
+    <tr>
+        <td>{{ a.name }}</td>
+        <td>{{ a.description }}</td>
+        <td><pre><code>{{ a.usage }}</code></pre></td>
+    </tr>
+    {% endfor %}
+</table>

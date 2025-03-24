@@ -9,7 +9,7 @@ Welcome to the **GH Reusable** repository! This repository contains a collection
 
 > **Note**: Any workflow prefixed with `test-` is intended for internal testing purposes and should **not** be used outside this repository.
 
-## Catalog
+<!-- GENERATED:GITHUB-CATALOG:START -->
 
 | Action Name                  | Description                                                                                                                         | Link                                  |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
@@ -19,6 +19,8 @@ Welcome to the **GH Reusable** repository! This repository contains a collection
 | Install CLI Action           | Downloads and installs a CLI from a GitHub release into the `${GITHUB_ACTION_PATH}/bin` directory.                                  | [Link](#install-cli-action)           |
 | Semver Action                | Increments the base or last tag by the increment or version.                                                                        | [Link](#semver-action)                |
 | Setup Rust Action            | Sets up a Rust toolchain, installs additional components and targets, caches Cargo dependencies, and installs specified CLI crates. | [Link](#setup-rust-action)            |
+
+<!-- GENERATED:GITHUB-CATALOG:STOP -->
 
 ## Getting Started
 
