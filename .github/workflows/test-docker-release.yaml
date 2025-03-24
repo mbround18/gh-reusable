@@ -24,7 +24,7 @@ jobs:
     with:
       image: "mbround18/gh-reusable-testing" # Specify the test image name here
       ghcr: true
-      working-directory: "test/docker"
+      working-directory: "tests/docker"
     secrets:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
@@ -36,6 +36,7 @@ jobs:
       image: "mbround18/gh-reusable-testing-compose" # Specify the test image name here
       ghcr: true
       compose: true
+      working-directory: "tests/docker-compose"
     secrets:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
@@ -47,7 +48,7 @@ jobs:
       image: "mbround18/gh-reusable-testing-compose2" # Specify the test image name here
       ghcr: true
       compose: true
-      working-directory: "test/docker-compose"
+      working-directory: "tests/docker-compose"
     secrets:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
