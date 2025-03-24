@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Execute GraphQL Query
-        uses: mbround18/gh-reusable/actions/graphql@docker-workflow-flex
+        uses: mbround18/gh-reusable/actions/graphql@main
         with:
           query: |
             query($owner: String!, $repo: String!) {
@@ -53,7 +53,7 @@ jobs:
     steps:
       - name: Execute GraphQL Query
         id: graphql
-        uses: mbround18/gh-reusable/actions/graphql@docker-workflow-flex
+        uses: mbround18/gh-reusable/actions/graphql@main
         with:
           query: |
             query($owner: String!, $repo: String!) {

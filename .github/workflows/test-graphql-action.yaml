@@ -18,7 +18,7 @@ jobs:
 
       - name: Query Default Branch
         id: query
-        uses: mbround18/gh-reusable/actions/graphql@docker-workflow-flex
+        uses: mbround18/gh-reusable/actions/graphql@main
         with:
           query: |
             query($owner: String!, $repo: String!) {
