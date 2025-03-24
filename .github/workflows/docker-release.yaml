@@ -7,6 +7,11 @@ on:
         required: true
         default: "mbround18/example"
         description: "Image Name"
+      compose:
+        type: boolean
+        required: false
+        default: false
+        description: "Want us to pull information from a docker-compose file?"
       context:
         type: string
         required: false
@@ -54,6 +59,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: mbround18/gh-reusable/actions/install-cli@v0.0.5
+        with:
+          repository: "mikefarah/yq"
+          asset: "yq_linux_amd64"
+          override-name: "yq"
+
+      - name: Get Facts
+        id: facts
+        run: |
+          if [ "${{ inputs.compose }}" == "true" ]; then
+            DOCKERFILE=$(yq r docker-compose.yml 'services.* | select(.image | contains("${{ inputs.image }}:")) | .build.dockerfile')
+            CONTEXT=$(yq r docker-compose.yml 'services.* | select(.image | contains("${{ inputs.image }}:")) | .build.context')
+            BUILD_ARGS=$(yq r docker-compose.yml 'services.* | select(.image | contains("${{ inputs.image }}:")) | .build.args')
+            
+            if [ -z "$DOCKERFILE" ] || [ -z "$CONTEXT" ]; then
+              echo "Error: Dockerfile or context not found in docker-compose.yml for image ${{ inputs.image }}" >&2
+              exit 1
+            fi
+            
+            echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
+            echo "context=$CONTEXT" >> $GITHUB_OUTPUT
+            
+            for arg in $(echo "$BUILD_ARGS" | jq -r 'keys[]'); do
+              value=$(echo "$BUILD_ARGS" | jq -r --arg key "$arg" '.[$key]')
+              echo "BUILD_ARG_${arg}=${value}" >> $GITHUB_ENV
+            done
+          else
+            echo "dockerfile=${{ inputs.dockerfile }}" >> $GITHUB_OUTPUT
+            echo "context=${{ inputs.context }}" >> $GITHUB_OUTPUT
+          fi
+
       - id: semver
         uses: mbround18/gh-reusable/actions/semver@docker-workflow-flex
 
@@ -78,13 +114,10 @@ jobs:
         id: registries
         run: |
           IMAGES=("docker.io")
-
           if [ "${{ inputs.ghcr }}" == "true" ]; then
-              IMAGES+=("ghcr.io")
+          IMAGES+=("ghcr.io")
           fi
-
           IMAGES_STR=$(IFS=,; echo "${IMAGES[*]}")
-
           echo "list=$IMAGES_STR" >> $GITHUB_OUTPUT
 
       - name: Build and Push Docker Image
@@ -94,7 +127,7 @@ jobs:
           BUILD_ARG_GITHUB_REF: ${GITHUB_REF}
           BUILD_ARG_GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}
         with:
-          image: ${{ steps.meta.outputs.tags }}
+          image: ${{ inputs.image }}
           dockerfile_path: ${{ inputs.dockerfile }}
           context: ${{ inputs.context }}
           version: ${{ steps.semver.outputs.new_version }}
