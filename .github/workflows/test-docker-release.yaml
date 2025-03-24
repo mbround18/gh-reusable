@@ -32,10 +32,7 @@ jobs:
 
   call_docker_release_compose:
     name: Call Docker Release Workflow (Compose)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: tests/docker-compose
+    uses: ./.github/workflows/docker-release.yaml
     with:
       ghcr: true
       compose: true
