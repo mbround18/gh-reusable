@@ -73,7 +73,7 @@ jobs:
           echo "Working Directory: ${{ inputs.working-directory }}"
           echo "Dockerfile: ${{ inputs.dockerfile }}"
 
-      - uses: mbround18/gh-reusable/actions/install-cli@v0.0.5
+      - uses: mbround18/gh-reusable/actions/install-cli@docker-workflow-flex
         with:
           repository: "mikefarah/yq"
           asset: "yq_linux_amd64"
@@ -118,7 +118,7 @@ jobs:
         with:
           image: ${{ inputs.image }}
           dockerfile: ${{ inputs.dockerfile }}
-          context: ${{ inputs.context }}
+          context: ${{ inputs.working-directory }}/${{ inputs.context }}
           version: ${{ steps.semver.outputs.new_version }}
           canary_label: ${{ inputs.canary_label }}
           platforms: "linux/amd64,linux/arm64"
