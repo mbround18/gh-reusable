@@ -19,5 +19,5 @@ outputs:
   result:
     description: "The JSON response from the GraphQL API"
 runs:
-  using: "node20"
-  main: "index.js"
+  using: "docker"
+  image: "Dockerfile"
