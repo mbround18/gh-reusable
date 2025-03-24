@@ -180,3 +180,12 @@ runs:
           new_version="$prefix$new_numeric_version"
         fi
         echo "new_version=$new_version" >> $GITHUB_OUTPUT
+
+    - name: validate
+      shell: bash
+      run: |
+        echo "new_version: ${{ steps.increment_version.outputs.new_version }}"
+        if [[ ! "${{ steps.increment_version.outputs.new_version }}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+          echo "::error::Invalid version format: ${{ steps.increment_version.outputs.new_version }}"
+          exit 1
+        fi

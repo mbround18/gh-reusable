@@ -13,31 +13,40 @@ async function run() {
     let dockerfile = fallbackDockerfile;
     let context = fallbackContext;
 
-    try {
-      const file = fs.readFileSync("docker-compose.yml", "utf8");
-      const doc = yaml.load(file);
-      const services = doc.services || {};
+    const composeFilenames = ["docker-compose.yml", "docker-compose.yaml"];
+    const composePath = composeFilenames.find((file) => fs.existsSync(file));
 
-      const match = Object.values(services).find(
-        (svc) =>
-          typeof svc.image === "string" && svc.image.startsWith(`${image}:`),
-      );
+    if (composePath) {
+      try {
+        const file = fs.readFileSync(composePath, "utf8");
+        const doc = yaml.load(file);
+        const services = doc.services || {};
 
-      if (match && match.build?.dockerfile && match.build?.context) {
-        dockerfile = match.build.dockerfile;
-        context = match.build.context;
-
-        const args = match.build.args || {};
-        for (const [key, value] of Object.entries(args)) {
-          core.exportVariable(`BUILD_ARG_${key}`, value);
-        }
-      } else {
-        core.info(
-          `No matching service found in docker-compose.yml for image ${image}: — falling back`,
+        const match = Object.values(services).find(
+          (svc) =>
+            typeof svc.image === "string" && svc.image.startsWith(`${image}:`),
         );
+
+        if (match && match.build?.dockerfile && match.build?.context) {
+          dockerfile = match.build.dockerfile;
+          context = match.build.context;
+
+          const args = match.build.args || {};
+          for (const [key, value] of Object.entries(args)) {
+            core.exportVariable(`BUILD_ARG_${key}`, value);
+          }
+        } else {
+          core.info(
+            `No matching service found in ${composePath} for image ${image}: — falling back`,
+          );
+        }
+      } catch (err) {
+        core.warning(`Failed to parse ${composePath} — using fallbacks`);
       }
-    } catch (e) {
-      core.info(`No docker-compose.yml found — falling back`);
+    } else {
+      core.info(
+        "No docker-compose.yml or docker-compose.yaml found — falling back",
+      );
     }
 
     core.setOutput("dockerfile", dockerfile);
