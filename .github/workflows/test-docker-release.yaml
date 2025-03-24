@@ -23,8 +23,8 @@ jobs:
     uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@docker-workflow-flex
     with:
       image: "mbround18/gh-reusable-testing" # Specify the test image name here
-      dockerfile: "tests/docker/Dockerfile" # Path to the seeded Dockerfile
       ghcr: true
+      working-directory: "test/docker"
     secrets:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
@@ -47,6 +47,7 @@ jobs:
       image: "mbround18/gh-reusable-testing-compose2" # Specify the test image name here
       ghcr: true
       compose: true
+      working-directory: "test/docker-compose"
     secrets:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}

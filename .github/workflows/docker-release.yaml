@@ -37,6 +37,10 @@ on:
         type: string
         default: "mbround18"
         description: Who to log into dockerhub as.
+      working-directory:
+        type: string
+        default: "."
+        description: "Working directory for the action"
     secrets:
       DOCKER_TOKEN:
         required: true
@@ -53,6 +57,9 @@ jobs:
       Docker Release for ${{ inputs.image }} @
       ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.image }}-${{ github.event_name }}
       cancel-in-progress: true
@@ -103,7 +110,7 @@ jobs:
           BUILD_ARG_GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}
         with:
           image: ${{ inputs.image }}
-          dockerfile_path: ${{ inputs.dockerfile }}
+          dockerfile: ${{ inputs.dockerfile }}
           context: ${{ inputs.context }}
           version: ${{ steps.semver.outputs.new_version }}
           canary_label: ${{ inputs.canary_label }}
