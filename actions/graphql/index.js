@@ -1,5 +1,49 @@
 const core = require("@actions/core");
 const fs = require("fs");
+const { parse } = require("graphql");
+
+// Helper to unwrap the named type from any NonNullType or ListType wrappers
+function getNamedType(typeNode) {
+  if (typeNode.kind === "NamedType") {
+    return typeNode.name.value;
+  } else if (typeNode.kind === "NonNullType" || typeNode.kind === "ListType") {
+    return getNamedType(typeNode.type);
+  }
+  return null;
+}
+
+// Coerce variables based on the variable definitions in the query AST
+function coerceVariables(query, variables) {
+  try {
+    const ast = parse(query);
+    let varDefs = [];
+    for (const definition of ast.definitions) {
+      if (definition.kind === "OperationDefinition" && definition.variableDefinitions) {
+        varDefs = definition.variableDefinitions;
+        break;
+      }
+    }
+    const newVars = { ...variables };
+    for (const varDef of varDefs) {
+      const varName = varDef.variable.name.value;
+      const typeName = getNamedType(varDef.type);
+      if (newVars[varName] !== undefined) {
+        if (typeName === "Int") {
+          newVars[varName] = parseInt(newVars[varName], 10);
+        } else if (typeName === "Float") {
+          newVars[varName] = parseFloat(newVars[varName]);
+        } else if (typeName === "Boolean") {
+          newVars[varName] = newVars[varName].toLowerCase() === "true";
+        }
+        // For String or other types, no casting is done
+      }
+    }
+    return newVars;
+  } catch (err) {
+    core.error("Failed to parse query for variable coercion: " + err.message);
+    return variables;
+  }
+}
 
 async function run() {
   try {
@@ -18,9 +62,9 @@ async function run() {
     if (argsInput) {
       // Split by comma or newline and filter out any empty strings.
       const pairs = argsInput
-        .split(/[\n,]+/)
-        .map((pair) => pair.trim())
-        .filter((pair) => pair);
+          .split(/[\n,]+/)
+          .map((pair) => pair.trim())
+          .filter((pair) => pair);
       pairs.forEach((pair) => {
         const [key, value] = pair.split("=").map((s) => s.trim());
         if (key && value !== undefined) {
@@ -29,9 +73,12 @@ async function run() {
       });
     }
 
+    // Coerce variables using the query's variable definitions
+    const coercedVariables = coerceVariables(queryInput, variables);
+
     const payload = {
       query: queryInput,
-      variables: variables,
+      variables: coercedVariables,
     };
 
     // Use the built-in fetch API (available in Node 18+)
