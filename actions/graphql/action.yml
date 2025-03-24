@@ -1,0 +1,23 @@
+name: "GraphQL Action"
+description: "Executes a GraphQL query or mutation using provided inputs"
+inputs:
+  query:
+    description: "Inline GraphQL query/mutation or a path to a file containing the query"
+    required: true
+  args:
+    description: "Comma or newline separated key=value pairs for query variables"
+    required: false
+    default: ""
+  token:
+    description: "GitHub token for authenticating the API call"
+    required: true
+  url:
+    description: "GraphQL endpoint URL; defaults to GitHub GraphQL API"
+    required: false
+    default: "https://api.github.com/graphql"
+outputs:
+  result:
+    description: "The JSON response from the GraphQL API"
+runs:
+  using: "node20"
+  main: "index.js"
