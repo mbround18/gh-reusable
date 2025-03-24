@@ -120,6 +120,3 @@ runs:
         echo "- Dockerfile: \`${{ inputs.dockerfile_path }}\`" >> $GITHUB_STEP_SUMMARY
         echo "- Context: \`${{ inputs.context }}\`" >> $GITHUB_STEP_SUMMARY
         echo "- Platforms: \`${{ inputs.platforms }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "- Build Action Outputs:" >> $GITHUB_STEP_SUMMARY
-        echo "  - Image ID: \`${{ steps.docker-push.outputs.imageid }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "  - Digest: \`${{ steps.docker-push.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
