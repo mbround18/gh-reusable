@@ -1,7 +1,53 @@
 const core = require("@actions/core");
 const github = require("@actions/github");
 const fs = require("fs");
+const path = require("path");
 const yaml = require("js-yaml");
+
+function findComposeFile(dirs) {
+  const filenames = ["docker-compose.yml", "docker-compose.yaml"];
+  for (const dir of dirs) {
+    for (const file of filenames) {
+      const fullPath = path.join(dir, file);
+      if (fs.existsSync(fullPath)) {
+        core.info(`Found compose file: ${fullPath}`);
+        return fullPath;
+      }
+    }
+  }
+  return null;
+}
+
+function parseCompose(composePath, image) {
+  try {
+    const content = fs.readFileSync(composePath, "utf8");
+    const doc = yaml.load(content);
+    const services = doc.services || {};
+    core.info(`Services found: ${Object.keys(services).join(", ")}`);
+
+    const match = Object.values(services).find(
+      (svc) =>
+        typeof svc.image === "string" && svc.image.startsWith(`${image}:`),
+    );
+
+    if (match && match.build?.dockerfile && match.build?.context) {
+      core.info(`Matched service for image ${image}`);
+      return {
+        dockerfile: match.build.dockerfile,
+        context: match.build.context,
+        args: match.build.args || {},
+      };
+    }
+
+    core.info(`No matching service found for image ${image}`);
+  } catch (err) {
+    core.warning(
+      `Failed to parse compose file at ${composePath}: ${err.message}`,
+    );
+  }
+
+  return null;
+}
 
 async function run() {
   try {
@@ -10,53 +56,47 @@ async function run() {
     const fallbackContext = core.getInput("context") || ".";
     const canaryLabel = core.getInput("canary_label") || "canary";
 
+    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+    const resolvedContext = path.resolve(fallbackContext);
+
+    core.info(
+      `Inputs: image=${image}, dockerfile=${fallbackDockerfile}, context=${resolvedContext}`,
+    );
+    core.info(`Workspace: ${workspace}`);
+
     let dockerfile = fallbackDockerfile;
     let context = fallbackContext;
 
-    const composeFilenames = ["docker-compose.yml", "docker-compose.yaml"];
-    const composePath = composeFilenames.find((file) => fs.existsSync(file));
+    const searchDirs = [resolvedContext];
+    if (resolvedContext !== workspace) searchDirs.push(workspace);
+
+    const composePath = findComposeFile(searchDirs);
 
     if (composePath) {
-      try {
-        const file = fs.readFileSync(composePath, "utf8");
-        const doc = yaml.load(file);
-        const services = doc.services || {};
+      const composeDir = path.dirname(composePath);
+      process.chdir(composeDir);
+      core.info(`Changed working directory to: ${composeDir}`);
 
-        const match = Object.values(services).find(
-          (svc) =>
-            typeof svc.image === "string" && svc.image.startsWith(`${image}:`),
-        );
+      const result = parseCompose(composePath, image);
+      if (result) {
+        dockerfile = result.dockerfile;
+        context = result.context;
 
-        if (match && match.build?.dockerfile && match.build?.context) {
-          dockerfile = match.build.dockerfile;
-          context = match.build.context;
-
-          const args = match.build.args || {};
-          for (const [key, value] of Object.entries(args)) {
-            core.exportVariable(`BUILD_ARG_${key}`, value);
-          }
-        } else {
-          core.info(
-            `No matching service found in ${composePath} for image ${image}: — falling back`,
-          );
+        for (const [key, value] of Object.entries(result.args)) {
+          core.exportVariable(`BUILD_ARG_${key}`, value);
+          core.info(`Exported build arg: BUILD_ARG_${key}=${value}`);
         }
-      } catch (err) {
-        core.warning(`Failed to parse ${composePath} — using fallbacks`);
       }
     } else {
-      core.info(
-        "No docker-compose.yml or docker-compose.yaml found — falling back",
-      );
+      core.info("No docker-compose file found — using fallback values");
     }
 
     core.setOutput("dockerfile", dockerfile);
     core.setOutput("context", context);
 
-    const eventName = github.context.eventName;
-    const ref = github.context.ref;
-    const labels = github.context.payload.pull_request?.labels || [];
-    const defaultBranch =
-      github.context.payload.repository?.default_branch || "main";
+    const { eventName, ref, payload } = github.context;
+    const labels = payload.pull_request?.labels || [];
+    const defaultBranch = payload.repository?.default_branch || "main";
 
     const isCanary = labels.some((label) => label.name === canaryLabel);
     const isDefaultBranch = ref === `refs/heads/${defaultBranch}`;
@@ -65,9 +105,12 @@ async function run() {
     const shouldPush =
       (eventName === "pull_request" && isCanary) || isDefaultBranch || isTag;
 
+    core.info(
+      `Decision: isCanary=${isCanary}, isDefaultBranch=${isDefaultBranch}, isTag=${isTag}`,
+    );
     core.setOutput("push", shouldPush ? "true" : "false");
   } catch (error) {
-    core.setFailed(error.message);
+    core.setFailed(`Action failed: ${error.message}`);
   }
 }
 
