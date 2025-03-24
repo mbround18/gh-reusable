@@ -32,20 +32,15 @@ runs:
 
     - name: Setup Directories
       shell: bash
+      id: dirs
       run: |
         BIN_DIR="${GITHUB_ACTION_PATH}/bin"
         STAGING_DIR="${GITHUB_ACTION_PATH}/staging"    
         mkdir -p "$BIN_DIR" "$STAGING_DIR"
-        echo "BIN_DIR=$BIN_DIR" >> $GITHUB_ENV
-        echo "STAGING_DIR=$STAGING_DIR" >> $GITHUB_ENV
-
-    - name: Cache CLI Binary
-      id: cache-cli
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.BIN_DIR }}
-        key: cli-${{ inputs.repository }}-${{ inputs.version }}
-        restore-keys: cli-${{ inputs.repository }}-
+        {
+            echo "bin_dir=$BIN_DIR"
+            echo "staging_dir=$STAGING_DIR"
+        } >> $GITHUB_OUTPUT
 
     - name: Fetch Version and Asset URL
       id: fetch-version
@@ -72,19 +67,31 @@ runs:
 
         ASSET=$(echo "$ASSET_PATTERN" | sed "s/%VERSION%/$VERSION/g")
 
-        echo "ASSET=$ASSET" >> $GITHUB_ENV
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-        echo "OWNER=$OWNER" >> $GITHUB_ENV
-        echo "REPO=$REPO" >> $GITHUB_ENV
+        {
+          echo "asset=$ASSET"
+          echo "version=$VERSION"
+          echo "owner=$OWNER"
+          echo "repo=$REPO"
+        } >> $GITHUB_OUTPUT
+
+    - name: Cache CLI Binary
+      id: cache-cli
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.dirs.outputs.bin_dir }}
+        key: cli-${{ inputs.repository }}-${{ steps.fetch-version.outputs.version }}
+        restore-keys: cli-${{ inputs.repository }}-
 
     - name: Download Asset
       shell: bash
+      id: download-asset
+      if: ${{ steps.cache-cli.outputs.cache-hit != 'true' }}
       env:
-        OWNER: ${{ env.OWNER }}
-        REPO: ${{ env.REPO }}
-        VERSION: ${{ env.VERSION }}
-        ASSET: ${{ env.ASSET }}
-        STAGING_DIR: ${{ env.STAGING_DIR }}
+        OWNER: ${{ steps.fetch-version.outputs.owner }}
+        REPO: ${{ steps.fetch-version.outputs.repo }}
+        VERSION: ${{ steps.fetch-version.outputs.version }}
+        ASSET: ${{ steps.fetch-version.outputs.asset }}
+        STAGING_DIR: ${{ steps.dirs.outputs.staging_dir }}
       run: |
         DOWNLOAD_URL="https://github.com/$OWNER/$REPO/releases/download/$VERSION/$ASSET"
         EXTENSION=".${ASSET##*.}"
@@ -95,15 +102,16 @@ runs:
         curl -L "$DOWNLOAD_URL" \
             --output "$STAGING_DIR/cli_download$EXTENSION"
 
-        echo "ASSET_STAGING_PATH=$STAGING_DIR/cli_download$EXTENSION" >> $GITHUB_ENV
+        echo "asset_staging_path=$STAGING_DIR/cli_download$EXTENSION" >> $GITHUB_OUTPUT
 
     - name: Extract CLI if Necessary
       shell: bash
+      if: ${{ steps.cache-cli.outputs.cache-hit != 'true' }}
       env:
-        ASSET_STAGING_PATH: ${{ env.ASSET_STAGING_PATH }}
+        ASSET_STAGING_PATH: ${{ steps.download-asset.outputs.asset_staging_path }}
         OVERRIDE_EXECUTABLE_NAME: ${{ inputs.override-name }}
-        BIN_DIR: ${{ env.BIN_DIR }}
-        STAGING_DIR: ${{ env.STAGING_DIR }}
+        BIN_DIR: ${{ steps.dirs.outputs.bin_dir }}
+        STAGING_DIR: ${{ steps.dirs.outputs.staging_dir }}
       run: |
         asset_path="$ASSET_STAGING_PATH"
 
@@ -135,8 +143,9 @@ runs:
 
     - name: Flatten Bin
       shell: bash
+      if: ${{ steps.cache-cli.outputs.cache-hit != 'true' }}
       env:
-        BIN_DIR: ${{ env.BIN_DIR }}
+        BIN_DIR: ${{ steps.dirs.outputs.bin_dir }}
       run: |
         find "$BIN_DIR" -mindepth 2 -type f -exec mv -t "$BIN_DIR" {} +
         find "$BIN_DIR" -type d -empty -delete
@@ -144,8 +153,8 @@ runs:
     - name: Ensure Executable
       shell: bash
       env:
-        BIN_DIR: ${{ env.BIN_DIR }}
-        STAGING_DIR: ${{ env.STAGING_DIR }}
+        BIN_DIR: ${{ steps.dirs.outputs.bin_dir }}
+        STAGING_DIR: ${{ steps.dirs.outputs.staging_dir }}
       run: |
         chmod +x "$BIN_DIR"/*
         rm -rf "$STAGING_DIR"

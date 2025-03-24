@@ -66,6 +66,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - run: |
+          echo "Running Docker Release Workflow"
+          echo "Image: ${{ inputs.image }}"
+          echo "Compose: ${{ inputs.compose }}"
+          echo "Working Directory: ${{ inputs.working-directory }}"
+          echo "Dockerfile: ${{ inputs.dockerfile }}"
+
       - uses: mbround18/gh-reusable/actions/install-cli@v0.0.5
         with:
           repository: "mikefarah/yq"
