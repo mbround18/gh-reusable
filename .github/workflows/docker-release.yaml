@@ -69,9 +69,9 @@ jobs:
         id: facts
         run: |
           if [ "${{ inputs.compose }}" == "true" ]; then
-            DOCKERFILE=$(yq eval "services.* | select(.image | contains(\"${{ inputs.image }}:\")) | .build.dockerfile" docker-compose.yml)
-            CONTEXT=$(yq eval "services.* | select(.image | contains(\"${{ inputs.image }}:\")) | .build.context" docker-compose.yml)
-            BUILD_ARGS=$(yq eval "services.* | select(.image | contains(\"${{ inputs.image }}:\")) | .build.args" docker-compose.yml)
+            DOCKERFILE=$(yq eval ".services.* | select(.image | test(\"^${{ inputs.image }}:\")) | .build.dockerfile" docker-compose.yml)
+            CONTEXT=$(yq eval ".services.* | select(.image | test(\"^${{ inputs.image }}:\")) | .build.context" docker-compose.yml)
+            BUILD_ARGS=$(yq eval ".services.* | select(.image | test(\"^${{ inputs.image }}:\")) | .build.args" docker-compose.yml)
 
             if [ -z "$DOCKERFILE" ] || [ -z "$CONTEXT" ]; then
               echo "Error: Dockerfile or context not found in docker-compose.yml for image ${{ inputs.image }}" >&2
