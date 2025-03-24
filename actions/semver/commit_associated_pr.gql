@@ -1,0 +1,19 @@
+query ($owner: String!, $repo: String!, $commitOid: GitObjectID!) {
+  repository(owner: $owner, name: $repo) {
+    object(oid: $commitOid) {
+      ... on Commit {
+        messageHeadline
+        associatedPullRequests(first: 1, states: [MERGED, CLOSED]) {
+          nodes {
+            number
+            labels(first: 10) {
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

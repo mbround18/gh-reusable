@@ -7,6 +7,16 @@ on:
         required: true
         default: "mbround18/example"
         description: "Image Name"
+      compose:
+        type: boolean
+        required: false
+        default: false
+        description: "Want us to pull information from a docker-compose file?"
+      context:
+        type: string
+        required: false
+        default: "."
+        description: "Build context"
       canary_label:
         type: string
         required: false
@@ -27,6 +37,10 @@ on:
         type: string
         default: "mbround18"
         description: Who to log into dockerhub as.
+      working-directory:
+        type: string
+        default: "."
+        description: "Working directory for the action"
     secrets:
       DOCKER_TOKEN:
         required: true
@@ -43,11 +57,30 @@ jobs:
       Docker Release for ${{ inputs.image }} @
       ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.image }}-${{ github.event_name }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
+
+      - run: |
+          echo "Running Docker Release Workflow"
+          echo "Image: ${{ inputs.image }}"
+          echo "Compose: ${{ inputs.compose }}"
+          echo "Working Directory: ${{ inputs.working-directory }}"
+          echo "Dockerfile: ${{ inputs.dockerfile }}"
+
+      - uses: mbround18/gh-reusable/actions/install-cli@docker-workflow-flex
+        with:
+          repository: "mikefarah/yq"
+          asset: "yq_linux_amd64"
+          override-name: "yq"
+
+      - id: semver
+        uses: mbround18/gh-reusable/actions/semver@docker-workflow-flex
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -67,47 +100,26 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Images List
+        id: registries
         run: |
-          IMAGES=("docker.io/${{ inputs.image }}")
-
+          IMAGES=("docker.io")
           if [ "${{ inputs.ghcr }}" == "true" ]; then
-              IMAGES+=("ghcr.io/${{ inputs.image }}")
+          IMAGES+=("ghcr.io")
           fi
-
           IMAGES_STR=$(IFS=,; echo "${IMAGES[*]}")
+          echo "list=$IMAGES_STR" >> $GITHUB_OUTPUT
 
-          echo "IMAGES=$IMAGES_STR" >> $GITHUB_ENV
-
-      - name: Generate Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
+      - name: Build and Push Docker Image
+        uses: mbround18/gh-reusable/actions/docker-build@docker-workflow-flex
+        env:
+          BUILD_ARG_GITHUB_SHA: ${GITHUB_SHA}
+          BUILD_ARG_GITHUB_REF: ${GITHUB_REF}
+          BUILD_ARG_GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}
         with:
-          images: ${{ env.IMAGES }}
-          tags: |
-            type=schedule
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          file: ${{ inputs.dockerfile }}
-          push: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, inputs.canary_label) }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ inputs.image }}:buildcache
-          cache-to: type=registry,ref=${{ inputs.image }}:buildcache,mode=max
-          build-args: |
-            GITHUB_SHA=${GITHUB_SHA}
-            GITHUB_REF=${GITHUB_REF}
-            GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
-            IMAGE_VERSION=${{ steps.meta.outputs.version }}
-
-      - name: Output image information
-        run: |
-          echo "Exported Image:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`\n${{ steps.meta.outputs.tags }}\n\`\`\`" >> $GITHUB_STEP_SUMMARY
+          image: ${{ inputs.image }}
+          dockerfile: ${{ inputs.dockerfile }}
+          context: ${{ inputs.working-directory }}/${{ inputs.context }}
+          version: ${{ steps.semver.outputs.new_version }}
+          canary_label: ${{ inputs.canary_label }}
+          platforms: "linux/amd64,linux/arm64"
+          registries: ${{ steps.registries.outputs.list }}

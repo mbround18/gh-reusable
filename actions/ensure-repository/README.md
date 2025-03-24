@@ -17,6 +17,6 @@ jobs:
 
 ## Inputs
 
-| Name        | Description                                      | Required | Default            |
-|-------------|--------------------------------------------------|----------|--------------------|
-| `repository`| Specific repository (e.g., mbround18/gh-reusable)| Yes      | `mbround18/gh-reusable`|
+| Name         | Description                                       | Required | Default                 |
+| ------------ | ------------------------------------------------- | -------- | ----------------------- |
+| `repository` | Specific repository (e.g., mbround18/gh-reusable) | Yes      | `mbround18/gh-reusable` |

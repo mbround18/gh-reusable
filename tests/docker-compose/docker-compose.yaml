@@ -1,0 +1,14 @@
+services:
+  app:
+    image: mbround18/gh-reusable-testing-compose:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+
+  app2:
+    image: mbround18/gh-reusable-testing-compose2:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test

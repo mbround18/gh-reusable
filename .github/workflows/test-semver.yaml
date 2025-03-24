@@ -2,13 +2,10 @@ name: "Test | Semver Action"
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
   push:
-    tags:
-      - "*"
-    branches:
-      - main
+    tags: ["*"]
+    branches: [main]
 
 jobs:
   ensure_repository:
@@ -26,35 +23,60 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Call Semver Action - Patch Increment
+      # --- Direct increments with base ---
+      - name: Semver - Patch Increment
         id: semver_patch
         uses: ./actions/semver
         with:
           base: "1.2.3"
           increment: "patch"
 
-      - name: Verify Semver Output - Patch
+      - name: Verify - Patch
         run: |
           [[ "${{ steps.semver_patch.outputs.new_version }}" == "1.2.4" ]] || exit 1
 
-      - name: Call Semver Action - Minor Increment
+      - name: Semver - Minor Increment
         id: semver_minor
         uses: ./actions/semver
         with:
           base: "2.3.4"
           increment: "minor"
 
-      - name: Verify Semver Output - Minor
+      - name: Verify - Minor
         run: |
           [[ "${{ steps.semver_minor.outputs.new_version }}" == "2.4.0" ]] || exit 1
 
-      - name: Call Semver Action - Major Increment
+      - name: Semver - Major Increment
         id: semver_major
         uses: ./actions/semver
         with:
           base: "3.4.5"
           increment: "major"
 
-      - name: Verify Semver Output - Major
+      - name: Verify - Major
         run: |
           [[ "${{ steps.semver_major.outputs.new_version }}" == "4.0.0" ]] || exit 1
+
+      # --- Prefix support ---
+      - name: Semver - Prefix + Base
+        id: semver_prefix
+        uses: ./actions/semver
+        with:
+          base: "chart-1.0.0"
+          prefix: "chart-"
+          increment: "minor"
+
+      - name: Verify - Prefix
+        run: |
+          [[ "${{ steps.semver_prefix.outputs.new_version }}" == "chart-1.1.0" ]] || exit 1
+
+      # --- Auto from tags (must mock with base fallback in test) ---
+      - name: Semver - Auto Tag Bump (fallback to patch)
+        id: semver_auto_tag
+        uses: ./actions/semver
+        with:
+          base: "0.9.9"
+
+      - name: Verify - Auto Tag
+        run: |
+          [[ "${{ steps.semver_auto_tag.outputs.new_version }}" == "0.9.10" ]] || exit 1

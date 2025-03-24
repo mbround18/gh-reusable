@@ -1,0 +1,38 @@
+name: "Test | GraphQL Query Default Branch"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  query_default_branch:
+    name: "Query Default Branch"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Query Default Branch
+        id: query
+        uses: mbround18/gh-reusable/actions/graphql@docker-workflow-flex
+        with:
+          query: |
+            query($owner: String!, $repo: String!) {
+              repository(owner: $owner, name: $repo) {
+                defaultBranchRef {
+                  name
+                }
+              }
+            }
+          args: |
+            owner=${{ github.repository_owner }}, repo=${{ github.event.repository.name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract and Display Default Branch
+        run: |
+          branch=$(echo '${{ steps.query.outputs.result }}' | jq -r '.data.repository.defaultBranchRef.name')
+          echo "Default branch: $branch"

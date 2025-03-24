@@ -20,11 +20,35 @@ jobs:
 
   call_docker_release:
     name: Call Docker Release Workflow
-    uses: ./.github/workflows/docker-release.yaml
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@docker-workflow-flex
     with:
       image: "mbround18/gh-reusable-testing" # Specify the test image name here
-      dockerfile: "tests/docker/Dockerfile" # Path to the seeded Dockerfile
       ghcr: true
+      working-directory: "tests/docker"
+    secrets:
+      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
+  call_docker_release_compose_1:
+    name: Call Docker Release Workflow (Compose)
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@docker-workflow-flex
+    with:
+      image: "mbround18/gh-reusable-testing-compose" # Specify the test image name here
+      ghcr: true
+      compose: true
+      working-directory: "tests/docker-compose"
+    secrets:
+      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
+  call_docker_release_compose_2:
+    name: Call Docker Release Workflow (Compose)
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@docker-workflow-flex
+    with:
+      image: "mbround18/gh-reusable-testing-compose2" # Specify the test image name here
+      ghcr: true
+      compose: true
+      working-directory: "tests/docker-compose"
     secrets:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}

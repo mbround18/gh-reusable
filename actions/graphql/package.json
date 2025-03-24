@@ -1,0 +1,10 @@
+{
+  "name": "graphql-action",
+  "version": "1.0.0",
+  "description": "GraphQL Action using Docker",
+  "main": "index.js",
+  "dependencies": {
+    "@actions/core": "^1.10.0",
+    "graphql": "^16.10.0"
+  }
+}
