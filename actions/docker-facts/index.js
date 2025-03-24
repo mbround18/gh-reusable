@@ -59,6 +59,8 @@ async function run() {
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
     const resolvedContext = path.resolve(fallbackContext);
 
+    core.startGroup("🔍 Docker Context Resolution");
+
     core.info(
       `Inputs: image=${image}, dockerfile=${fallbackDockerfile}, context=${resolvedContext}`,
     );
@@ -91,6 +93,10 @@ async function run() {
       core.info("No docker-compose file found — using fallback values");
     }
 
+    core.info(`Final dockerfile: ${dockerfile}`);
+    core.info(`Final context: ${context}`);
+    core.endGroup();
+
     core.setOutput("dockerfile", dockerfile);
     core.setOutput("context", context);
 
@@ -102,12 +108,17 @@ async function run() {
     const isDefaultBranch = ref === `refs/heads/${defaultBranch}`;
     const isTag = ref.startsWith("refs/tags/");
 
+    core.startGroup("📦 GitHub Context & Push Logic");
+    core.info(`event=${eventName}, ref=${ref}, defaultBranch=${defaultBranch}`);
+    core.info(`labels=[${labels.map((l) => l.name).join(", ")}]`);
+    core.info(
+      `isCanary=${isCanary}, isDefaultBranch=${isDefaultBranch}, isTag=${isTag}`,
+    );
     const shouldPush =
       (eventName === "pull_request" && isCanary) || isDefaultBranch || isTag;
+    core.info(`push=${shouldPush}`);
+    core.endGroup();
 
-    core.info(
-      `Decision: isCanary=${isCanary}, isDefaultBranch=${isDefaultBranch}, isTag=${isTag}`,
-    );
     core.setOutput("push", shouldPush ? "true" : "false");
   } catch (error) {
     core.setFailed(`Action failed: ${error.message}`);
