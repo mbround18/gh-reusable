@@ -1,191 +1,41 @@
 name: Semver
-description: "Increments the base or last tag by the increment or version."
+description: "Increments the base or last tag by the increment or version, supports custom prefixes like chart-name-1.2.3."
 author: "mbround18"
+
 inputs:
+  token:
+    description: "GitHub token for authentication with GraphQL API."
+    required: false
+    default: "${{ github.token }}"
   base:
-    description: "Base version to start from. If not provided, the last tag will be used."
+    description: "Base version to start from. If not provided, the last matching tag will be used."
+    required: false
+    default: ""
+  prefix:
+    description: "Optional prefix used to filter and build tag versions. Example: 'chart-name-' -> chart-name-1.2.3"
     required: false
     default: ""
   increment:
-    description: "Increment value (major, minor, patch)."
+    description: "Increment value (major, minor, patch). If not provided, will infer from PR or commit labels."
     required: false
     default: "patch"
   major-label:
-    description: "Label to identify a major increment."
+    description: "Label to identify a major increment (default: 'major')."
     required: false
     default: "major"
   minor-label:
-    description: "Label to identify a minor increment."
+    description: "Label to identify a minor increment (default: 'minor')."
     required: false
     default: "minor"
   patch-label:
-    description: "Label to identify a patch increment."
+    description: "Label to identify a patch increment (default: 'patch')."
     required: false
     default: "patch"
 
 outputs:
   new_version:
     description: "Outputs the incremented version based on input parameters"
-    value: ${{ steps.increment_version.outputs.new_version }}
 
 runs:
-  using: "composite"
-  steps:
-    - name: Install jq
-      uses: mbround18/gh-reusable/actions/install-cli@v0.0.5
-      with:
-        repository: "stedolan/jq"
-        version: "jq-1.6"
-        asset: "jq-linux64"
-        override-name: "jq"
-
-    - name: Get the last tag using GraphQL
-      id: get_last_tag
-      if: ${{ inputs.base == '' }}
-      uses: mbround18/gh-reusable/actions/graphql@docker-workflow-flex
-      with:
-        query: "${{ github.action_path }}/get_last_tag.gql"
-        args: |
-          owner=${{ github.repository_owner }},
-          repo=${{ github.event.repository.name }}
-        token: ${{ github.token }}
-
-    - name: Set last_tag environment variable
-      id: set_last_tag
-      shell: bash
-      run: |
-        if [ -z "${{ inputs.base }}" ]; then
-          last_tag=$(echo '${{ steps.get_last_tag.outputs.result }}' | jq -r '.data.repository.refs.nodes[0].name')
-          echo "last_tag=$last_tag" >> $GITHUB_ENV
-        else
-          echo "last_tag=${{ inputs.base }}" >> $GITHUB_ENV
-        fi
-
-    - name: Get PR labels via GraphQL
-      id: get_pr_labels
-      if: ${{ github.event_name == 'pull_request' }}
-      uses: mbround18/gh-reusable/actions/graphql@docker-workflow-flex
-      with:
-        query: "${{ github.action_path }}/pr_labels.gql"
-        args: |
-          owner=${{ github.repository_owner }},
-          repo=${{ github.event.repository.name }},
-          prNumber=${{ github.event.pull_request.number }}
-        token: ${{ github.token }}
-
-    - name: Determine increment from PR labels
-      id: determine_increment_pr
-      if: ${{ github.event_name == 'pull_request' }}
-      shell: bash
-      run: |
-        if [ -n "${{ inputs.increment }}" ]; then
-          echo "increment=${{ inputs.increment }}" >> $GITHUB_ENV
-        else
-          labels=$(echo '${{ steps.get_pr_labels.outputs.result }}' | jq -r '.data.repository.pullRequest.labels.nodes[].name')
-          if echo "$labels" | grep -q "${{ inputs.major-label }}"; then
-            echo "increment=major" >> $GITHUB_ENV
-          elif echo "$labels" | grep -q "${{ inputs.minor-label }}"; then
-            echo "increment=minor" >> $GITHUB_ENV
-          else
-            echo "increment=patch" >> $GITHUB_ENV
-          fi
-        fi
-
-    - name: Get commit-associated PR details via GraphQL
-      id: get_commit_details
-      if: ${{ github.event_name != 'pull_request' }}
-      uses: mbround18/gh-reusable/actions/graphql@docker-workflow-flex
-      with:
-        query: "${{ github.action_path }}/commit_associated_pr.gql"
-        args: |
-          owner=${{ github.repository_owner }},
-          repo=${{ github.event.repository.name }},
-          commitOid=${{ github.sha }}
-        token: ${{ github.token }}
-
-    - name: Get default branch via GraphQL
-      id: get_default_branch
-      if: ${{ github.event_name != 'pull_request' }}
-      uses: mbround18/gh-reusable/actions/graphql@docker-workflow-flex
-      with:
-        query: "${{ github.action_path }}/default_branch.gql"
-        args: |
-          owner=${{ github.repository_owner }},
-          repo=${{ github.event.repository.name }}
-        token: ${{ github.token }}
-
-    - name: Determine increment from commit and default branch
-      id: determine_increment_push
-      if: ${{ github.event_name != 'pull_request' }}
-      shell: bash
-      run: |
-        if [ -n "${{ inputs.increment }}" ]; then
-          echo "increment=${{ inputs.increment }}" >> $GITHUB_ENV
-        else
-          branch=${GITHUB_REF#refs/heads/}
-          default_branch=$(echo '${{ steps.get_default_branch.outputs.result }}' | jq -r '.data.repository.defaultBranchRef.name')
-          commit_json='${{ steps.get_commit_details.outputs.result }}'
-          if [ "$branch" = "$default_branch" ]; then
-            labels=$(echo "$commit_json" | jq -r '.data.repository.object.associatedPullRequests.nodes[0].labels.nodes[].name')
-          fi
-          if [ -z "$labels" ]; then
-            labels=$(echo "$commit_json" | jq -r '.data.repository.object.messageHeadline')
-          fi
-          if echo "$labels" | grep -q "${{ inputs.major-label }}"; then
-            echo "increment=major" >> $GITHUB_ENV
-          elif echo "$labels" | grep -q "${{ inputs.minor-label }}"; then
-            echo "increment=minor" >> $GITHUB_ENV
-          else
-            echo "increment=patch" >> $GITHUB_ENV
-          fi
-        fi
-
-    - name: Increment version
-      id: increment_version
-      shell: bash
-      run: |
-        if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && [ -z "${{ inputs.increment }}" ]; then
-          short_sha=${GITHUB_SHA:0:7}
-          new_version="${last_tag}-${short_sha}"
-        else
-          # Extract prefix and numeric part
-          prefix=""
-          numeric_tag="$last_tag"
-          if [[ "$last_tag" =~ ^[a-zA-Z]+ ]]; then
-            prefix=$(echo "$last_tag" | grep -o '^[a-zA-Z]*')
-            numeric_tag=${last_tag#$prefix}
-          fi
-
-          IFS='.' read -r -a version_parts <<< "$numeric_tag"
-          major=${version_parts[0]}
-          minor=${version_parts[1]}
-          patch=${version_parts[2]}
-
-          case $increment in
-            major)
-              major=$((major + 1))
-              minor=0
-              patch=0
-              ;;
-            minor)
-              minor=$((minor + 1))
-              patch=0
-              ;;
-            patch)
-              patch=$((patch + 1))
-              ;;
-          esac
-
-          new_numeric_version="$major.$minor.$patch"
-          new_version="$prefix$new_numeric_version"
-        fi
-        echo "new_version=$new_version" >> $GITHUB_OUTPUT
-
-    - name: validate
-      shell: bash
-      run: |
-        echo "new_version: ${{ steps.increment_version.outputs.new_version }}"
-        if [[ ! "${{ steps.increment_version.outputs.new_version }}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
-          echo "::error::Invalid version format: ${{ steps.increment_version.outputs.new_version }}"
-          exit 1
-        fi
+  using: "docker"
+  image: "Dockerfile"
