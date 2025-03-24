@@ -3,15 +3,16 @@ const github = require('@actions/github');
 const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
-const { render } = require('jinja2');
+const ejs = require('ejs');
 const { graphql } = require('@octokit/graphql');
 
-// Helpers
+// Helper to read file content
 const readFile = filePath => fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : '';
 
+// Fetch the latest version (tag or default branch)
 const getLatestVersion = async (graphqlWithAuth, owner, repo) => {
   const queryPath = path.join(__dirname, 'queries', 'get-latest-version.gql');
-  const query = fs.readFileSync(queryPath, 'utf-8');
+  const query = readFile(queryPath);
 
   const data = await graphqlWithAuth(query, { owner, repo });
   const latestTag = data.repository.refs.nodes[0]?.name;
@@ -19,7 +20,7 @@ const getLatestVersion = async (graphqlWithAuth, owner, repo) => {
   return latestTag || defaultBranch || 'main';
 };
 
-
+// Extract usage details from workflow files
 const extractUsageFromWorkflow = (workflowYaml) => {
   const inputs = workflowYaml?.on?.workflow_call?.inputs || {};
   const required = Object.entries(inputs).filter(([_, val]) => val.required).map(([key]) => key);
@@ -32,6 +33,7 @@ const extractUsageFromWorkflow = (workflowYaml) => {
   };
 };
 
+// Extract usage details from action files
 const extractUsageFromAction = (actionYaml) => {
   const inputs = actionYaml?.inputs || {};
   const required = Object.entries(inputs).filter(([_, val]) => val.required).map(([key]) => key);
@@ -44,6 +46,7 @@ const extractUsageFromAction = (actionYaml) => {
   };
 };
 
+// Update the README.md with the generated HTML table
 const updateReadme = (readme, tableHTML) => {
   const start = '<!-- GENERATED:GITHUB-CATALOG:START -->';
   const end = '<!-- GENERATED:GITHUB-CATALOG:STOP -->';
@@ -64,7 +67,7 @@ async function run() {
     const actionPaths = glob.sync('actions/**/action.yml');
 
     const workflows = workflowPaths.map(wf => {
-      const yaml = require('js-yaml').load(fs.readFileSync(wf, 'utf-8'));
+      const yaml = require('js-yaml').load(readFile(wf));
       if (!yaml?.on?.workflow_call) return null;
 
       const usage = extractUsageFromWorkflow(yaml);
@@ -77,9 +80,7 @@ async function run() {
     }).filter(Boolean);
 
     const actions = actionPaths.map(ap => {
-      const yaml = require('js-yaml').load(fs.readFileSync(ap, 'utf-8'));
-      const readmePath = path.join(path.dirname(ap), 'README.md');
-      const readme = readFile(readmePath);
+      const yaml = require('js-yaml').load(readFile(ap));
       const usage = extractUsageFromAction(yaml);
       return {
         name: path.basename(path.dirname(ap)),
@@ -88,9 +89,9 @@ async function run() {
       };
     });
 
-    // Load Jinja2 template from /action/catalog-template.html
-    const template = fs.readFileSync(path.join(__dirname, '/templates/github-catalog.html'), 'utf-8');
-    const rendered = render(template, { workflows, actions, version: latestVersion });
+    // Render the EJS template
+    const templatePath = path.join(__dirname, 'templates', 'github-catalog.ejs');
+    const rendered = await ejs.renderFile(templatePath, { workflows, actions, version: latestVersion });
 
     const readmePath = './README.md';
     const currentReadme = readFile(readmePath);
