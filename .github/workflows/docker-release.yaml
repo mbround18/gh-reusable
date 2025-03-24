@@ -6,77 +6,59 @@ on:
         type: string
         required: true
         default: "mbround18/example"
-        description: "Comma separated list of image names (backwards compatible with a single image)"
+        description: "Image Name"
+      context:
+        type: string
+        required: false
+        default: "."
+        description: "Build context"
       canary_label:
         type: string
         required: false
         default: "canary"
-        description: "Canary label (optional)"
       dockerfile:
         type: string
         default: "./Dockerfile"
-        description: "Default Dockerfile path"
+        description: "Dockerfile"
       ghcr:
         type: boolean
         default: false
-        description: "Release to GHCR?"
+        description: Release to GHCR?
       ghcr_username:
         type: string
         default: "mbround18"
-        description: "Username for GHCR"
+        description: Who to log into ghcr as.zs
       dockerhub_username:
         type: string
         default: "mbround18"
-        description: "Username for DockerHub"
-      compose:
-        type: boolean
-        default: false
-        description: "Use docker-compose file for build parameters?"
-      runner:
-        type: string
-        default: "ubuntu-latest"
-        description: "Runner to use"
+        description: Who to log into dockerhub as.
     secrets:
       DOCKER_TOKEN:
         required: true
       GHCR_TOKEN:
         required: false
 
-jobs:
-  convert-images:
-    name: Convert Image Input to Images Array
-    runs-on: ubuntu-latest
-    outputs:
-      images: ${{ steps.convert.outputs.images }}
-    steps:
-      - name: Convert image to images array
-        id: convert
-        run: |
-          # Remove spaces and split by comma; output as a JSON array
-          IMAGES=$(echo "${{ inputs.image }}" | sed 's/ //g')
-          JSON_ARRAY=$(echo $IMAGES | awk -F',' '{
-            printf "["
-            for(i=1;i<=NF;i++){
-              printf "\"%s\"", $i
-              if(i < NF){ printf "," }
-            }
-            print "]"
-          }')
-          echo "images=$JSON_ARRAY" >> $GITHUB_OUTPUT
+run-name: >
+  Docker Release for ${{ inputs.image }} @
+  ${{ github.event_name == 'pull_request' && format('PR #{}', github.event.pull_request.number) || github.ref_name }}z
 
+jobs:
   release:
-    name: Docker Release for ${{ matrix.image }}
-    runs-on: ${{ inputs.runner }}
-    needs: convert-images
-    strategy:
-      matrix:
-        image: ${{ fromJson(needs.convert-images.outputs.images) }}
+    name: >
+      Docker Release for ${{ inputs.image }} @
+      ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}
+    runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.image }}
+      group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - id: semver
+        uses: mbround18/gh-reusable/actions/semver@docker-workflow-flex
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to DockerHub
         uses: docker/login-action@v3
@@ -92,62 +74,35 @@ jobs:
           username: ${{ inputs.ghcr_username }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Set Images List
+      - name: Images List
+        id: registries
         run: |
-          IMAGES=("docker.io/${{ matrix.image }}")
+          IMAGES=("docker.io")
+
           if [ "${{ inputs.ghcr }}" == "true" ]; then
-            IMAGES+=("ghcr.io/${{ matrix.image }}")
+              IMAGES+=("ghcr.io")
           fi
+
           IMAGES_STR=$(IFS=,; echo "${IMAGES[*]}")
-          echo "IMAGES=$IMAGES_STR" >> $GITHUB_ENV
 
-      # If using docker-compose, install yq and parse docker-compose.yaml for matching service
-      - name: Install yq CLI
-        if: ${{ inputs.compose }}
-        uses: mbround18/gh-reusable/actions/install-cli@v0.0.5
-        with:
-          repository: "mikefarah/yq"
-          version: "latest"
-          asset: "yq_linux_amd64"
-          override-name: "yq"
-
-      - name: Parse docker-compose.yaml for ${{ matrix.image }}
-        if: ${{ inputs.compose }}
-        id: parse-compose
-        run: |
-          # Extract build parameters from the service with key matching the image name
-          COMPOSE_CONTEXT=$(yq e '.services."${{ matrix.image }}".build.context' docker-compose.yaml)
-          COMPOSE_DOCKERFILE=$(yq e '.services."${{ matrix.image }}".build.dockerfile' docker-compose.yaml)
-          if [ -z "$COMPOSE_CONTEXT" ] || [ "$COMPOSE_CONTEXT" == "null" ]; then
-            echo "No matching service found in docker-compose.yaml for image '${{ matrix.image }}'. Using default context '.'"
-            COMPOSE_CONTEXT="."
-          fi
-          if [ -z "$COMPOSE_DOCKERFILE" ] || [ "$COMPOSE_DOCKERFILE" == "null" ]; then
-            echo "No matching dockerfile found in docker-compose.yaml for image '${{ matrix.image }}'. Using default dockerfile '${{ inputs.dockerfile }}'"
-            COMPOSE_DOCKERFILE="${{ inputs.dockerfile }}"
-          fi
-          echo "compose_context=$COMPOSE_CONTEXT" >> $GITHUB_OUTPUT
-          echo "compose_dockerfile=$COMPOSE_DOCKERFILE" >> $GITHUB_OUTPUT
-
-      - name: Set build parameters from compose
-        if: ${{ inputs.compose }}
-        run: |
-          echo "dockerfile=${{ steps.parse-compose.outputs.compose_dockerfile }}" >> $GITHUB_ENV
-          echo "context=${{ steps.parse-compose.outputs.compose_context }}" >> $GITHUB_ENV
-
-      - name: Set default build parameters
-        if: ${{ !inputs.compose }}
-        run: |
-          echo "dockerfile=${{ inputs.dockerfile }}" >> $GITHUB_ENV
-          echo "context=." >> $GITHUB_ENV
+          echo "list=$IMAGES_STR" >> $GITHUB_OUTPUT
 
       - name: Build and Push Docker Image
         uses: mbround18/gh-reusable/actions/docker-build@docker-workflow-flex
+        env:
+          BUILD_ARG_GITHUB_SHA: ${GITHUB_SHA}
+          BUILD_ARG_GITHUB_REF: ${GITHUB_REF}
+          BUILD_ARG_GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}
         with:
-          image: ${{ matrix.image }}
-          dockerfile_path: ${{ env.dockerfile }}
-          context: ${{ env.context }}
-          version: "latest"
+          image: ${{ steps.meta.outputs.tags }}
+          dockerfile_path: ${{ inputs.dockerfile }}
+          context: ${{ inputs.context }}
+          version: ${{ steps.semver.outputs.new_version }}
           push: "true"
           platforms: "linux/amd64,linux/arm64"
-          registries: ${{ inputs.ghcr && 'ghcr.io' || '' }}
+          registries: ${{ steps.registries.outputs.list }}
+
+      - name: Output image information
+        run: |
+          echo "Exported Image:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`\n${{ steps.meta.outputs.tags }}\n\`\`\`" >> $GITHUB_STEP_SUMMARY

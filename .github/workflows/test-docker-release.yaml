@@ -25,6 +25,20 @@ jobs:
       image: "mbround18/gh-reusable-testing" # Specify the test image name here
       dockerfile: "tests/docker/Dockerfile" # Path to the seeded Dockerfile
       ghcr: true
+      compose: false
+    secrets:
+      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
+  call_docker_release_compose:
+    name: Call Docker Release Workflow (Compose)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tests/docker-compose
+    with:
+      ghcr: true
+      compose: true
     secrets:
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}

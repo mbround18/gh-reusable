@@ -11,14 +11,14 @@ Welcome to the **GH Reusable** repository! This repository contains a collection
 
 ## Catalog
 
-| Action Name           | Description                                                                                   | Link                                                                 |
-|-----------------------|-----------------------------------------------------------------------------------------------|----------------------------------------------------------------------|
-| Docker Release Workflow | Automates the process of building and releasing Docker images.                               | [Link](#docker-release-workflow)                                     |
-| Rust Build and Test Workflow | Automates the process of building and testing Rust projects.                           | [Link](#rust-build-and-test-workflow)                                |
-| Ensure Repository Action | Ensures that the repository the action or workflow is running on is a known element.       | [Link](#ensure-repository-action)                                    |
-| Install CLI Action    | Downloads and installs a CLI from a GitHub release into the `${GITHUB_ACTION_PATH}/bin` directory. | [Link](#install-cli-action)                                          |
-| Semver Action         | Increments the base or last tag by the increment or version.                                  | [Link](#semver-action)                                               |
-| Setup Rust Action     | Sets up a Rust toolchain, installs additional components and targets, caches Cargo dependencies, and installs specified CLI crates. | [Link](#setup-rust-action)                                           |
+| Action Name                  | Description                                                                                                                         | Link                                  |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Docker Release Workflow      | Automates the process of building and releasing Docker images.                                                                      | [Link](#docker-release-workflow)      |
+| Rust Build and Test Workflow | Automates the process of building and testing Rust projects.                                                                        | [Link](#rust-build-and-test-workflow) |
+| Ensure Repository Action     | Ensures that the repository the action or workflow is running on is a known element.                                                | [Link](#ensure-repository-action)     |
+| Install CLI Action           | Downloads and installs a CLI from a GitHub release into the `${GITHUB_ACTION_PATH}/bin` directory.                                  | [Link](#install-cli-action)           |
+| Semver Action                | Increments the base or last tag by the increment or version.                                                                        | [Link](#semver-action)                |
+| Setup Rust Action            | Sets up a Rust toolchain, installs additional components and targets, caches Cargo dependencies, and installs specified CLI crates. | [Link](#setup-rust-action)            |
 
 ## Getting Started
 
@@ -81,21 +81,21 @@ jobs:
 
 ### Inputs
 
-| Name               | Description                              | Required | Default            |
-|--------------------|------------------------------------------|----------|--------------------|
-| `image`            | Image Name                               | Yes      | `mbround18/example`|
-| `canary_label`     | Canary label for PR builds               | No       | `canary`           |
-| `dockerfile`       | Path to the Dockerfile                   | No       | `./Dockerfile`     |
-| `ghcr`             | Release to GHCR?                         | No       | `false`            |
-| `ghcr_username`    | Username for GHCR                        | No       | `mbround18`        |
-| `dockerhub_username`| Username for DockerHub                  | No       | `mbround18`        |
+| Name                 | Description                | Required | Default             |
+| -------------------- | -------------------------- | -------- | ------------------- |
+| `image`              | Image Name                 | Yes      | `mbround18/example` |
+| `canary_label`       | Canary label for PR builds | No       | `canary`            |
+| `dockerfile`         | Path to the Dockerfile     | No       | `./Dockerfile`      |
+| `ghcr`               | Release to GHCR?           | No       | `false`             |
+| `ghcr_username`      | Username for GHCR          | No       | `mbround18`         |
+| `dockerhub_username` | Username for DockerHub     | No       | `mbround18`         |
 
 ### Secrets
 
-| Name          | Description                  | Required |
-|---------------|------------------------------|----------|
-| `DOCKER_TOKEN`| DockerHub token              | Yes      |
-| `GHCR_TOKEN`  | GitHub Container Registry token | No       |
+| Name           | Description                     | Required |
+| -------------- | ------------------------------- | -------- |
+| `DOCKER_TOKEN` | DockerHub token                 | Yes      |
+| `GHCR_TOKEN`   | GitHub Container Registry token | No       |
 
 ## Rust Build and Test Workflow
 
@@ -117,11 +117,11 @@ jobs:
 
 ### Inputs
 
-| Name        | Description                                      | Required | Default            |
-|-------------|--------------------------------------------------|----------|--------------------|
-| `toolchain` | Rust toolchain to use (e.g., stable, nightly)    | No       | `stable`           |
-| `components`| Comma-separated list of Rust components to install | No       | `clippy,rustfmt`   |
-| `target`    | Comma-separated list of additional Rust compilation targets | No       | `""`               |
+| Name         | Description                                                 | Required | Default          |
+| ------------ | ----------------------------------------------------------- | -------- | ---------------- |
+| `toolchain`  | Rust toolchain to use (e.g., stable, nightly)               | No       | `stable`         |
+| `components` | Comma-separated list of Rust components to install          | No       | `clippy,rustfmt` |
+| `target`     | Comma-separated list of additional Rust compilation targets | No       | `""`             |
 
 ## Ensure Repository Action
 
@@ -142,9 +142,9 @@ jobs:
 
 ### Inputs
 
-| Name        | Description                                      | Required | Default            |
-|-------------|--------------------------------------------------|----------|--------------------|
-| `repository`| Specific repository (e.g., mbround18/gh-reusable)| Yes      | `mbround18/gh-reusable`|
+| Name         | Description                                       | Required | Default                 |
+| ------------ | ------------------------------------------------- | -------- | ----------------------- |
+| `repository` | Specific repository (e.g., mbround18/gh-reusable) | Yes      | `mbround18/gh-reusable` |
 
 ## Install CLI Action
 
@@ -209,13 +209,13 @@ jobs:
 
 ### Inputs
 
-| Name         | Description                                                                 | Required | Default |
-|--------------|-----------------------------------------------------------------------------|----------|---------|
-| `base`       | Base version to start from. If not provided, the last tag will be used.     | No       | `""`    |
-| `increment`  | Increment value (major, minor, patch).                                      | No       | `patch` |
-| `major-label`| Label to identify a major increment.                                        | No       | `major` |
-| `minor-label`| Label to identify a minor increment.                                        | No       | `minor` |
-| `patch-label`| Label to identify a patch increment.                                        | No       | `patch` |
+| Name          | Description                                                             | Required | Default |
+| ------------- | ----------------------------------------------------------------------- | -------- | ------- |
+| `base`        | Base version to start from. If not provided, the last tag will be used. | No       | `""`    |
+| `increment`   | Increment value (major, minor, patch).                                  | No       | `patch` |
+| `major-label` | Label to identify a major increment.                                    | No       | `major` |
+| `minor-label` | Label to identify a minor increment.                                    | No       | `minor` |
+| `patch-label` | Label to identify a patch increment.                                    | No       | `patch` |
 
 ## Setup Rust Action
 
@@ -244,12 +244,12 @@ jobs:
 
 ### Inputs
 
-| Name        | Description                                      | Required | Default            |
-|-------------|--------------------------------------------------|----------|--------------------|
-| `toolchain` | Rust toolchain to use (e.g., stable, nightly)    | No       | `stable`           |
-| `components`| Comma-separated list of Rust components to install | No       | `""`               |
-| `target`    | Comma-separated list of additional Rust compilation targets | No       | `""`               |
-| `crates`    | Comma-separated list of CLI crates to install    | No       | `""`               |
+| Name         | Description                                                 | Required | Default  |
+| ------------ | ----------------------------------------------------------- | -------- | -------- |
+| `toolchain`  | Rust toolchain to use (e.g., stable, nightly)               | No       | `stable` |
+| `components` | Comma-separated list of Rust components to install          | No       | `""`     |
+| `target`     | Comma-separated list of additional Rust compilation targets | No       | `""`     |
+| `crates`     | Comma-separated list of CLI crates to install               | No       | `""`     |
 
 ## Contributing
 

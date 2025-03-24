@@ -23,20 +23,20 @@ jobs:
           major-label: "major" # Optional: specify label to identify a major increment
           minor-label: "minor" # Optional: specify label to identify a minor increment
           patch-label: "patch" # Optional: specify label to identify a patch increment
-      
+
       - name: Output
         run: echo "${{ steps.semver.outputs.new_version }}"
 ```
 
 ## Inputs
 
-| Name         | Description                                                                 | Required | Default |
-|--------------|-----------------------------------------------------------------------------|----------|---------|
-| `base`       | Base version to start from. If not provided, the last tag will be used.     | No       | `""`    |
-| `increment`  | Increment value (major, minor, patch).                                      | No       | `patch` |
-| `major-label`| Label to identify a major increment.                                        | No       | `major` |
-| `minor-label`| Label to identify a minor increment.                                        | No       | `minor` |
-| `patch-label`| Label to identify a patch increment.                                        | No       | `patch` |
+| Name          | Description                                                             | Required | Default |
+| ------------- | ----------------------------------------------------------------------- | -------- | ------- |
+| `base`        | Base version to start from. If not provided, the last tag will be used. | No       | `""`    |
+| `increment`   | Increment value (major, minor, patch).                                  | No       | `patch` |
+| `major-label` | Label to identify a major increment.                                    | No       | `major` |
+| `minor-label` | Label to identify a minor increment.                                    | No       | `minor` |
+| `patch-label` | Label to identify a patch increment.                                    | No       | `patch` |
 
 ## Logic
 

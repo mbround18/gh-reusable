@@ -43,14 +43,14 @@ runs:
       run: |
         BUILD_ARGS=""
         SECRET_ARGS=""
-        
+
         # Process build arguments from env variables prefixed with BUILD_ARG_
         for var in $(env | grep "^BUILD_ARG_" | cut -d= -f1); do
           ARG_NAME=${var#BUILD_ARG_}
           ARG_VALUE=${!var}
           BUILD_ARGS+="${ARG_NAME}=${ARG_VALUE}\n"
         done
-        
+
         # Process build secrets from env variables prefixed with BUILD_SECRET_
         for var in $(env | grep "^BUILD_SECRET_" | cut -d= -f1); do
           SECRET_NAME=${var#BUILD_SECRET_}
@@ -60,14 +60,14 @@ runs:
           echo "${SECRET_VALUE}" > "${SECRET_FILE}"
           SECRET_ARGS+="id=${SECRET_NAME},src=${SECRET_FILE} "
         done
-        
+
         # Export build and secret args to GitHub environment variables
         {
           echo "build_args<<EOF"
           echo -e "${BUILD_ARGS}"
           echo "EOF"
         } >> $GITHUB_ENV
-        
+
         echo "secret_args=${SECRET_ARGS}" >> $GITHUB_ENV
 
     - name: Prepare Tags

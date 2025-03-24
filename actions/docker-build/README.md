@@ -53,19 +53,20 @@ jobs:
 
 ## Inputs
 
-| Name              | Description                                                                          | Required | Default         |
-| ----------------- | ------------------------------------------------------------------------------------ | -------- | --------------- |
-| `image`           | Name of the Docker image to be built.                                                | Yes      | `mbround18/test`|
-| `registries`      | Comma separated list of registries to re-tag the image with.                         | No       | `""`            |
-| `dockerfile_path` | Path to the Dockerfile relative to the build context.                                | Yes      | `./Dockerfile`  |
-| `context`         | Directory to build in.                                                               | Yes      | `.`             |
-| `version`         | Docker image tag version.                                                            | Yes      | `latest`        |
-| `push`            | Whether to push the image (set to `"true"` to push).                                 | No       | `"false"`       |
-| `platforms`       | Comma separated list of target platforms (e.g., `linux/amd64,linux/arm64`).            | No       | `linux/amd64`   |
+| Name              | Description                                                                 | Required | Default          |
+| ----------------- | --------------------------------------------------------------------------- | -------- | ---------------- |
+| `image`           | Name of the Docker image to be built.                                       | Yes      | `mbround18/test` |
+| `registries`      | Comma separated list of registries to re-tag the image with.                | No       | `""`             |
+| `dockerfile_path` | Path to the Dockerfile relative to the build context.                       | Yes      | `./Dockerfile`   |
+| `context`         | Directory to build in.                                                      | Yes      | `.`              |
+| `version`         | Docker image tag version.                                                   | Yes      | `latest`         |
+| `push`            | Whether to push the image (set to `"true"` to push).                        | No       | `"false"`        |
+| `platforms`       | Comma separated list of target platforms (e.g., `linux/amd64,linux/arm64`). | No       | `linux/amd64`    |
 
 ## Outputs
 
 This action appends build details to the GitHub Actions job summary, including:
+
 - **Image ID**: The built Docker image ID.
 - **Digest**: The image digest.
 

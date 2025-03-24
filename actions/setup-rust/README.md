@@ -44,9 +44,9 @@ jobs:
 
 ## Inputs
 
-| Name        | Description                                      | Required | Default            |
-|-------------|--------------------------------------------------|----------|--------------------|
-| `toolchain` | Rust toolchain to use (e.g., stable, nightly)    | No       | `stable`           |
-| `components`| Comma-separated list of Rust components to install | No       | `""`               |
-| `target`    | Comma-separated list of additional Rust compilation targets | No       | `""`               |
-| `crates`    | Comma-separated list of CLI crates to install    | No       | `""`               |
+| Name         | Description                                                 | Required | Default  |
+| ------------ | ----------------------------------------------------------- | -------- | -------- |
+| `toolchain`  | Rust toolchain to use (e.g., stable, nightly)               | No       | `stable` |
+| `components` | Comma-separated list of Rust components to install          | No       | `""`     |
+| `target`     | Comma-separated list of additional Rust compilation targets | No       | `""`     |
+| `crates`     | Comma-separated list of CLI crates to install               | No       | `""`     |

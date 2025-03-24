@@ -25,7 +25,7 @@ inputs:
 
 outputs:
   new_version:
-    description: "Outputs the incremented verson based on input parameters"
+    description: "Outputs the incremented version based on input parameters"
     value: ${{ steps.increment_version.outputs.new_version }}
 
 runs:
@@ -34,12 +34,31 @@ runs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Get the last tag
+    - name: Install jq
+      uses: mbround18/gh-reusable/actions/install-cli@v0.0.5
+      with:
+        repository: "stedolan/jq"
+        version: "jq-1.6"
+        asset: "jq-linux64"
+        override-name: "jq"
+
+    - name: Add CLI bin to PATH
+      run: echo "${{ github.action_path }}/bin" >> $GITHUB_PATH
+
+    - name: Get the last tag using GraphQL
       id: get_last_tag
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         if [ -z "${{ inputs.base }}" ]; then
-          last_tag=$(git describe --tags --abbrev=0)
+          owner=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+          repo=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
+          query=$(cat "$GITHUB_ACTION_PATH/get_last_tag.gql")
+          payload=$(jq -n --arg query "$query" --arg owner "$owner" --arg repo "$repo" \
+            '{query: $query, variables: {owner: $owner, repo: $repo}}')
+          response=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -X POST -d "$payload" https://api.github.com/graphql)
+          last_tag=$(echo "$response" | jq -r '.data.repository.refs.nodes[0].name')
           echo "last_tag=$last_tag" >> $GITHUB_ENV
         else
           echo "last_tag=${{ inputs.base }}" >> $GITHUB_ENV
@@ -48,12 +67,27 @@ runs:
     - name: Determine increment
       id: determine_increment
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         if [ -z "${{ inputs.increment }}" ]; then
-          labels=$(git log -1 --pretty=%B)
-          if [[ "$labels" == *"${{ inputs.major-label }}"* ]]; then
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            # Extract the pull request number from the event payload.
+            pr_number=$(jq --raw-output '.pull_request.number' "$GITHUB_EVENT_PATH")
+            owner=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+            repo=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)
+            query=$(cat "$GITHUB_ACTION_PATH/pr_labels.gql")
+            payload=$(jq -n --arg query "$query" --arg owner "$owner" --arg repo "$repo" --argjson prNumber "$pr_number" \
+                '{query: $query, variables: {owner: $owner, repo: $repo, prNumber: $prNumber}}')
+            response=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -X POST -d "$payload" https://api.github.com/graphql)
+            labels=$(echo "$response" | jq -r '.data.repository.pullRequest.labels.nodes[].name')
+          else
+            labels=$(git log -1 --pretty=%B)
+          fi
+
+          if echo "$labels" | grep -q "${{ inputs.major-label }}"; then
             increment="major"
-          elif [[ "$labels" == *"${{ inputs.minor-label }}"* ]]; then
+          elif echo "$labels" | grep -q "${{ inputs.minor-label }}"; then
             increment="minor"
           else
             increment="patch"
@@ -67,32 +101,37 @@ runs:
       id: increment_version
       shell: bash
       run: |
-        IFS='.' read -r -a version_parts <<< "$last_tag"
-        major=${version_parts[0]}
-        minor=${version_parts[1]}
-        patch=${version_parts[2]}
+        if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          short_sha=${GITHUB_SHA:0:7}
+          new_version="${last_tag}-${short_sha}"
+        else
+          IFS='.' read -r -a version_parts <<< "$last_tag"
+          major=${version_parts[0]}
+          minor=${version_parts[1]}
+          patch=${version_parts[2]}
 
-        case $increment in
-          major)
-            major=$((major + 1))
-            minor=0
-            patch=0
-            ;;
-          minor)
-            minor=$((minor + 1))
-            patch=0
-            ;;
-          patch)
-            patch=$((patch + 1))
-            ;;
-        esac
+          case $increment in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch + 1))
+              ;;
+          esac
 
-        new_version="$major.$minor.$patch"
+          new_version="$major.$minor.$patch"
 
-        # Determine if the base has a prefix and apply that to the output
-        if [[ "$last_tag" =~ ^[a-zA-Z]+ ]]; then
-          prefix=$(echo "$last_tag" | grep -o '^[a-zA-Z]*')
-          new_version="$prefix$new_version"
+          # If the last tag has a prefix (letters), prepend it to the new version.
+          if [[ "$last_tag" =~ ^[a-zA-Z]+ ]]; then
+            prefix=$(echo "$last_tag" | grep -o '^[a-zA-Z]*')
+            new_version="$prefix$new_version"
+          fi
         fi
 
         echo "new_version=$new_version" >> $GITHUB_OUTPUT
