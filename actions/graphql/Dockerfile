@@ -14,4 +14,4 @@ RUN npm install --production
 COPY . .
 
 # Define the entrypoint to run your action script
-ENTRYPOINT ["node", "index.js"]
+ENTRYPOINT ["node", "/action/index.js"]
