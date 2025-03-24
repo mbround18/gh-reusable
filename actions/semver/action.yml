@@ -42,9 +42,6 @@ runs:
         asset: "jq-linux64"
         override-name: "jq"
 
-    - name: Add CLI bin to PATH
-      run: echo "${{ github.action_path }}/bin" >> $GITHUB_PATH
-
     - name: Get the last tag using GraphQL
       id: get_last_tag
       shell: bash
