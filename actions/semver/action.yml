@@ -78,13 +78,17 @@ runs:
       if: ${{ github.event_name == 'pull_request' }}
       shell: bash
       run: |
-        labels=$(echo '${{ steps.get_pr_labels.outputs.result }}' | jq -r '.data.repository.pullRequest.labels.nodes[].name')
-        if echo "$labels" | grep -q "${{ inputs.major-label }}"; then
-          echo "increment=major" >> $GITHUB_ENV
-        elif echo "$labels" | grep -q "${{ inputs.minor-label }}"; then
-          echo "increment=minor" >> $GITHUB_ENV
+        if [ -n "${{ inputs.increment }}" ]; then
+          echo "increment=${{ inputs.increment }}" >> $GITHUB_ENV
         else
-          echo "increment=patch" >> $GITHUB_ENV
+          labels=$(echo '${{ steps.get_pr_labels.outputs.result }}' | jq -r '.data.repository.pullRequest.labels.nodes[].name')
+          if echo "$labels" | grep -q "${{ inputs.major-label }}"; then
+            echo "increment=major" >> $GITHUB_ENV
+          elif echo "$labels" | grep -q "${{ inputs.minor-label }}"; then
+            echo "increment=minor" >> $GITHUB_ENV
+          else
+            echo "increment=patch" >> $GITHUB_ENV
+          fi
         fi
 
     - name: Get commit-associated PR details via GraphQL
@@ -115,21 +119,25 @@ runs:
       if: ${{ github.event_name != 'pull_request' }}
       shell: bash
       run: |
-        branch=${GITHUB_REF#refs/heads/}
-        default_branch=$(echo '${{ steps.get_default_branch.outputs.result }}' | jq -r '.data.repository.defaultBranchRef.name')
-        commit_json='${{ steps.get_commit_details.outputs.result }}'
-        if [ "$branch" = "$default_branch" ]; then
-          labels=$(echo "$commit_json" | jq -r '.data.repository.object.associatedPullRequests.nodes[0].labels.nodes[].name')
-        fi
-        if [ -z "$labels" ]; then
-          labels=$(echo "$commit_json" | jq -r '.data.repository.object.messageHeadline')
-        fi
-        if echo "$labels" | grep -q "${{ inputs.major-label }}"; then
-          echo "increment=major" >> $GITHUB_ENV
-        elif echo "$labels" | grep -q "${{ inputs.minor-label }}"; then
-          echo "increment=minor" >> $GITHUB_ENV
+        if [ -n "${{ inputs.increment }}" ]; then
+          echo "increment=${{ inputs.increment }}" >> $GITHUB_ENV
         else
-          echo "increment=patch" >> $GITHUB_ENV
+          branch=${GITHUB_REF#refs/heads/}
+          default_branch=$(echo '${{ steps.get_default_branch.outputs.result }}' | jq -r '.data.repository.defaultBranchRef.name')
+          commit_json='${{ steps.get_commit_details.outputs.result }}'
+          if [ "$branch" = "$default_branch" ]; then
+            labels=$(echo "$commit_json" | jq -r '.data.repository.object.associatedPullRequests.nodes[0].labels.nodes[].name')
+          fi
+          if [ -z "$labels" ]; then
+            labels=$(echo "$commit_json" | jq -r '.data.repository.object.messageHeadline')
+          fi
+          if echo "$labels" | grep -q "${{ inputs.major-label }}"; then
+            echo "increment=major" >> $GITHUB_ENV
+          elif echo "$labels" | grep -q "${{ inputs.minor-label }}"; then
+            echo "increment=minor" >> $GITHUB_ENV
+          else
+            echo "increment=patch" >> $GITHUB_ENV
+          fi
         fi
 
     - name: Increment version
