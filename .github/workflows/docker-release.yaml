@@ -51,6 +51,11 @@ on:
         default: ""
         description: "Target to build"
         required: false
+      download_artifact:
+        type: string
+        default: ""
+        description: "Download a specific artifact to use within docker build"
+        required: false
     secrets:
       DOCKER_TOKEN:
         required: true
@@ -75,6 +80,11 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
+
+      - if: ${{ inputs.download_artifact != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.download_artifact }}
 
       - run: |
           echo "Running Docker Release Workflow"
