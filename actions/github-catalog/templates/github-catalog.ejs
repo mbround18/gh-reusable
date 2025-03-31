@@ -12,7 +12,9 @@
             <td><%= wf.description %></td>
             <td><%= wf.name %></td>
             <td>
-            <pre>
+                <details>
+                    <summary>Click to see example.</summary>
+                <pre>
 <code>
 jobs:
   example:
@@ -22,7 +24,8 @@ jobs:
   <%= `${name}: \"${d}\"`.padEnd(wf.inputPadding) %> # <%= required ? "Required" : "Optional" %>, <%= description %>
     <% }); } -%>
 </code>
-            </pre>
+                </pre>
+                </details>
             </td>
         </tr>
     <% }); -%>
@@ -40,7 +43,9 @@ jobs:
             <td><%= a.name %></td>
             <td><%= a.description %></td>
             <td class="highlight highlight-source-yaml">
-            <pre>
+                <details>
+                    <summary>Click here to see usage example.</summary>
+                    <pre>
 <code>
 steps:
   - name: Use <%= a.name %> action
@@ -50,7 +55,8 @@ steps:
   <%= `${name}: \"${d}\"`.padEnd(a.inputPadding) %> # <%= required ? "Required" : "Optional" %>, <%= description %>
     <% }); } -%>
 </code>
-            </pre>
+                    </pre>
+                </details>
             </td>
         </tr>
     <% }); -%>
