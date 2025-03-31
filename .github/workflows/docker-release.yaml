@@ -46,6 +46,16 @@ on:
         type: string
         default: ""
         description: "Prefixer for semver, use this if you publish multiple artifacts like example-0.0.0"
+      target:
+        type: string
+        default: ""
+        description: "Target to build"
+        required: false
+      download_artifact:
+        type: string
+        default: ""
+        description: "Download a specific artifact to use within docker build"
+        required: false
     secrets:
       DOCKER_TOKEN:
         required: true
@@ -70,6 +80,11 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
+
+      - if: ${{ inputs.download_artifact != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.download_artifact }}
 
       - run: |
           echo "Running Docker Release Workflow"
@@ -130,3 +145,4 @@ jobs:
           canary_label: ${{ inputs.canary_label }}
           platforms: "linux/amd64,linux/arm64"
           registries: ${{ steps.registries.outputs.list }}
+          target: ${{ inputs.target }}

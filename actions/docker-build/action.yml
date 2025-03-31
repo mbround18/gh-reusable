@@ -33,6 +33,9 @@ inputs:
     description: "Comma separated list of target platforms (e.g., linux/amd64,linux/arm64)"
     required: false
     default: "linux/amd64"
+  target:
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -65,11 +68,7 @@ runs:
         # Process build secrets from env variables prefixed with BUILD_SECRET_
         for var in $(env | grep "^BUILD_SECRET_" | cut -d= -f1); do
           SECRET_NAME=${var#BUILD_SECRET_}
-          SECRET_VALUE=${!var}
-          # Create a temporary file for each secret
-          SECRET_FILE=$(mktemp)
-          echo "${SECRET_VALUE}" > "${SECRET_FILE}"
-          SECRET_ARGS+="id=${SECRET_NAME},src=${SECRET_FILE} "
+          SECRET_ARGS+="id=${SECRET_NAME},env=${var} "
         done
 
         # Export build and secret args to GitHub environment variables
@@ -110,6 +109,7 @@ runs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         provenance: false
+        target: ${{ inputs.target }}
 
     - name: Output Image Info
       shell: bash
