@@ -42,7 +42,7 @@ jobs:
           target: ${{ inputs.target }}
 
       - name: Build
-        run: cargo build --verbose
+        run: cargo build --verbose 
 
       - name: Run tests
         run: cargo test --verbose
@@ -52,3 +52,13 @@ jobs:
 
       - name: Clippy
         run: cargo clippy
+
+      - name: Build Release
+        run: cargo build --verbose --release
+
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-release
+          path: ./target/release
+          retention-days: 5
