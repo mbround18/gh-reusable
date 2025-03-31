@@ -1,0 +1,57 @@
+<h3>Reusable Workflows</h3>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Workflow Name</th>
+        <th>Usage</th>
+    </tr>
+    <% workflows.forEach(wf => { -%>
+        <tr>
+            <td><%= wf.workflow %></td>
+            <td><%= wf.description %></td>
+            <td><%= wf.name %></td>
+            <td>
+            <pre>
+<code>
+jobs:
+  example:
+    uses: <%= owner %>/<%= repo %>/.github/workflows/<%= wf.name %>@<%= version %><% if (Object.keys(wf.inputs).length > 0 ) { %>
+    with:
+    <% Object.entries(wf.inputs).forEach(([name, {required, description, default: d}]) => { -%>
+  <%= `${name}: \"${d}\"`.padEnd(wf.inputPadding) %> # <%= required ? "Required" : "Optional" %>, <%= description %>
+    <% }); } -%>
+</code>
+            </pre>
+            </td>
+        </tr>
+    <% }); -%>
+</table>
+
+<h3>Reusable Actions</h3>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Usage</th>
+    </tr>
+    <% actions.forEach(a => { -%>
+        <tr>
+            <td><%= a.name %></td>
+            <td><%= a.description %></td>
+            <td class="highlight highlight-source-yaml">
+            <pre>
+<code>
+steps:
+  - name: Use <%= a.name %> action
+    uses: mbround18/gh-reusable/actions/<%= a.name %><% if (Object.entries(a.inputs).length > 0) { %>
+    with:
+    <% Object.entries(a.inputs).forEach(([name, {required, description, default: d}]) => { -%>
+  <%= `${name}: \"${d}\"`.padEnd(a.inputPadding) %> # <%= required ? "Required" : "Optional" %>, <%= description %>
+    <% }); } -%>
+</code>
+            </pre>
+            </td>
+        </tr>
+    <% }); -%>
+</table>

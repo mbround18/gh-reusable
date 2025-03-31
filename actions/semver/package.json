@@ -3,18 +3,10 @@
   "version": "1.0.0",
   "description": "GitHub Action to increment semver based on tags, labels, and custom prefixes",
   "main": "index.js",
-  "scripts": {
-    "lint": "eslint .",
-    "format": "prettier --write ."
-  },
   "author": "mbround18",
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.0"
-  },
-  "devDependencies": {
-    "eslint": "^9.23.0",
-    "prettier": "^3.5.3"
   }
 }

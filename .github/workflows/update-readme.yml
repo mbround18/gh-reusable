@@ -1,0 +1,24 @@
+name: Update Readme
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    tags:
+      - "*"
+    branches:
+      - main
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: ./actions/github-catalog
+
+      - name: Update Readme
+        run: |
+          cat README.md > $GITHUB_STEP_SUMMARY

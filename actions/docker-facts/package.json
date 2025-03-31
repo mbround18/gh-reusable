@@ -4,8 +4,7 @@
   "description": "Extract docker build facts from docker-compose.yml",
   "main": "index.js",
   "scripts": {
-    "lint": "eslint .",
-    "test": "node index.js"
+    "action": "node index.js"
   },
   "dependencies": {
     "@actions/core": "^1.11.1",

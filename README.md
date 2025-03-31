@@ -9,17 +9,6 @@ Welcome to the **GH Reusable** repository! This repository contains a collection
 
 > **Note**: Any workflow prefixed with `test-` is intended for internal testing purposes and should **not** be used outside this repository.
 
-## Catalog
-
-| Action Name                  | Description                                                                                                                         | Link                                  |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| Docker Release Workflow      | Automates the process of building and releasing Docker images.                                                                      | [Link](#docker-release-workflow)      |
-| Rust Build and Test Workflow | Automates the process of building and testing Rust projects.                                                                        | [Link](#rust-build-and-test-workflow) |
-| Ensure Repository Action     | Ensures that the repository the action or workflow is running on is a known element.                                                | [Link](#ensure-repository-action)     |
-| Install CLI Action           | Downloads and installs a CLI from a GitHub release into the `${GITHUB_ACTION_PATH}/bin` directory.                                  | [Link](#install-cli-action)           |
-| Semver Action                | Increments the base or last tag by the increment or version.                                                                        | [Link](#semver-action)                |
-| Setup Rust Action            | Sets up a Rust toolchain, installs additional components and targets, caches Cargo dependencies, and installs specified CLI crates. | [Link](#setup-rust-action)            |
-
 ## Getting Started
 
 ### Using Reusable Actions
@@ -55,201 +44,215 @@ To include a reusable workflow:
 
    Replace `<workflow-name>` with the workflow's filename (excluding any `test-` prefixed workflows) and `v0.0.5` with the desired tag or commit SHA.
 
-## Docker Release Workflow
-
-The Docker Release Workflow automates the process of building and releasing Docker images. It supports releasing to both DockerHub and GitHub Container Registry (GHCR).
-
-### Usage
-
-To use the Docker Release Workflow, reference it in your workflow file:
-
-```yaml
+<!-- GENERATED:GITHUB-CATALOG:START -->
+<h3>Reusable Workflows</h3>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Workflow Name</th>
+        <th>Usage</th>
+    </tr>
+            <tr>
+            <td>Rust Build and Test</td>
+            <td></td>
+            <td>rust-build-n-test.yml</td>
+            <td>
+            <pre>
+<code>
 jobs:
-  docker-release:
-    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@v0.0.5
+  example:
+    uses: mbround18/gh-reusable/.github/workflows/rust-build-n-test.yml@v0.0.1
     with:
-      image: "mbround18/example"
-      canary_label: "canary"
-      dockerfile: "./Dockerfile"
-      ghcr: true
-      ghcr_username: "mbround18"
-      dockerhub_username: "mbround18"
-    secrets:
-      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
-      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-```
-
-### Inputs
-
-| Name                 | Description                | Required | Default             |
-| -------------------- | -------------------------- | -------- | ------------------- |
-| `image`              | Image Name                 | Yes      | `mbround18/example` |
-| `canary_label`       | Canary label for PR builds | No       | `canary`            |
-| `dockerfile`         | Path to the Dockerfile     | No       | `./Dockerfile`      |
-| `ghcr`               | Release to GHCR?           | No       | `false`             |
-| `ghcr_username`      | Username for GHCR          | No       | `mbround18`         |
-| `dockerhub_username` | Username for DockerHub     | No       | `mbround18`         |
-
-### Secrets
-
-| Name           | Description                     | Required |
-| -------------- | ------------------------------- | -------- |
-| `DOCKER_TOKEN` | DockerHub token                 | Yes      |
-| `GHCR_TOKEN`   | GitHub Container Registry token | No       |
-
-## Rust Build and Test Workflow
-
-The Rust Build and Test Workflow automates the process of building and testing Rust projects. It supports specifying toolchains, components, and additional compilation targets.
-
-### Usage
-
-To use the Rust Build and Test Workflow, reference it in your workflow file:
-
-```yaml
+      components: &#34;clippy rustfmt&#34; # Optional, Comma-separated list of Rust components to install (e.g., rustfmt, clippy).
+      target: &#34;&#34;                   # Optional, Comma-separated list of additional Rust compilation targets.
+      toolchain: &#34;stable&#34;          # Optional, Rust toolchain to use (e.g., stable, nightly, beta).
+    </code>
+            </pre>
+            </td>
+        </tr>
+            <tr>
+            <td>Docker Release Workflow</td>
+            <td></td>
+            <td>docker-release.yaml</td>
+            <td>
+            <pre>
+<code>
 jobs:
-  rust-build-and-test:
-    uses: mbround18/gh-reusable/.github/workflows/rust-build-n-test.yml@v0.0.5
+  example:
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@v0.0.1
     with:
-      toolchain: "stable"
-      components: "clippy,rustfmt"
-      target: "wasm32-unknown-unknown"
-```
+      image: &#34;mbround18/example&#34;      # Required, Image Name
+      canary_label: &#34;canary&#34;          # Optional, 
+      compose: &#34;false&#34;                # Optional, Want us to pull information from a docker-compose file?
+      context: &#34;.&#34;                    # Optional, Build context
+      dockerfile: &#34;./Dockerfile&#34;      # Optional, Dockerfile
+      dockerhub_username: &#34;mbround18&#34; # Optional, Who to log into dockerhub as.
+      ghcr: &#34;false&#34;                   # Optional, Release to GHCR?
+      ghcr_username: &#34;mbround18&#34;      # Optional, Who to log into ghcr as.zs
+      working-directory: &#34;.&#34;          # Optional, Working directory for the action
+    </code>
+            </pre>
+            </td>
+        </tr>
+    </table>
 
-### Inputs
+<h3>Reusable Actions</h3>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Usage</th>
+    </tr>
+            <tr>
+            <td>setup-rust</td>
+            <td>Sets up Rust toolchains, components, and additional CLI tools as needed.</td>
+            <td class="highlight highlight-source-yaml">
+            <pre>
+<code>
+steps:
+  - name: Use setup-rust action
+    uses: mbround18/gh-reusable/actions/setup-rust
+    with:
+      crates: &#34;&#34;          # Required, Comma-separated list of CLI crates to install (e.g., trunk, wasm-bindgen).
+      components: &#34;&#34;      # Optional, Comma-separated list of Rust components to install (e.g., rustfmt, clippy).
+      target: &#34;&#34;          # Optional, Comma-separated list of additional Rust compilation targets.
+      toolchain: &#34;stable&#34; # Optional, Rust toolchain to use (e.g., stable, nightly, beta).
+    </code>
+            </pre>
+            </td>
+        </tr>
+            <tr>
+            <td>semver</td>
+            <td>Increments the base or last tag by the increment or version, supports custom prefixes like chart-name-1.2.3.</td>
+            <td class="highlight highlight-source-yaml">
+            <pre>
+<code>
+steps:
+  - name: Use semver action
+    uses: mbround18/gh-reusable/actions/semver
+    with:
+      base: &#34;&#34;                     # Optional, Base version to start from. If not provided, the last matching tag will be used.
+      increment: &#34;patch&#34;           # Optional, Increment value (major, minor, patch). If not provided, will infer from PR or commit labels.
+      major-label: &#34;major&#34;         # Optional, Label to identify a major increment (default: &#39;major&#39;).
+      minor-label: &#34;minor&#34;         # Optional, Label to identify a minor increment (default: &#39;minor&#39;).
+      patch-label: &#34;patch&#34;         # Optional, Label to identify a patch increment (default: &#39;patch&#39;).
+      prefix: &#34;&#34;                   # Optional, Optional prefix used to filter and build tag versions. Example: &#39;chart-name-&#39; -&gt; chart-name-1.2.3
+      token: &#34;${{ github.token }}&#34; # Optional, GitHub token for authentication with GraphQL API.
+    </code>
+            </pre>
+            </td>
+        </tr>
+            <tr>
+            <td>install-cli</td>
+            <td>Download and install a CLI from a GitHub release into GITHUB_ACTION_PATH/bin.</td>
+            <td class="highlight highlight-source-yaml">
+            <pre>
+<code>
+steps:
+  - name: Use install-cli action
+    uses: mbround18/gh-reusable/actions/install-cli
+    with:
+      asset: &#34;&#34;                           # Required, Asset file name pattern with %VERSION% placeholder (e.g., &#39;cli-%VERSION%-linux-amd64.tar.gz&#39;).
+      repository: &#34;&#34;                      # Required, GitHub repository in the format &#39;owner/repo&#39; (e.g., &#39;trunk-rs/trunk&#39;).
+      github-token: &#34;${{ github.token }}&#34; # Optional, GitHub token for API requests.
+      override-name: &#34;&#34;                   # Optional, Optional. Rename the CLI binary to this name.
+      version: &#34;latest&#34;                   # Optional, Version of the release to install (default is latest).
+    </code>
+            </pre>
+            </td>
+        </tr>
+            <tr>
+            <td>graphql</td>
+            <td>Executes a GraphQL query or mutation using provided inputs</td>
+            <td class="highlight highlight-source-yaml">
+            <pre>
+<code>
+steps:
+  - name: Use graphql action
+    uses: mbround18/gh-reusable/actions/graphql
+    with:
+      query: &#34;&#34;                             # Required, Inline GraphQL query/mutation or a path to a file containing the query
+      token: &#34;&#34;                             # Required, GitHub token for authenticating the API call
+      args: &#34;&#34;                              # Optional, Comma or newline separated key=value pairs for query variables
+      url: &#34;https://api.github.com/graphql&#34; # Optional, GraphQL endpoint URL; defaults to GitHub GraphQL API
+    </code>
+            </pre>
+            </td>
+        </tr>
+            <tr>
+            <td>github-catalog</td>
+            <td>Generates a GitHub catalog of reusable workflows and actions, and inserts HTML tables into README.md.</td>
+            <td class="highlight highlight-source-yaml">
+            <pre>
+<code>
+steps:
+  - name: Use github-catalog action
+    uses: mbround18/gh-reusable/actions/github-catalog
+    with:
+      token: &#34;${{ github.token }}&#34; # Required, GitHub token with write access to the repository
+    </code>
+            </pre>
+            </td>
+        </tr>
+            <tr>
+            <td>ensure-repository</td>
+            <td>Ensures the repository that the action or workflow is running on is a known element.</td>
+            <td class="highlight highlight-source-yaml">
+            <pre>
+<code>
+steps:
+  - name: Use ensure-repository action
+    uses: mbround18/gh-reusable/actions/ensure-repository
+    with:
+      repository: &#34;mbround18/gh-reusable&#34; # Required, Specific repository (eg: mbround18/gh-reusable)
+    </code>
+            </pre>
+            </td>
+        </tr>
+            <tr>
+            <td>docker-facts</td>
+            <td>Extracts dockerfile, context, and build args from docker-compose.yml</td>
+            <td class="highlight highlight-source-yaml">
+            <pre>
+<code>
+steps:
+  - name: Use docker-facts action
+    uses: mbround18/gh-reusable/actions/docker-facts
+    with:
+      image: &#34;&#34;        # Required, Base image name (e.g., mbround18/steamcmd)
+      canary_label: &#34;&#34; # Optional, Label to trigger canary pushes
+      context: &#34;&#34;      # Optional, Default context path if not found in compose
+      dockerfile: &#34;&#34;   # Optional, Default Dockerfile path if not found in compose
+    </code>
+            </pre>
+            </td>
+        </tr>
+            <tr>
+            <td>docker-build</td>
+            <td>Build Docker images with build arguments, secrets, and multi-platform support</td>
+            <td class="highlight highlight-source-yaml">
+            <pre>
+<code>
+steps:
+  - name: Use docker-build action
+    uses: mbround18/gh-reusable/actions/docker-build
+    with:
+      context: &#34;.&#34;               # Required, Build context directory
+      dockerfile: &#34;./Dockerfile&#34; # Required, Path to the Dockerfile relative to the context
+      image: &#34;mbround18/test&#34;    # Required, Name of the image to be built
+      version: &#34;latest&#34;          # Required, Image tag version
+      canary_label: &#34;&#34;           # Optional, Label to trigger canary pushes
+      platforms: &#34;linux/amd64&#34;   # Optional, Comma separated list of target platforms (e.g., linux/amd64,linux/arm64)
+      push: &#34;false&#34;              # Optional, Whether to push the image
+      registries: &#34;&#34;             # Optional, Comma separated list of registries to re-tag the image with
+    </code>
+            </pre>
+            </td>
+        </tr>
+    </table>
 
-| Name         | Description                                                 | Required | Default          |
-| ------------ | ----------------------------------------------------------- | -------- | ---------------- |
-| `toolchain`  | Rust toolchain to use (e.g., stable, nightly)               | No       | `stable`         |
-| `components` | Comma-separated list of Rust components to install          | No       | `clippy,rustfmt` |
-| `target`     | Comma-separated list of additional Rust compilation targets | No       | `""`             |
-
-## Ensure Repository Action
-
-The Ensure Repository Action ensures that the repository the action or workflow is running on is a known element.
-
-### Usage
-
-To use the Ensure Repository Action, reference it in your workflow file:
-
-```yaml
-jobs:
-  ensure-repository:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify Repo is mbround18/gh-reusable
-        uses: mbround18/gh-reusable/actions/ensure-repository@v0.0.5
-```
-
-### Inputs
-
-| Name         | Description                                       | Required | Default                 |
-| ------------ | ------------------------------------------------- | -------- | ----------------------- |
-| `repository` | Specific repository (e.g., mbround18/gh-reusable) | Yes      | `mbround18/gh-reusable` |
-
-## Install CLI Action
-
-The Install CLI Action downloads and installs a CLI from a GitHub release into the `${GITHUB_ACTION_PATH}/bin` directory.
-
-### Usage
-
-To use the Install CLI Action, reference it in your workflow file:
-
-```yaml
-jobs:
-  install-cli:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Install CLI
-        uses: mbround18/gh-reusable/actions/install-cli@v0.0.5
-        with:
-          repository: "owner/repo" # e.g., trunk-rs/trunk
-          version: "latest" # Optional: specify version or use 'latest'
-          asset: "cli-%VERSION%-linux-amd64.tar.gz" # Replace with the actual asset pattern
-          override-name: "my-cli" # Optional: rename the installed CLI
-```
-
-### Inputs
-
-| Name            | Description                                                                                        | Required | Default                        |
-| --------------- | -------------------------------------------------------------------------------------------------- | -------- | ------------------------------ |
-| `repository`    | GitHub repository in the format `'owner/repo'` (e.g., `'trunk-rs/trunk'`).                         | Yes      | N/A                            |
-| `version`       | Version of the release to install (e.g., `'v1.0.0'`). If not provided, the latest release is used. | No       | `'latest'`                     |
-| `asset`         | Asset file name pattern with `%VERSION%` placeholder (e.g., `'cli-%VERSION%-linux-amd64.tar.gz'`). | Yes      | N/A                            |
-| `override-name` | Optional. Rename the CLI binary to this name.                                                      | No       | `""` (default name from asset) |
-| `github-token`  | GitHub token for API requests (defaults to the automatic `${{ github.token }}`).                   | No       | `${{ github.token }}`          |
-
-## Semver Action
-
-The Semver Action increments the base or last tag by the increment or version.
-
-### Usage
-
-To use the Semver Action, reference it in your workflow file:
-
-```yaml
-jobs:
-  semver:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Increment version
-        uses: mbround18/gh-reusable/actions/semver@v0.0.5
-        with:
-          base: "" # Optional: specify base version or leave empty to use the last tag
-          increment: "patch" # Optional: specify increment (major, minor, patch)
-          major-label: "major" # Optional: specify label to identify a major increment
-          minor-label: "minor" # Optional: specify label to identify a minor increment
-          patch-label: "patch" # Optional: specify label to identify a patch increment
-```
-
-### Inputs
-
-| Name          | Description                                                             | Required | Default |
-| ------------- | ----------------------------------------------------------------------- | -------- | ------- |
-| `base`        | Base version to start from. If not provided, the last tag will be used. | No       | `""`    |
-| `increment`   | Increment value (major, minor, patch).                                  | No       | `patch` |
-| `major-label` | Label to identify a major increment.                                    | No       | `major` |
-| `minor-label` | Label to identify a minor increment.                                    | No       | `minor` |
-| `patch-label` | Label to identify a patch increment.                                    | No       | `patch` |
-
-## Setup Rust Action
-
-The Setup Rust Action sets up a Rust toolchain, installs additional components and targets, caches Cargo dependencies, and installs specified CLI crates.
-
-### Usage
-
-To use the Setup Rust Action, reference it in your workflow file:
-
-```yaml
-jobs:
-  setup-rust:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Setup Rust
-        uses: mbround18/gh-reusable/actions/setup-rust@v0.0.5
-        with:
-          toolchain: "stable"
-          components: "clippy,rustfmt"
-          target: "wasm32-unknown-unknown"
-          crates: "wasm-pack,trunk"
-```
-
-### Inputs
-
-| Name         | Description                                                 | Required | Default  |
-| ------------ | ----------------------------------------------------------- | -------- | -------- |
-| `toolchain`  | Rust toolchain to use (e.g., stable, nightly)               | No       | `stable` |
-| `components` | Comma-separated list of Rust components to install          | No       | `""`     |
-| `target`     | Comma-separated list of additional Rust compilation targets | No       | `""`     |
-| `crates`     | Comma-separated list of CLI crates to install               | No       | `""`     |
+<!-- GENERATED:GITHUB-CATALOG:STOP -->
 
 ## Contributing
 
