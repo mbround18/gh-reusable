@@ -90,7 +90,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.download_artifact }}
-          path: ${{ inputs.download_artifact_destination }} 
+          path: ${{ inputs.download_artifact_destination }}
 
       - run: |
           echo "Running Docker Release Workflow"
