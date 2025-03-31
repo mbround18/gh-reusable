@@ -56,6 +56,11 @@ on:
         default: ""
         description: "Download a specific artifact to use within docker build"
         required: false
+      download_artifact_destination:
+        type: string
+        default: ""
+        description: "When downloading an artifact this helps it extract to a specific dir"
+        required: false
     secrets:
       DOCKER_TOKEN:
         required: true
@@ -85,6 +90,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.download_artifact }}
+          path: ${{ inputs.download_artifact_destination }} 
 
       - run: |
           echo "Running Docker Release Workflow"
