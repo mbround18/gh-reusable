@@ -58,7 +58,9 @@ To include a reusable workflow:
             <td></td>
             <td>rust-build-n-test.yml</td>
             <td>
-            <pre>
+                <details>
+                    <summary>Click to see example.</summary>
+                <pre>
 <code>
 jobs:
   example:
@@ -68,7 +70,8 @@ jobs:
       target: &#34;&#34;                   # Optional, Comma-separated list of additional Rust compilation targets.
       toolchain: &#34;stable&#34;          # Optional, Rust toolchain to use (e.g., stable, nightly, beta).
     </code>
-            </pre>
+                </pre>
+                </details>
             </td>
         </tr>
             <tr>
@@ -76,7 +79,9 @@ jobs:
             <td></td>
             <td>docker-release.yaml</td>
             <td>
-            <pre>
+                <details>
+                    <summary>Click to see example.</summary>
+                <pre>
 <code>
 jobs:
   example:
@@ -90,9 +95,11 @@ jobs:
       dockerhub_username: &#34;mbround18&#34; # Optional, Who to log into dockerhub as.
       ghcr: &#34;false&#34;                   # Optional, Release to GHCR?
       ghcr_username: &#34;mbround18&#34;      # Optional, Who to log into ghcr as.zs
+      semver_prefix: &#34;&#34;               # Optional, Prefixer for semver, use this if you publish multiple artifacts like example-0.0.0
       working-directory: &#34;.&#34;          # Optional, Working directory for the action
     </code>
-            </pre>
+                </pre>
+                </details>
             </td>
         </tr>
     </table>
@@ -108,7 +115,9 @@ jobs:
             <td>setup-rust</td>
             <td>Sets up Rust toolchains, components, and additional CLI tools as needed.</td>
             <td class="highlight highlight-source-yaml">
-            <pre>
+                <details>
+                    <summary>Click here to see usage example.</summary>
+                    <pre>
 <code>
 steps:
   - name: Use setup-rust action
@@ -119,14 +128,17 @@ steps:
       target: &#34;&#34;          # Optional, Comma-separated list of additional Rust compilation targets.
       toolchain: &#34;stable&#34; # Optional, Rust toolchain to use (e.g., stable, nightly, beta).
     </code>
-            </pre>
+                    </pre>
+                </details>
             </td>
         </tr>
             <tr>
             <td>semver</td>
             <td>Increments the base or last tag by the increment or version, supports custom prefixes like chart-name-1.2.3.</td>
             <td class="highlight highlight-source-yaml">
-            <pre>
+                <details>
+                    <summary>Click here to see usage example.</summary>
+                    <pre>
 <code>
 steps:
   - name: Use semver action
@@ -140,14 +152,17 @@ steps:
       prefix: &#34;&#34;                   # Optional, Optional prefix used to filter and build tag versions. Example: &#39;chart-name-&#39; -&gt; chart-name-1.2.3
       token: &#34;${{ github.token }}&#34; # Optional, GitHub token for authentication with GraphQL API.
     </code>
-            </pre>
+                    </pre>
+                </details>
             </td>
         </tr>
             <tr>
             <td>install-cli</td>
             <td>Download and install a CLI from a GitHub release into GITHUB_ACTION_PATH/bin.</td>
             <td class="highlight highlight-source-yaml">
-            <pre>
+                <details>
+                    <summary>Click here to see usage example.</summary>
+                    <pre>
 <code>
 steps:
   - name: Use install-cli action
@@ -159,14 +174,17 @@ steps:
       override-name: &#34;&#34;                   # Optional, Optional. Rename the CLI binary to this name.
       version: &#34;latest&#34;                   # Optional, Version of the release to install (default is latest).
     </code>
-            </pre>
+                    </pre>
+                </details>
             </td>
         </tr>
             <tr>
             <td>graphql</td>
             <td>Executes a GraphQL query or mutation using provided inputs</td>
             <td class="highlight highlight-source-yaml">
-            <pre>
+                <details>
+                    <summary>Click here to see usage example.</summary>
+                    <pre>
 <code>
 steps:
   - name: Use graphql action
@@ -177,14 +195,17 @@ steps:
       args: &#34;&#34;                              # Optional, Comma or newline separated key=value pairs for query variables
       url: &#34;https://api.github.com/graphql&#34; # Optional, GraphQL endpoint URL; defaults to GitHub GraphQL API
     </code>
-            </pre>
+                    </pre>
+                </details>
             </td>
         </tr>
             <tr>
             <td>github-catalog</td>
             <td>Generates a GitHub catalog of reusable workflows and actions, and inserts HTML tables into README.md.</td>
             <td class="highlight highlight-source-yaml">
-            <pre>
+                <details>
+                    <summary>Click here to see usage example.</summary>
+                    <pre>
 <code>
 steps:
   - name: Use github-catalog action
@@ -192,14 +213,17 @@ steps:
     with:
       token: &#34;${{ github.token }}&#34; # Required, GitHub token with write access to the repository
     </code>
-            </pre>
+                    </pre>
+                </details>
             </td>
         </tr>
             <tr>
             <td>ensure-repository</td>
             <td>Ensures the repository that the action or workflow is running on is a known element.</td>
             <td class="highlight highlight-source-yaml">
-            <pre>
+                <details>
+                    <summary>Click here to see usage example.</summary>
+                    <pre>
 <code>
 steps:
   - name: Use ensure-repository action
@@ -207,14 +231,17 @@ steps:
     with:
       repository: &#34;mbround18/gh-reusable&#34; # Required, Specific repository (eg: mbround18/gh-reusable)
     </code>
-            </pre>
+                    </pre>
+                </details>
             </td>
         </tr>
             <tr>
             <td>docker-facts</td>
             <td>Extracts dockerfile, context, and build args from docker-compose.yml</td>
             <td class="highlight highlight-source-yaml">
-            <pre>
+                <details>
+                    <summary>Click here to see usage example.</summary>
+                    <pre>
 <code>
 steps:
   - name: Use docker-facts action
@@ -225,14 +252,17 @@ steps:
       context: &#34;&#34;      # Optional, Default context path if not found in compose
       dockerfile: &#34;&#34;   # Optional, Default Dockerfile path if not found in compose
     </code>
-            </pre>
+                    </pre>
+                </details>
             </td>
         </tr>
             <tr>
             <td>docker-build</td>
             <td>Build Docker images with build arguments, secrets, and multi-platform support</td>
             <td class="highlight highlight-source-yaml">
-            <pre>
+                <details>
+                    <summary>Click here to see usage example.</summary>
+                    <pre>
 <code>
 steps:
   - name: Use docker-build action
@@ -247,7 +277,8 @@ steps:
       push: &#34;false&#34;              # Optional, Whether to push the image
       registries: &#34;&#34;             # Optional, Comma separated list of registries to re-tag the image with
     </code>
-            </pre>
+                    </pre>
+                </details>
             </td>
         </tr>
     </table>

@@ -28,7 +28,6 @@ async function getLastTag(octokit, owner, repo, prefix, base, core) {
     const hasVPrefix = tags.every((tag) => tag.startsWith("v"));
     if (hasVPrefix) prefix = "v";
 
-
     if ((prefix || "").length > 1) {
       tags = tags.filter((tag) => tag.startsWith(prefix));
       const hasDash = tags.every((tag) => tag.startsWith(`${prefix}-`));
