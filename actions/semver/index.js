@@ -24,18 +24,20 @@ async function getLastTag(octokit, owner, repo, prefix, base, core) {
     const getLastTagQuery = fetchQuery("queries/get_last_tag.gql");
     const res = await octokit.graphql(getLastTagQuery, { owner, repo });
     const nodes = res?.repository?.refs?.nodes || [];
-    const tags = nodes.map((n) => n.name);
+    let tags = nodes.map((n) => n.name);
     const hasVPrefix = tags.every((tag) => tag.startsWith("v"));
     if (hasVPrefix) prefix = "v";
 
-    const matching = tags
-      .filter((tag) => tag.startsWith(prefix))
-      .sort((a, b) =>
-        compareSemverDesc(
-          a.replace(new RegExp(`^${prefix}-?`), ""),
-          b.replace(new RegExp(`^${prefix}-?`), ""),
-        ),
-      );
+
+    if ((prefix || "").length > 1) {
+      tags = tags.filter((tag) => tag.startsWith(prefix));
+      const hasDash = tags.every((tag) => tag.startsWith(`${prefix}-`));
+      if (hasDash) prefix = `${prefix}-`;
+    }
+
+    const matching = tags.sort((a, b) =>
+      compareSemverDesc(a.replace(prefix, ""), b.replace(prefix, "")),
+    );
 
     lastTag = matching.length > 0 ? matching[0] : `${prefix}0.0.0`;
     core.info(`Resolved last tag: ${lastTag}`);
