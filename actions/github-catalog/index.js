@@ -6,6 +6,34 @@ const glob = require("glob");
 const ejs = require("ejs");
 const { graphql } = require("@octokit/graphql");
 
+function getInputPadding(obj, additionalPadding = 0) {
+  const longest = Object.entries(obj).reduce((maxLength, [key, value]) => {
+    const combinedLength = `${key}${value?.default ?? ""}`.length;
+    return Math.max(maxLength, combinedLength);
+  }, 0);
+  return longest + additionalPadding;
+}
+
+function sanitizeInputs(obj) {
+  return Object.entries(obj)
+    .map(([key, value]) => [
+      key,
+      {
+        ...value,
+        default: value.default === undefined ? "" : String(value.default ?? ""),
+      },
+    ])
+    .sort(([aKey, aVal], [bKey, bVal]) => {
+      const aReq = !!aVal.required;
+      const bReq = !!bVal.required;
+      return aReq !== bReq ? (aReq ? -1 : 1) : aKey.localeCompare(bKey);
+    })
+    .reduce((acc, [key, val]) => {
+      acc[key] = val;
+      return acc;
+    }, {});
+}
+
 // Helper to read file content
 const readFile = (filePath) =>
   fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf-8") : "";
@@ -19,40 +47,6 @@ const getLatestVersion = async (graphqlWithAuth, owner, repo) => {
   const latestTag = data.repository.refs.nodes[0]?.name;
   const defaultBranch = data.repository.defaultBranchRef?.name;
   return latestTag || defaultBranch || "main";
-};
-
-// Extract usage details from workflow files
-const extractUsageFromWorkflow = (workflowYaml) => {
-  const inputs = workflowYaml?.on?.workflow_call?.inputs || {};
-  const required = Object.entries(inputs)
-    .filter(([_, val]) => val.required)
-    .map(([key]) => key);
-  const optional = Object.entries(inputs)
-    .filter(([_, val]) => !val.required)
-    .map(([key]) => key);
-
-  return {
-    required,
-    optional,
-    usage: `uses: <OWNER>/<REPO>/.github/workflows/<FILE>@<VERSION>`,
-  };
-};
-
-// Extract usage details from action files
-const extractUsageFromAction = (actionYaml) => {
-  const inputs = actionYaml?.inputs || {};
-  const required = Object.entries(inputs)
-    .filter(([_, val]) => val.required)
-    .map(([key]) => key);
-  const optional = Object.entries(inputs)
-    .filter(([_, val]) => !val.required)
-    .map(([key]) => key);
-
-  return {
-    required,
-    optional,
-    usage: `uses: ./actions/<NAME>`,
-  };
 };
 
 // Update the README.md with the generated HTML table
@@ -75,32 +69,36 @@ async function run() {
     const latestVersion = await getLatestVersion(graphqlWithAuth, owner, repo);
 
     const workflowPaths = glob
-      .sync(".github/workflows/*.yml")
+      .sync(".github/workflows/*.y*ml")
       .filter((p) => !path.basename(p).startsWith("test-"));
     const actionPaths = glob.sync("actions/**/action.yml");
 
     const workflows = workflowPaths
-      .map((wf) => {
-        const yaml = require("js-yaml").load(readFile(wf));
-        if (!yaml?.on?.workflow_call) return null;
-
-        const usage = extractUsageFromWorkflow(yaml);
-        return {
-          name: path.basename(wf),
-          description: yaml.description || "",
-          workflow: yaml.name || "",
-          ...usage,
-        };
-      })
-      .filter(Boolean);
+        .reduce((acc, wf) => {
+            console.log("Processing workflow:", wf);
+            const yaml = require("js-yaml").load(readFile(wf));
+            if (!yaml?.on?.workflow_call) return acc;
+            const inputs = sanitizeInputs(yaml.on.workflow_call.inputs || {});
+            acc.push({
+                name: path.basename(wf),
+                description: yaml.description || "",
+                workflow: yaml.name || "",
+                inputs: inputs,
+                inputPadding: getInputPadding(inputs, 4),
+            });
+            return acc;
+        },[]);
 
     const actions = actionPaths.map((ap) => {
+      console.log("Processing action:", ap);
       const yaml = require("js-yaml").load(readFile(ap));
-      const usage = extractUsageFromAction(yaml);
+      const inputs = sanitizeInputs(yaml.inputs || {});
+
       return {
         name: path.basename(path.dirname(ap)),
         description: (yaml.description || "").split("\n")[0],
-        ...usage,
+        inputs: inputs,
+        inputPadding: getInputPadding(inputs, 4),
       };
     });
 

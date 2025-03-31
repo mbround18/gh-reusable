@@ -21,7 +21,8 @@ lint:
 readme:
 	@cd actions/github-catalog && docker build -t actions/github-catalog .
 	@docker run --rm \
-		--env=INPUT_TOKEN=$(shell echo "$$GITHUB_TOKEN") \
+		--env=INPUT_TOKEN=$(shell gh auth token) \
 		--env=GITHUB_REPOSITORY=mbround18/gh-reusable \
 		-v $(shell pwd):/github/workspace \
 		-w /github/workspace actions/github-catalog
+
