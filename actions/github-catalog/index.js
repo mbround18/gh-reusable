@@ -73,21 +73,20 @@ async function run() {
       .filter((p) => !path.basename(p).startsWith("test-"));
     const actionPaths = glob.sync("actions/**/action.yml");
 
-    const workflows = workflowPaths
-        .reduce((acc, wf) => {
-            console.log("Processing workflow:", wf);
-            const yaml = require("js-yaml").load(readFile(wf));
-            if (!yaml?.on?.workflow_call) return acc;
-            const inputs = sanitizeInputs(yaml.on.workflow_call.inputs || {});
-            acc.push({
-                name: path.basename(wf),
-                description: yaml.description || "",
-                workflow: yaml.name || "",
-                inputs: inputs,
-                inputPadding: getInputPadding(inputs, 4),
-            });
-            return acc;
-        },[]);
+    const workflows = workflowPaths.reduce((acc, wf) => {
+      console.log("Processing workflow:", wf);
+      const yaml = require("js-yaml").load(readFile(wf));
+      if (!yaml?.on?.workflow_call) return acc;
+      const inputs = sanitizeInputs(yaml.on.workflow_call.inputs || {});
+      acc.push({
+        name: path.basename(wf),
+        description: yaml.description || "",
+        workflow: yaml.name || "",
+        inputs: inputs,
+        inputPadding: getInputPadding(inputs, 4),
+      });
+      return acc;
+    }, []);
 
     const actions = actionPaths.map((ap) => {
       console.log("Processing action:", ap);
