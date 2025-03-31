@@ -65,11 +65,7 @@ runs:
         # Process build secrets from env variables prefixed with BUILD_SECRET_
         for var in $(env | grep "^BUILD_SECRET_" | cut -d= -f1); do
           SECRET_NAME=${var#BUILD_SECRET_}
-          SECRET_VALUE=${!var}
-          # Create a temporary file for each secret
-          SECRET_FILE=$(mktemp)
-          echo "${SECRET_VALUE}" > "${SECRET_FILE}"
-          SECRET_ARGS+="id=${SECRET_NAME},src=${SECRET_FILE} "
+          SECRET_ARGS+="id=${SECRET_NAME},env=${var} "
         done
 
         # Export build and secret args to GitHub environment variables
