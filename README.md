@@ -55,8 +55,6 @@ To include a reusable workflow:
     </tr>
             <tr>
             <td>Rust Build and Test</td>
-            <td></td>
-            <td>rust-build-n-test.yml</td>
             <td>
                 <details>
                     <summary>Click to see example.</summary>
@@ -76,8 +74,6 @@ jobs:
         </tr>
             <tr>
             <td>Docker Release Workflow</td>
-            <td></td>
-            <td>docker-release.yaml</td>
             <td>
                 <details>
                     <summary>Click to see example.</summary>
