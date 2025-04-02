@@ -46,6 +46,7 @@ runs:
     - uses: mbround18/gh-reusable/actions/docker-facts@main
       id: facts
       with:
+        push: ${{ inputs.push }}
         image: ${{ inputs.image }}
         dockerfile: ${{ inputs.dockerfile }}
         context: ${{ inputs.context }}
@@ -101,7 +102,7 @@ runs:
       with:
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile_path }}
-        push: ${{ inputs.push }}
+        push: ${{  steps.facts.outputs.push }}
         tags: ${{ steps.prep-tags.outputs.tags }}
         build-args: ${{ env.build_args }}
         secrets: ${{ env.secret_args }}

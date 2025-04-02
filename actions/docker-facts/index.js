@@ -55,6 +55,7 @@ async function run() {
     const fallbackDockerfile = core.getInput("dockerfile") || "./Dockerfile";
     const fallbackContext = core.getInput("context") || ".";
     const canaryLabel = core.getInput("canary_label") || "canary";
+    const forcePush = core.getInput("force_push").toString() === "true";
 
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
     const resolvedContext = path.resolve(fallbackContext);
@@ -115,7 +116,10 @@ async function run() {
       `isCanary=${isCanary}, isDefaultBranch=${isDefaultBranch}, isTag=${isTag}`,
     );
     const shouldPush =
-      (eventName === "pull_request" && isCanary) || isDefaultBranch || isTag;
+      forcePush ||
+      (eventName === "pull_request" && isCanary) ||
+      isDefaultBranch ||
+      isTag;
     core.info(`push=${shouldPush}`);
     core.endGroup();
 
