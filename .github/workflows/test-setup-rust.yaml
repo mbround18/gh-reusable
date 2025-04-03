@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Verify Repo is mbround18/gh-reusable
-        uses: mbround18/gh-reusable/actions/ensure-repository@v0.0.5
+        uses: mbround18/gh-reusable/actions/ensure-repository@v0.0.6
   test-base:
     name: "Setup Rust | Base"
     runs-on: ubuntu-latest
