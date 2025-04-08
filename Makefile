@@ -12,7 +12,6 @@ update:
 		-not -path "*/node_modules/*" \
 		-execdir sh -c 'echo "📦 Installing in $$(pwd)"; npm update; npm upgrade; npm audit fix --force' \;
 
-
 lint:
 	@npx -y prettier --write .
 	@cargo fmt

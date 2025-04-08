@@ -36,6 +36,7 @@ inputs:
   target:
     required: false
     default: ""
+    description: "Target to build"
 
 runs:
   using: composite
@@ -109,7 +110,6 @@ runs:
         platforms: ${{ inputs.platforms }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        provenance: false
         target: ${{ inputs.target }}
 
     - name: Output Image Info
@@ -129,4 +129,3 @@ runs:
           echo "| Platforms     |   \`${{ inputs.platforms }}\`               |"
           echo "| Target        |   \`${{ inputs.target }}\`                  |"
         } >> $GITHUB_STEP_SUMMARY
-
