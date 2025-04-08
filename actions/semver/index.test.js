@@ -1,12 +1,12 @@
 const path = require("path");
 const semver = require("semver");
 
-// Mock the required modules before requiring the code that uses them
+// Create mock implementations for fs functions first
+const mockReadFile = jest.fn();
+
+// Mock modules before requiring them
 jest.mock("@actions/core");
 jest.mock("@actions/github");
-
-// Mock the fs module
-const mockReadFile = jest.fn();
 jest.mock("fs", () => ({
   promises: {
     readFile: mockReadFile,
@@ -14,6 +14,8 @@ jest.mock("fs", () => ({
   constants: {
     O_RDONLY: 0,
   },
+  existsSync: jest.fn(),
+  readFileSync: jest.fn()
 }));
 
 // Now require the mocked modules
@@ -27,7 +29,7 @@ mockReadFile.mockImplementation((filePath) => {
     return Promise.resolve("query { repository { refs { nodes { name } } } }");
   } else if (filePath.includes("pr_labels.gql")) {
     return Promise.resolve(
-      "query { repository { pullRequest { labels { nodes { name } } } } }",
+      "query { repository { pullRequest { labels { nodes { name } } } }",
     );
   } else if (filePath.includes("commit_associated_pr.gql")) {
     return Promise.resolve(
@@ -655,7 +657,7 @@ describe("run function", () => {
         );
       } else if (path.includes("pr_labels.gql")) {
         return Promise.resolve(
-          "query { repository { pullRequest { labels { nodes { name } } } } }",
+          "query { repository { pullRequest { labels { nodes { name } } } }",
         );
       } else if (path.includes("commit_associated_pr.gql")) {
         return Promise.resolve(
