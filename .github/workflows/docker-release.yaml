@@ -163,6 +163,7 @@ jobs:
             const pr_number = context.payload.pull_request.number
             const pr_url = context.payload.pull_request.html_url
             const pr_title = context.payload.pull_request.title
+            const pipeline_url = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
 
             let message = `Docker image \`${image}\` has been built and pushed to:\n\n`
             registries.forEach(registry => {
@@ -171,7 +172,8 @@ jobs:
             })
 
             message += `\nPR Title: ${pr_title}\n`
-            message += `PR URL: ${pr_url}`
+            message += `PR URL: ${pr_url}\n`
+            message += `Pipeline URL: ${pipeline_url}`
 
             github.rest.issues.createComment({
               issue_number: pr_number,

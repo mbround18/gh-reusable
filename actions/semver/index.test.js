@@ -15,7 +15,7 @@ jest.mock("fs", () => ({
     O_RDONLY: 0,
   },
   existsSync: jest.fn(),
-  readFileSync: jest.fn()
+  readFileSync: jest.fn(),
 }));
 
 // Now require the mocked modules
