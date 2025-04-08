@@ -39,7 +39,7 @@ jobs:
           git config --local user.email "actions@no-reply.github.com"
 
           TAG_NAME="${{ steps.semver.outputs.new_version }}"
-          
+
           # Check if tag already exists
           if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
             if [[ "${{ inputs.force }}" == "true" ]]; then
@@ -54,7 +54,7 @@ jobs:
 
           git tag -a "$TAG_NAME" -m "Release $TAG_NAME" 
           git push origin "$TAG_NAME" 
-          
+
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
