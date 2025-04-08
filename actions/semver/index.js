@@ -1,19 +1,32 @@
 const core = require("@actions/core");
 const github = require("@actions/github");
-const fs = require("fs");
+const fs = require("fs").promises;
 const path = require("path");
+const semver = require("semver");
 
-function compareSemverDesc(a, b) {
-  const pa = a.split(".").map(Number);
-  const pb = b.split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    if (pa[i] !== pb[i]) return pb[i] - pa[i];
+// Constants for version increments
+const INCREMENTS = {
+  MAJOR: "major",
+  MINOR: "minor",
+  PATCH: "patch",
+};
+
+// Query cache to avoid repeated file reads
+const queryCache = {};
+
+async function fetchQuery(queryPath) {
+  if (!queryCache[queryPath]) {
+    const filePath = path.join(__dirname, queryPath);
+    queryCache[queryPath] = await fs.readFile(filePath, "utf8");
   }
-  return 0;
+  return queryCache[queryPath];
 }
 
-function fetchQuery(queryPath) {
-  return fs.readFileSync(path.join(__dirname, queryPath), "utf8");
+// Helper function to resolve increment from labels
+function resolveIncrementFromLabels(labels, majorLabel, minorLabel) {
+  if (labels.includes(majorLabel)) return INCREMENTS.MAJOR;
+  if (labels.includes(minorLabel)) return INCREMENTS.MINOR;
+  return INCREMENTS.PATCH;
 }
 
 async function getLastTag(octokit, owner, repo, prefix, base, core) {
@@ -21,9 +34,14 @@ async function getLastTag(octokit, owner, repo, prefix, base, core) {
 
   if (!lastTag) {
     core.startGroup("🔎 Fetching Last Tag");
-    const getLastTagQuery = fetchQuery("queries/get_last_tag.gql");
+    const getLastTagQuery = await fetchQuery("queries/get_last_tag.gql");
     const res = await octokit.graphql(getLastTagQuery, { owner, repo });
-    const nodes = res?.repository?.refs?.nodes || [];
+
+    if (!res || !res.repository || !res.repository.refs) {
+      throw new Error("Failed to fetch last tag information");
+    }
+
+    const nodes = res.repository.refs.nodes || [];
     let tags = nodes.map((n) => n.name);
     const hasVPrefix = tags.every((tag) => tag.startsWith("v"));
     if (hasVPrefix) prefix = "v";
@@ -34,9 +52,12 @@ async function getLastTag(octokit, owner, repo, prefix, base, core) {
       if (hasDash) prefix = `${prefix}-`;
     }
 
-    const matching = tags.sort((a, b) =>
-      compareSemverDesc(a.replace(prefix, ""), b.replace(prefix, "")),
-    );
+    // Use semver for better version comparison
+    const matching = tags.sort((a, b) => {
+      const versionA = semver.clean(a.replace(prefix, "")) || "0.0.0";
+      const versionB = semver.clean(b.replace(prefix, "")) || "0.0.0";
+      return semver.rcompare(versionA, versionB);
+    });
 
     lastTag = matching.length > 0 ? matching[0] : `${prefix}0.0.0`;
     core.info(`Resolved last tag: ${lastTag}`);
@@ -59,50 +80,77 @@ async function detectIncrement(
   let increment = incrementInput;
   const isPR = github.context.eventName === "pull_request";
 
-  if (!incrementInput && isPR) {
-    core.startGroup("🏷️ Detecting PR Labels");
-    const prLabelsQuery = fetchQuery("queries/pr_labels.gql");
-    const res = await octokit.graphql(prLabelsQuery, {
-      owner,
-      repo,
-      prNumber: github.context.payload.pull_request.number,
-    });
-    const labels = res.repository.pullRequest.labels.nodes.map((l) => l.name);
-    core.info(`PR labels: ${labels.join(", ")}`);
-
-    if (labels.includes(majorLabel)) increment = "major";
-    else if (labels.includes(minorLabel)) increment = "minor";
-    else increment = "patch";
-    core.info(`Resolved increment: ${increment}`);
-    core.endGroup();
-  }
-
-  if (!incrementInput && !isPR) {
-    core.startGroup("🔍 Detecting Commit Labels on Default Branch");
-    const commitQuery = fetchQuery("queries/commit_associated_pr.gql");
-    const branchQuery = fetchQuery("queries/default_branch.gql");
-
-    const commitRes = await octokit.graphql(commitQuery, {
-      owner,
-      repo,
-      commitOid: github.context.sha,
-    });
-
-    const branchRes = await octokit.graphql(branchQuery, { owner, repo });
-    const defaultBranch = branchRes.repository.defaultBranchRef.name;
-    const refBranch = github.ref.replace("refs/heads/", "");
+  if (!incrementInput) {
+    core.startGroup(
+      isPR
+        ? "🏷️ Detecting PR Labels"
+        : "🔍 Detecting Commit Labels on Default Branch",
+    );
 
     let labels = [];
-    if (refBranch === defaultBranch) {
-      const pr =
-        commitRes.data.repository.object.associatedPullRequests.nodes[0];
-      labels = pr?.labels?.nodes?.map((l) => l.name) || [];
+
+    if (isPR) {
+      const prLabelsQuery = await fetchQuery("queries/pr_labels.gql");
+      try {
+        const res = await octokit.graphql(prLabelsQuery, {
+          owner,
+          repo,
+          prNumber: github.context.payload.pull_request.number,
+        });
+
+        if (!res || !res.repository || !res.repository.pullRequest) {
+          throw new Error("Failed to fetch PR information");
+        }
+
+        labels = res.repository.pullRequest.labels.nodes.map((l) => l.name);
+        core.info(`PR labels: ${labels.join(", ")}`);
+      } catch (error) {
+        core.warning(`Error fetching PR labels: ${error.message}`);
+      }
+    } else {
+      try {
+        const commitQuery = await fetchQuery(
+          "queries/commit_associated_pr.gql",
+        );
+        const branchQuery = await fetchQuery("queries/default_branch.gql");
+
+        const [commitRes, branchRes] = await Promise.all([
+          octokit.graphql(commitQuery, {
+            owner,
+            repo,
+            commitOid: github.context.sha,
+          }),
+          octokit.graphql(branchQuery, { owner, repo }),
+        ]);
+
+        if (
+          !branchRes ||
+          !branchRes.repository ||
+          !branchRes.repository.defaultBranchRef
+        ) {
+          throw new Error("Failed to fetch default branch information");
+        }
+
+        const defaultBranch = branchRes.repository.defaultBranchRef.name;
+        const refBranch = github.ref.replace("refs/heads/", "");
+
+        if (
+          refBranch === defaultBranch &&
+          commitRes.data?.repository?.object?.associatedPullRequests?.nodes
+            ?.length > 0
+        ) {
+          const pr =
+            commitRes.data.repository.object.associatedPullRequests.nodes[0];
+          labels = pr?.labels?.nodes?.map((l) => l.name) || [];
+        }
+
+        core.info(`Detected labels: ${labels.join(", ")}`);
+      } catch (error) {
+        core.warning(`Error fetching commit labels: ${error.message}`);
+      }
     }
 
-    core.info(`Detected labels: ${labels.join(", ")}`);
-    if (labels.includes(majorLabel)) increment = "major";
-    else if (labels.includes(minorLabel)) increment = "minor";
-    else increment = "patch";
+    increment = resolveIncrementFromLabels(labels, majorLabel, minorLabel);
     core.info(`Resolved increment: ${increment}`);
     core.endGroup();
   }
@@ -116,23 +164,27 @@ function buildNewVersion(lastTag, prefix, increment, isPR, sha) {
     const shortSha = sha.substring(0, 7);
     newVersion = `${lastTag}-${shortSha}`;
   } else {
-    const semverPart = lastTag.replace(new RegExp(`^${prefix}-?`), "");
-    const [major, minor, patch] = semverPart.split(".").map(Number);
+    // Extract version part without the prefix
+    const versionPart = lastTag.replace(new RegExp(`^${prefix}`), "");
+    const cleanVersion = versionPart.startsWith("-")
+      ? versionPart.substring(1)
+      : versionPart;
 
-    let next = [major, minor, patch];
-    switch (increment) {
-      case "major":
-        next = [major + 1, 0, 0];
-        break;
-      case "minor":
-        next = [major, minor + 1, 0];
-        break;
-      case "patch":
-        next = [major, minor, patch + 1];
-        break;
+    // Use semver to parse and increment the version
+    const parsedVersion =
+      semver.parse(cleanVersion) || semver.parse(`0.0.0${cleanVersion}`);
+    if (!parsedVersion) {
+      throw new Error(`Invalid semver: ${lastTag}`);
     }
 
-    newVersion = `${prefix}${prefix && !prefix.endsWith("-") ? "-" : ""}${next.join(".")}`;
+    const newVersionNumber = semver.inc(parsedVersion.version, increment);
+    if (!newVersionNumber) {
+      throw new Error(
+        `Failed to increment version with increment type: ${increment}`,
+      );
+    }
+
+    newVersion = prefix + newVersionNumber;
   }
 
   return newVersion;
@@ -143,10 +195,14 @@ async function run() {
     const token = core.getInput("token") || process.env.GITHUB_TOKEN;
     const base = core.getInput("base");
     let prefix = core.getInput("prefix") || "";
-    const incrementInput = core.getInput("increment") || "patch";
+    const incrementInput = core.getInput("increment") || INCREMENTS.PATCH;
     const majorLabel = core.getInput("major-label") || "major";
     const minorLabel = core.getInput("minor-label") || "minor";
     const patchLabel = core.getInput("patch-label") || "patch";
+
+    if (!token) {
+      throw new Error("GitHub token is required");
+    }
 
     const octokit = github.getOctokit(token);
     const { owner, repo } = github.context.repo;
@@ -195,12 +251,30 @@ async function run() {
     core.info(`✅ new_version: ${newVersion}`);
     core.endGroup();
 
-    if (!/^v?[a-zA-Z0-9\-]*\d+\.\d+\.\d+(-[a-zA-Z0-9]+)?$/.test(newVersion)) {
+    // Enhanced semver validation
+    if (
+      !semver.valid(newVersion.replace(/^[^0-9]*/, "")) &&
+      !/^v?[a-zA-Z0-9\-]*\d+\.\d+\.\d+(-[a-zA-Z0-9]+)?$/.test(newVersion)
+    ) {
       core.setFailed(`❌ Invalid version format: ${newVersion}`);
     }
   } catch (error) {
     core.setFailed(`💥 ${error.message}`);
+    if (error.stack) {
+      core.debug(`Stack trace: ${error.stack}`);
+    }
   }
 }
 
+// Export functions for testing
+module.exports = {
+  fetchQuery,
+  resolveIncrementFromLabels,
+  getLastTag,
+  detectIncrement,
+  buildNewVersion,
+  run,
+};
+
+// Run the action
 run();
