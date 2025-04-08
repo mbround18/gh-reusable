@@ -51,6 +51,11 @@ on:
         default: ""
         description: "Target to build"
         required: false
+      platforms:
+        type: string
+        default: linux/amd64
+        required: false
+        description: "Platforms to build the container for."
       download_artifact:
         type: string
         default: ""
@@ -149,6 +154,6 @@ jobs:
           context: ${{ inputs.working-directory }}/${{ inputs.context }}
           version: ${{ steps.semver.outputs.new_version }}
           canary_label: ${{ inputs.canary_label }}
-          platforms: "linux/amd64,linux/arm64"
+          platforms: ${{ inputs.platforms }}
           registries: ${{ steps.registries.outputs.list }}
           target: ${{ inputs.target }}
