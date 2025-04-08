@@ -1,0 +1,67 @@
+name: Reusable Tag Creation Workflow
+
+on:
+  workflow_call:
+    inputs:
+      prefix:
+        required: false
+        type: string
+        default: ""
+        description: "Optional app name prefix for semantic versioning"
+      force:
+        required: false
+        type: boolean
+        default: false
+        description: "Force tag creation even if it already exists"
+    secrets:
+      GH_TOKEN:
+        required: true
+        description: "GitHub token with permissions to push tags"
+
+jobs:
+  tagger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: "${{ secrets.GH_TOKEN }}"
+          fetch-depth: 0
+
+      - uses: mbround18/gh-reusable/actions/semver@main
+        id: semver
+        with:
+          prefix: ${{ inputs.prefix }}
+
+      - name: Create tag
+        id: create-tag
+        run: |
+          git config --local user.name "GitHub Action"
+          git config --local user.email "actions@no-reply.github.com"
+
+          TAG_NAME="${{ steps.semver.outputs.new_version }}"
+
+          # Check if tag already exists
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            if [[ "${{ inputs.force }}" == "true" ]]; then
+              echo "Tag $TAG_NAME already exists, but force flag is set. Deleting existing tag."
+              git tag -d "$TAG_NAME" 
+              git push origin :refs/tags/"$TAG_NAME" 
+            else
+              echo "Tag $TAG_NAME already exists. Skipping tag creation."
+              exit 0
+            fi
+          fi
+
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME" 
+          git push origin "$TAG_NAME" 
+
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        id: create-release
+        run: |
+          gh release create "${{ steps.create-tag.outputs.tag_name }}" \
+            --title "Release ${{ steps.create-tag.outputs.tag_name }}" \
+            --generate-notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
