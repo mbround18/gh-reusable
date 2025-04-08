@@ -1,13 +1,12 @@
 name: Docker Release Workflow
-
 on:
   workflow_call:
     inputs:
       image:
         type: string
         required: true
-        default: "mbround18/example"
-        description: "Image Name"
+        default: "mbround18/test"
+        description: "Name of the image to be built"
       compose:
         type: boolean
         required: false
@@ -17,15 +16,16 @@ on:
         type: string
         required: false
         default: "."
-        description: "Build context"
+        description: "Build context directory"
       canary_label:
         type: string
         required: false
         default: "canary"
+        description: "Label to trigger canary pushes"
       dockerfile:
         type: string
         default: "./Dockerfile"
-        description: "Dockerfile"
+        description: "Path to the Dockerfile relative to the context"
       ghcr:
         type: boolean
         default: false
@@ -53,9 +53,9 @@ on:
         required: false
       platforms:
         type: string
-        default: linux/amd64
+        default: "linux/amd64"
         required: false
-        description: "Platforms to build the container for."
+        description: "Comma separated list of target platforms (e.g., linux/amd64,linux/arm64)"
       download_artifact:
         type: string
         default: ""
@@ -96,7 +96,6 @@ jobs:
         with:
           name: ${{ inputs.download_artifact }}
           path: ${{ inputs.download_artifact_destination }}
-
       - run: |
           echo "Running Docker Release Workflow"
           echo "Image: ${{ inputs.image }}"
@@ -109,21 +108,17 @@ jobs:
           repository: "mikefarah/yq"
           asset: "yq_linux_amd64"
           override-name: "yq"
-
       - id: semver
         uses: mbround18/gh-reusable/actions/semver@main
         with:
           prefix: ${{ inputs.semver_prefix }}
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Log in to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ inputs.dockerhub_username }}
           password: ${{ secrets.DOCKER_TOKEN }}
-
       - name: Log in to GitHub Container Registry
         if: ${{ inputs.ghcr }}
         uses: docker/login-action@v3
@@ -131,7 +126,6 @@ jobs:
           registry: ghcr.io
           username: ${{ inputs.ghcr_username }}
           password: ${{ secrets.GHCR_TOKEN }}
-
       - name: Images List
         id: registries
         run: |
@@ -157,3 +151,32 @@ jobs:
           platforms: ${{ inputs.platforms }}
           registries: ${{ steps.registries.outputs.list }}
           target: ${{ inputs.target }}
+      - name: Comment on PR
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const image = "${{ inputs.image }}"
+            const version = "${{ steps.semver.outputs.new_version }}"
+            const canary_label = "${{ inputs.canary_label }}"
+            const registries = "${{ steps.registries.outputs.list }}".split(",")
+            const pr_number = context.payload.pull_request.number
+            const pr_url = context.payload.pull_request.html_url
+            const pr_title = context.payload.pull_request.title
+
+            let message = `Docker image \`${image}\` has been built and pushed to:\n\n`
+            registries.forEach(registry => {
+              message += `- \`${registry}/${image}:${version}\`\n`
+              message += `- \`${registry}/${image}:${canary_label}-${version}\`\n`
+            })
+
+            message += `\nPR Title: ${pr_title}\n`
+            message += `PR URL: ${pr_url}`
+
+            github.rest.issues.createComment({
+              issue_number: pr_number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            })
+            console.log("Comment posted successfully!")
