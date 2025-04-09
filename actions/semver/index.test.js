@@ -153,7 +153,7 @@ describe("buildNewVersion", () => {
   test("should use exact tag version when running on a tag", () => {
     // Set up github.context to simulate tag event
     github.context.ref = "refs/tags/v1.5.0";
-    
+
     const result = index.buildNewVersion(
       "v1.2.3", // Last tag shouldn't matter in this case
       "v",
@@ -161,7 +161,7 @@ describe("buildNewVersion", () => {
       false,
       "abc123456789",
     );
-    
+
     // Should return the exact tag name
     expect(result).toBe("v1.5.0");
   });
@@ -169,7 +169,7 @@ describe("buildNewVersion", () => {
   test("should preserve prefix when using exact tag version", () => {
     // Set up github.context to simulate tag event with custom prefix
     github.context.ref = "refs/tags/app-v2.0.0";
-    
+
     const result = index.buildNewVersion(
       "app-v1.0.0",
       "app-v",
@@ -177,7 +177,7 @@ describe("buildNewVersion", () => {
       false,
       "abc123456789",
     );
-    
+
     // Should return the exact tag name
     expect(result).toBe("app-v2.0.0");
   });
@@ -889,32 +889,32 @@ describe("run function", () => {
   test("run should handle tag event correctly", async () => {
     // Reset mocks first to prevent interference from previous tests
     jest.clearAllMocks();
-    
+
     // Set up the tag context
     github.context.eventName = "push";
     github.context.ref = "refs/tags/v2.0.0";
-    
+
     // Update getLastTag mock for this test
     index.getLastTag = jest.fn().mockResolvedValue({
       lastTag: "v1.2.0", // Previous version
       updatedPrefix: "v",
     });
-    
+
     // Reset the buildNewVersion mock to use the real function
     const originalBuildNewVersion = index.buildNewVersion;
-    index.buildNewVersion = jest.fn().mockImplementation(
-      (lastTag, prefix, increment, isPR, sha) => {
+    index.buildNewVersion = jest
+      .fn()
+      .mockImplementation((lastTag, prefix, increment, isPR, sha) => {
         // When running on a tag, we should use the tag name
-        if (github.context.ref.startsWith('refs/tags/')) {
-          return github.context.ref.replace('refs/tags/', '');
+        if (github.context.ref.startsWith("refs/tags/")) {
+          return github.context.ref.replace("refs/tags/", "");
         }
         // Otherwise use normal version incrementing
         return `${prefix}1.2.1`;
-      }
-    );
-    
+      });
+
     index.detectIncrement = jest.fn().mockResolvedValue("patch");
-    
+
     // Create a custom run implementation for this test
     index.run = jest.fn().mockImplementation(async () => {
       try {
@@ -925,7 +925,7 @@ describe("run function", () => {
           updatedPrefix,
           increment,
           false,
-          github.context.sha
+          github.context.sha,
         );
         core.setOutput("new_version", newVersion);
       } catch (error) {
@@ -934,7 +934,7 @@ describe("run function", () => {
     });
 
     await index.run();
-    
+
     // Should output the exact tag version, not an incremented version
     expect(core.setOutput).toHaveBeenCalledWith("new_version", "v2.0.0");
     expect(core.setFailed).not.toHaveBeenCalled();

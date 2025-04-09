@@ -119,40 +119,80 @@ function resolveDockerContext(image, fallbackDockerfile, fallbackContext) {
  * @returns {string[]} - Array of generated tags.
  */
 function generateTags(image, version, registries) {
-  const tags = [`${image}:${version}`];
+  const tags = [];
+
+  // Add the primary version tags with original version (preserving 'v' if present)
+  tags.push(`${image}:${version}`);
   registries.forEach((registry) => {
     tags.push(`${registry}/${image}:${version}`);
   });
 
-  // Determine if there's a suffix (non-numeric characters after stripping an optional leading "v")
+  // Add latest tags
+  tags.push(`${image}:latest`);
+  registries.forEach((registry) => {
+    tags.push(`${registry}/${image}:latest`);
+  });
+
+  // Add branch or PR specific tags
+  const { eventName, ref, payload } = github.context;
+  if (eventName === "pull_request") {
+    const prNumber = payload.pull_request?.number;
+    if (prNumber) {
+      const prTag = `pr-${prNumber}`;
+      tags.push(`${image}:${prTag}`);
+      registries.forEach((registry) => {
+        tags.push(`${registry}/${image}:${prTag}`);
+      });
+    }
+  } else if (ref && ref.startsWith("refs/heads/")) {
+    const branch = ref.replace("refs/heads/", "");
+    if (branch && branch !== "main" && branch !== "master") {
+      tags.push(`${image}:${branch}`);
+      registries.forEach((registry) => {
+        tags.push(`${registry}/${image}:${branch}`);
+      });
+    }
+  }
+
+  // Handle cascading versions
   const cleanVersion = version.replace(/^v/, "");
   const hasSuffix = /[^0-9.]/.test(cleanVersion);
 
   if (!hasSuffix) {
-    // Automatically calculate cascading versions for SemVer
-    const cascadeVersions = [];
+    // Only generate cascading versions if not a zero-prefixed version
     const parts = cleanVersion.split(".");
-    if (parts.length === 3) {
-      // Create major.minor version (e.g., 1.2 from 1.2.3)
-      cascadeVersions.push(`${parts[0]}.${parts[1]}`);
-      // Create major version (e.g., 1 from 1.2.3)
-      cascadeVersions.push(`${parts[0]}`);
-    } else if (parts.length === 2) {
-      // Create major version (e.g., 1 from 1.2)
-      cascadeVersions.push(`${parts[0]}`);
-    }
+    const isZeroVersion = parts[0] === "0";
 
-    cascadeVersions.forEach((cascadeVersion) => {
-      if (cascadeVersion !== cleanVersion && cascadeVersion !== version) {
-        tags.push(`${image}:${cascadeVersion}`);
-        registries.forEach((registry) => {
-          tags.push(`${registry}/${image}:${cascadeVersion}`);
-        });
+    // For versions starting with 0 (e.g., 0.x.y), only generate full version
+    if (!isZeroVersion) {
+      const cascadeVersions = [];
+
+      if (parts.length === 3) {
+        // Create major.minor version (e.g., 1.2 from 1.2.3)
+        cascadeVersions.push(`${parts[0]}.${parts[1]}`);
+        // Create major version (e.g., 1 from 1.2.3)
+        cascadeVersions.push(`${parts[0]}`);
+      } else if (parts.length === 2) {
+        // Create major version (e.g., 1 from 1.2)
+        cascadeVersions.push(`${parts[0]}`);
       }
-    });
+
+      // Add cascading versions to tags
+      cascadeVersions.forEach((cascadeVersion) => {
+        if (cascadeVersion !== cleanVersion && cascadeVersion !== version) {
+          tags.push(`${image}:${cascadeVersion}`);
+          registries.forEach((registry) => {
+            tags.push(`${registry}/${image}:${cascadeVersion}`);
+          });
+        }
+      });
+    } else {
+      core.info("Skipping cascading tags for zero-prefixed version.");
+    }
   } else {
     core.info("Skipping cascading tags due to detected version suffix.");
   }
+
   return tags;
 }
 

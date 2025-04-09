@@ -103,13 +103,13 @@ jobs:
           echo "Working Directory: ${{ inputs.working-directory }}"
           echo "Dockerfile: ${{ inputs.dockerfile }}"
 
-      - uses: mbround18/gh-reusable/actions/install-cli@main
+      - uses: mbround18/gh-reusable/actions/install-cli@docker-facts-tests
         with:
           repository: "mikefarah/yq"
           asset: "yq_linux_amd64"
           override-name: "yq"
       - id: semver
-        uses: mbround18/gh-reusable/actions/semver@main
+        uses: mbround18/gh-reusable/actions/semver@docker-facts-tests
         with:
           prefix: ${{ inputs.semver_prefix }}
       - name: Set up Docker Buildx
@@ -135,7 +135,7 @@ jobs:
           fi
           IMAGES_STR=$(IFS=,; echo "${IMAGES[*]}")
           echo "list=$IMAGES_STR" >> $GITHUB_OUTPUT
-          
+
       - name: Docker Facts
         id: docker-facts
         uses: mbround18/gh-reusable/actions/docker-facts@docker-facts-tests
@@ -147,8 +147,21 @@ jobs:
           context: ${{ inputs.context }}
           canary_label: ${{ inputs.canary_label }}
 
+      - name: Log some facts
+        run: |
+          echo "Image: ${{ inputs.image }}"
+          echo "Version: ${{ steps.semver.outputs.new_version }}"
+          echo "Registries: ${{ steps.registries.outputs.list }}"
+          echo "Dockerfile: ${{ inputs.dockerfile }}"
+          echo "Context: ${{ inputs.context }}"
+          echo "Canary Label: ${{ inputs.canary_label }}"
+          echo "Docker Facts Output: ${{ steps.docker-facts.outputs.tags }}"
+          echo "Docker Facts Output (context): ${{ steps.docker-facts.outputs.context }}"
+          echo "Docker Facts Output (dockerfile): ${{ steps.docker-facts.outputs.dockerfile }}"
+          echo "Docker Facts Output (push): ${{ steps.docker-facts.outputs.push }}"
+
       - name: Build and Push Docker Image
-        uses: mbround18/gh-reusable/actions/docker-build@main
+        uses: mbround18/gh-reusable/actions/docker-build@docker-facts-tests
         env:
           BUILD_ARG_GITHUB_SHA: ${GITHUB_SHA}
           BUILD_ARG_GITHUB_REF: ${GITHUB_REF}
@@ -173,10 +186,10 @@ jobs:
             const pr_url = context.payload.pull_request.html_url
             const pr_title = context.payload.pull_request.title
             const pipeline_url = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
-            
+
             // Get the tags from docker-facts
             const tags = "${{ steps.docker-facts.outputs.tags }}".split(',')
-            
+
             let message = `Docker image \`${image}\` has been built with the following tags:\n\n`
             tags.forEach(tag => {
               message += `- \`${tag}\`\n`

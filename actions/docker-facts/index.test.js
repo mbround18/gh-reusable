@@ -200,89 +200,86 @@ describe("Docker Facts Action", () => {
       const result = generateTags("myapp", "v1.0.0", []);
 
       expect(result).toContain("myapp:v1.0.0");
-      expect(result.length).toBe(3); // Base tag + 2 cascading versions (1.0, 1)
+      expect(result).toContain("myapp:latest");
+      expect(result).toContain("myapp:1.0");
+      expect(result).toContain("myapp:1");
+      expect(result.length).toBe(4); // Base tag + latest + 2 cascading versions (1.0, 1)
     });
 
     test("should include registry prefixes", () => {
       if (!generateTags) return;
 
-      const result = generateTags(
-        "myapp",
-        "v1.0.0",
-        ["docker.io", "ghcr.io"]
-      );
+      const result = generateTags("myapp", "v1.0.0", ["docker.io", "ghcr.io"]);
 
       expect(result).toContain("myapp:v1.0.0");
       expect(result).toContain("docker.io/myapp:v1.0.0");
       expect(result).toContain("ghcr.io/myapp:v1.0.0");
-      expect(result.length).toBe(9); // 3 for base version + 6 for cascading versions with registries
+      expect(result).toContain("myapp:latest");
+      expect(result).toContain("docker.io/myapp:latest");
+      expect(result).toContain("ghcr.io/myapp:latest");
+      expect(result).toContain("myapp:1.0");
+      expect(result).toContain("docker.io/myapp:1.0");
+      expect(result).toContain("ghcr.io/myapp:1.0");
+      expect(result).toContain("myapp:1");
+      expect(result).toContain("docker.io/myapp:1");
+      expect(result).toContain("ghcr.io/myapp:1");
+      expect(result.length).toBe(12); // 3 for base version + 3 for latest + 6 for cascading versions
     });
 
     test("should automatically generate cascading versions for semver", () => {
       if (!generateTags) return;
 
-      const result = generateTags(
-        "myapp",
-        "1.0.0",
-        ["docker.io"]
-      );
+      const result = generateTags("myapp", "1.0.0", ["docker.io"]);
 
       expect(result).toContain("myapp:1.0.0");
       expect(result).toContain("docker.io/myapp:1.0.0");
+      expect(result).toContain("myapp:latest");
+      expect(result).toContain("docker.io/myapp:latest");
       expect(result).toContain("myapp:1.0");
       expect(result).toContain("docker.io/myapp:1.0");
       expect(result).toContain("myapp:1");
       expect(result).toContain("docker.io/myapp:1");
-      expect(result.length).toBe(6);
+      expect(result.length).toBe(8);
     });
 
     test("should skip cascading for versions with suffix", () => {
       if (!generateTags) return;
 
-      const result = generateTags(
-        "myapp",
-        "1.0.0-beta",
-        ["docker.io"]
-      );
+      const result = generateTags("myapp", "1.0.0-beta", ["docker.io"]);
 
       expect(result).toContain("myapp:1.0.0-beta");
       expect(result).toContain("docker.io/myapp:1.0.0-beta");
-      expect(result.length).toBe(2);
+      expect(result).toContain("myapp:latest");
+      expect(result).toContain("docker.io/myapp:latest");
+      expect(result.length).toBe(4);
     });
   });
 
   describe("generateTags function - edge cases", () => {
-    test("should handle invalid cascading versions JSON", () => {
+    test("should handle zero-prefixed versions by not adding cascading tags", () => {
       if (!generateTags) return;
 
-      const result = generateTags(
-        "myapp",
-        "1.0.0",
-        ["docker.io"]
-      );
+      const result = generateTags("myapp", "0.0.1", ["docker.io"]);
 
-      expect(result).toContain("myapp:1.0.0");
-      expect(result).toContain("docker.io/myapp:1.0.0");
-      expect(result).toContain("myapp:1.0");
-      expect(result).toContain("docker.io/myapp:1.0"); 
-      expect(result).toContain("myapp:1");
-      expect(result).toContain("docker.io/myapp:1");
-      expect(result.length).toBe(6);
+      expect(result).toContain("myapp:0.0.1");
+      expect(result).toContain("docker.io/myapp:0.0.1");
+      expect(result).toContain("myapp:latest");
+      expect(result).toContain("docker.io/myapp:latest");
+      // No cascading tags for 0.x.x versions
+      expect(result.length).toBe(4);
     });
 
     test("should not duplicate tags when cascading version equals main version", () => {
       if (!generateTags) return;
 
-      const result = generateTags(
-        "myapp",
-        "1",
-        ["docker.io"]
-      );
+      const result = generateTags("myapp", "1", ["docker.io"]);
 
       // Should only have original tags (no cascade for already minimal version)
       expect(result).toContain("myapp:1");
       expect(result).toContain("docker.io/myapp:1");
-      expect(result.length).toBe(2);
+      expect(result).toContain("myapp:latest");
+      expect(result).toContain("docker.io/myapp:latest");
+      expect(result.length).toBe(4);
     });
   });
 
@@ -290,17 +287,59 @@ describe("Docker Facts Action", () => {
     test("should handle versions with only two parts", () => {
       if (!generateTags) return;
 
-      const result = generateTags(
-        "myapp",
-        "1.0",
-        ["docker.io"]
-      );
+      const result = generateTags("myapp", "1.0", ["docker.io"]);
 
       expect(result).toContain("myapp:1.0");
-      expect(result).toContain("docker.io/myapp:1.0"); 
+      expect(result).toContain("docker.io/myapp:1.0");
+      expect(result).toContain("myapp:latest");
+      expect(result).toContain("docker.io/myapp:latest");
       expect(result).toContain("myapp:1");
       expect(result).toContain("docker.io/myapp:1");
-      expect(result.length).toBe(4);
+      expect(result.length).toBe(6);
+    });
+
+    test("should add PR-specific tags when in pull request context", () => {
+      if (!generateTags) return;
+
+      // Mock PR context
+      const originalContext = { ...github.context };
+      github.context = {
+        eventName: "pull_request",
+        ref: "refs/pull/123/merge",
+        payload: {
+          pull_request: {
+            number: 123,
+          },
+        },
+      };
+
+      const result = generateTags("myapp", "1.0.0", ["docker.io"]);
+
+      expect(result).toContain("myapp:pr-123");
+      expect(result).toContain("docker.io/myapp:pr-123");
+
+      // Restore original context
+      github.context = originalContext;
+    });
+
+    test("should add branch-specific tags when in branch context", () => {
+      if (!generateTags) return;
+
+      // Mock branch context
+      const originalContext = { ...github.context };
+      github.context = {
+        eventName: "push",
+        ref: "refs/heads/feature-branch",
+        payload: {},
+      };
+
+      const result = generateTags("myapp", "1.0.0", ["docker.io"]);
+
+      expect(result).toContain("myapp:feature-branch");
+      expect(result).toContain("docker.io/myapp:feature-branch");
+
+      // Restore original context
+      github.context = originalContext;
     });
   });
 
@@ -567,27 +606,27 @@ describe("Docker Facts Action", () => {
           dockerfile: "Dockerfile",
           context: ".",
           canary_label: "canary",
-          force_push: "false"
+          force_push: "false",
         };
         return inputs[name] || "";
       });
-      
+
       // Force an error when code tries to access GitHub context's ref property
       github.context = {
         eventName: "push",
-        get ref() { 
+        get ref() {
           // This will trigger the specific error we're seeing
-          return undefined.split('/');
+          return undefined.split("/");
         },
-        payload: {}
+        payload: {},
       };
 
       // Run the main function
       await run();
-      
+
       // Verify the correct error message is captured
       expect(core.setFailed).toHaveBeenCalledWith(
-        "Action failed: Cannot read properties of undefined (reading 'split')"
+        "Action failed: Cannot read properties of undefined (reading 'split')",
       );
     });
   });
