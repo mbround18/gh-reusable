@@ -44,7 +44,7 @@ jobs:
 
   call_docker_release:
     name: Call Docker Release Workflow
-    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@docker-facts-tests
     with:
       image: "mbround18/gh-reusable-testing" # Specify the test image name here
       ghcr: true
@@ -55,7 +55,7 @@ jobs:
 
   call_docker_release_compose_1:
     name: Call Docker Release Workflow (Compose)
-    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@docker-facts-tests
     with:
       image: "mbround18/gh-reusable-testing-compose" # Specify the test image name here
       ghcr: true
@@ -67,7 +67,7 @@ jobs:
 
   call_docker_release_compose_2:
     name: Call Docker Release Workflow (Compose)
-    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@docker-facts-tests
     with:
       image: "mbround18/gh-reusable-testing-compose2" # Specify the test image name here
       ghcr: true
