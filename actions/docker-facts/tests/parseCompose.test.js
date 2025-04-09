@@ -167,4 +167,34 @@ describe("parseCompose function", () => {
 
     expect(result).toBeNull();
   });
+
+  test("should extract build config for semver-like image", () => {
+    if (!parseCompose) return;
+
+    fs.readFileSync.mockReturnValue("compose content");
+    yaml.load.mockReturnValue({
+      services: {
+        web: {
+          image: "myapp:1.0.0",
+          build: {
+            dockerfile: "Dockerfile.web",
+            context: "./web",
+            args: {
+              NODE_ENV: "production",
+            },
+          },
+        },
+      },
+    });
+
+    const result = parseCompose("/test/docker-compose.yml", "myapp");
+
+    expect(result).toEqual({
+      dockerfile: "Dockerfile.web",
+      context: "./web",
+      args: {
+        NODE_ENV: "production",
+      },
+    });
+  });
 });

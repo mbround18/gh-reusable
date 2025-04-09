@@ -56,6 +56,7 @@ runs:
         dockerfile: ${{ inputs.dockerfile }}
         context: ${{ inputs.context }}
         canary_label: ${{ inputs.canary_label }}
+        version: ${{ inputs.version }}
 
     - name: Extract Build Args and Secrets
       id: build-args
