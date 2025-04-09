@@ -116,34 +116,41 @@ function resolveDockerContext(image, fallbackDockerfile, fallbackContext) {
  * @param {string} image - The image name.
  * @param {string} version - The version string.
  * @param {string[]} registries - Array of registry prefixes.
- * @param {string} cascadingVersionsInput - JSON string of cascading versions.
  * @returns {string[]} - Array of generated tags.
  */
-function generateTags(image, version, registries, cascadingVersionsInput) {
+function generateTags(image, version, registries) {
   const tags = [`${image}:${version}`];
   registries.forEach((registry) => {
     tags.push(`${registry}/${image}:${version}`);
   });
 
   // Determine if there's a suffix (non-numeric characters after stripping an optional leading "v")
-  const hasSuffix = /[^0-9.]/.test(version.replace(/^v/, ""));
-  if (cascadingVersionsInput && !hasSuffix) {
-    try {
-      const cascadeVersions = JSON.parse(cascadingVersionsInput);
-      cascadeVersions.forEach((cascadeVersion) => {
-        if (cascadeVersion !== version) {
-          tags.push(`${image}:${cascadeVersion}`);
-          registries.forEach((registry) => {
-            tags.push(`${registry}/${image}:${cascadeVersion}`);
-          });
-        }
-      });
-    } catch (error) {
-      core.warning(
-        `Failed to parse cascading_versions input: ${error.message}`,
-      );
+  const cleanVersion = version.replace(/^v/, "");
+  const hasSuffix = /[^0-9.]/.test(cleanVersion);
+
+  if (!hasSuffix) {
+    // Automatically calculate cascading versions for SemVer
+    const cascadeVersions = [];
+    const parts = cleanVersion.split(".");
+    if (parts.length === 3) {
+      // Create major.minor version (e.g., 1.2 from 1.2.3)
+      cascadeVersions.push(`${parts[0]}.${parts[1]}`);
+      // Create major version (e.g., 1 from 1.2.3)
+      cascadeVersions.push(`${parts[0]}`);
+    } else if (parts.length === 2) {
+      // Create major version (e.g., 1 from 1.2)
+      cascadeVersions.push(`${parts[0]}`);
     }
-  } else if (hasSuffix) {
+
+    cascadeVersions.forEach((cascadeVersion) => {
+      if (cascadeVersion !== cleanVersion && cascadeVersion !== version) {
+        tags.push(`${image}:${cascadeVersion}`);
+        registries.forEach((registry) => {
+          tags.push(`${registry}/${image}:${cascadeVersion}`);
+        });
+      }
+    });
+  } else {
     core.info("Skipping cascading tags due to detected version suffix.");
   }
   return tags;
@@ -195,7 +202,6 @@ async function run() {
     const fallbackContext = core.getInput("context") || ".";
     const canaryLabel = core.getInput("canary_label") || "canary";
     const forcePush = core.getInput("force_push").toString() === "true";
-    const cascadingVersionsInput = core.getInput("cascading_versions") || "";
 
     // Resolve the Docker context.
     const { dockerfile, context } = resolveDockerContext(
@@ -208,12 +214,7 @@ async function run() {
 
     // Generate Docker tags.
     core.startGroup("🏷️ Tag Preparation");
-    const tags = generateTags(
-      image,
-      version,
-      registries,
-      cascadingVersionsInput,
-    );
+    const tags = generateTags(image, version, registries);
     core.setOutput("tags", tags.join(","));
     core.info("Generated tags:");
     tags.forEach((tag) => core.info(`  ${tag}`));

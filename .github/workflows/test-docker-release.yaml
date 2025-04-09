@@ -19,7 +19,7 @@ jobs:
         uses: mbround18/gh-reusable/actions/ensure-repository@v0.0.6
 
   run_npm_tests:
-    name: Run npm tests for Semver
+    name: Run npm tests for Docker Facts
     runs-on: ubuntu-latest
     needs: ensure_repository
     defaults:

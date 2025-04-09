@@ -135,6 +135,17 @@ jobs:
           fi
           IMAGES_STR=$(IFS=,; echo "${IMAGES[*]}")
           echo "list=$IMAGES_STR" >> $GITHUB_OUTPUT
+          
+      - name: Docker Facts
+        id: docker-facts
+        uses: mbround18/gh-reusable/actions/docker-facts@docker-facts-tests
+        with:
+          image: ${{ inputs.image }}
+          version: ${{ steps.semver.outputs.new_version }}
+          registries: ${{ steps.registries.outputs.list }}
+          dockerfile: ${{ inputs.dockerfile }}
+          context: ${{ inputs.context }}
+          canary_label: ${{ inputs.canary_label }}
 
       - name: Build and Push Docker Image
         uses: mbround18/gh-reusable/actions/docker-build@main
@@ -143,14 +154,13 @@ jobs:
           BUILD_ARG_GITHUB_REF: ${GITHUB_REF}
           BUILD_ARG_GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}
         with:
-          image: ${{ inputs.image }}
-          dockerfile: ${{ inputs.dockerfile }}
-          context: ${{ inputs.working-directory }}/${{ inputs.context }}
-          version: ${{ steps.semver.outputs.new_version }}
-          canary_label: ${{ inputs.canary_label }}
+          context: ${{ steps.docker-facts.outputs.context }}
+          dockerfile: ${{ steps.docker-facts.outputs.dockerfile }}
           platforms: ${{ inputs.platforms }}
-          registries: ${{ steps.registries.outputs.list }}
+          push: ${{ steps.docker-facts.outputs.push }}
+          image: ${{ steps.docker-facts.outputs.tags }}
           target: ${{ inputs.target }}
+
       - name: Comment on PR
         if: ${{ github.event_name == 'pull_request' }}
         continue-on-error: true
@@ -159,17 +169,17 @@ jobs:
           script: |
             const image = "${{ inputs.image }}"
             const version = "${{ steps.semver.outputs.new_version }}"
-            const canary_label = "${{ inputs.canary_label }}"
-            const registries = "${{ steps.registries.outputs.list }}".split(",")
             const pr_number = context.payload.pull_request.number
             const pr_url = context.payload.pull_request.html_url
             const pr_title = context.payload.pull_request.title
             const pipeline_url = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
-
-            let message = `Docker image \`${image}\` has been built and pushed to:\n\n`
-            registries.forEach(registry => {
-              message += `- \`${registry}/${image}:${version}\`\n`
-              message += `- \`${registry}/${image}:${canary_label}-${version}\`\n`
+            
+            // Get the tags from docker-facts
+            const tags = "${{ steps.docker-facts.outputs.tags }}".split(',')
+            
+            let message = `Docker image \`${image}\` has been built with the following tags:\n\n`
+            tags.forEach(tag => {
+              message += `- \`${tag}\`\n`
             })
 
             message += `\nPR Title: ${pr_title}\n`
