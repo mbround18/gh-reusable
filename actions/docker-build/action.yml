@@ -84,18 +84,50 @@ runs:
 
     - name: Prepare Tags
       id: prep-tags
-      shell: bash
-      run: |
-        TAGS="${{ inputs.image }}:${{ inputs.version }}"
-        if [ -n "${{ inputs.registries }}" ]; then
-          IFS=',' read -ra REGISTRY_ARRAY <<< "${{ inputs.registries }}"
-          for registry in "${REGISTRY_ARRAY[@]}"; do
-            if [ -n "$registry" ]; then
-              TAGS+=",${registry}/${{ inputs.image }}:${{ inputs.version }}"
-            fi
-          done
-        fi
-        echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const image = '${{ inputs.image }}';
+          const version = '${{ inputs.version }}';
+          const registries = '${{ inputs.registries }}'.split(',').filter(r => r.trim());
+
+          // Start with the base tag
+          let tags = [`${image}:${version}`];
+
+          // Add registry-prefixed versions of the base tag
+          for (const registry of registries) {
+            if (registry) {
+              tags.push(`${registry}/${image}:${version}`);
+            }
+          }
+
+          // Process cascading versions if available
+          const versionsOutput = '${{ steps.facts.outputs.versions }}';
+          if (versionsOutput) {
+            try {
+              const versions = JSON.parse(versionsOutput);
+              
+              // Add cascading version tags for each version
+              for (const cascadeVersion of versions) {
+                if (cascadeVersion !== version) {
+                  tags.push(`${image}:${cascadeVersion}`);
+                  
+                  // Add registry-prefixed cascading versions
+                  for (const registry of registries) {
+                    if (registry) {
+                      tags.push(`${registry}/${image}:${cascadeVersion}`);
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn('Failed to parse versions output:', e);
+            }
+          }
+
+          // Set output as comma-separated tag list
+          core.setOutput('tags', tags.join(','));
+          console.log('Generated tags:', tags);
 
     - name: Build and Push Docker Image
       id: docker-push

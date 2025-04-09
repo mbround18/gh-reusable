@@ -18,6 +18,30 @@ jobs:
       - name: Verify Repo is mbround18/gh-reusable
         uses: mbround18/gh-reusable/actions/ensure-repository@v0.0.6
 
+  run_npm_tests:
+    name: Run npm tests for Semver
+    runs-on: ubuntu-latest
+    needs: ensure_repository
+    defaults:
+      run:
+        working-directory: actions/docker-facts
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: actions/docker-facts/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
   call_docker_release:
     name: Call Docker Release Workflow
     uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
