@@ -160,7 +160,19 @@ async function detectIncrement(
 
 function buildNewVersion(lastTag, prefix, increment, isPR, sha) {
   let newVersion;
-  if (isPR && !increment) {
+  
+  // Check if we're building from a git tag
+  const gitRefType = github.context.ref.split('/')[1]; // refs/tags/v1.0.0 -> tags
+  const isTag = gitRefType === 'tags';
+  
+  if (isTag) {
+    // Use the exact git tag as version, stripping the refs/tags/ prefix
+    const tagRef = github.context.ref;
+    newVersion = tagRef.replace('refs/tags/', '');
+    
+    core.info(`Building from tag: ${newVersion}`);
+    return newVersion;
+  } else if (isPR && !increment) {
     const shortSha = sha.substring(0, 7);
     newVersion = `${lastTag}-${shortSha}`;
   } else {
@@ -215,6 +227,7 @@ async function run() {
     core.info(`Major Label: ${majorLabel}`);
     core.info(`Minor Label: ${minorLabel}`);
     core.info(`Patch Label: ${patchLabel}`);
+    core.info(`GitHub Ref: ${github.context.ref}`);
     core.endGroup();
 
     const { lastTag, updatedPrefix } = await getLastTag(

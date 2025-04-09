@@ -3,40 +3,44 @@ description: Build Docker images with build arguments, secrets, and multi-platfo
 
 inputs:
   image:
-    description: "Name of the image to be built"
+    description: "The name of the image to build (without registry prefix)"
     required: true
     default: "mbround18/test"
   registries:
-    description: "Comma separated list of registries to re-tag the image with"
+    description: "Comma-separated list of registries to push the image to (e.g., 'ghcr.io,docker.io')"
     required: false
     default: ""
   dockerfile:
-    description: "Path to the Dockerfile relative to the context"
+    description: "Path to the Dockerfile relative to the context directory"
     required: true
     default: "./Dockerfile"
   context:
-    description: "Build context directory"
+    description: "Directory containing the Dockerfile and build context"
     required: true
     default: "."
   version:
-    description: "Image tag version"
+    description: "Tag version for the image (e.g., 'latest', 'v1.0.0')"
     required: true
     default: "latest"
   push:
-    description: "Whether to push the image"
+    description: "Whether to push the image to the specified registries ('true' or 'false')"
     required: false
     default: "false"
   canary_label:
-    description: "Label to trigger canary pushes"
+    description: "GitHub label that triggers canary builds (used by docker-facts action)"
     required: false
   platforms:
-    description: "Comma separated list of target platforms (e.g., linux/amd64,linux/arm64)"
+    description: "Comma-separated list of target platforms for multi-architecture builds (e.g., 'linux/amd64,linux/arm64')"
     required: false
     default: "linux/amd64"
   target:
     required: false
     default: ""
-    description: "Target to build"
+    description: "Target stage to build in a multi-stage Dockerfile"
+  pull_on_tag:
+    required: false
+    default: "true"
+    description: "Whether to pull the existing image for cache when building on a git tag ('true' or 'false')"
 
 runs:
   using: composite
@@ -129,20 +133,47 @@ runs:
           core.setOutput('tags', tags.join(','));
           console.log('Generated tags:', tags);
 
+    - name: Check for Git Tag and Pull Image
+      id: check-tag
+      shell: bash
+      run: |
+        if [[ "$GITHUB_REF" == refs/tags/* ]] && [[ "${{ inputs.pull_on_tag }}" == "true" ]]; then
+          echo "Running on a tag: $GITHUB_REF"
+          echo "is_tag=true" >> $GITHUB_OUTPUT
+          
+          FIRST_TAG=$(echo "${{ steps.prep-tags.outputs.tags }}" | cut -d',' -f1)
+          echo "Attempting to pull image: $FIRST_TAG"
+          
+          if docker pull "$FIRST_TAG" 2>/dev/null; then
+            echo "Successfully pulled image: $FIRST_TAG"
+            echo "image_pulled=true" >> $GITHUB_OUTPUT
+          else
+            echo "Image not found or could not be pulled: $FIRST_TAG"
+            echo "image_pulled=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "Not running on a tag or pull_on_tag is disabled"
+          echo "is_tag=false" >> $GITHUB_OUTPUT
+          echo "image_pulled=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Build and Push Docker Image
       id: docker-push
       uses: docker/build-push-action@v6
       with:
         context: ${{ inputs.context }}
-        file: ${{ inputs.dockerfile_path }}
-        push: ${{  steps.facts.outputs.push }}
+        file: ${{ inputs.dockerfile }}
+        push: ${{ steps.facts.outputs.push }}
         tags: ${{ steps.prep-tags.outputs.tags }}
         build-args: ${{ env.build_args }}
         secrets: ${{ env.secret_args }}
         platforms: ${{ inputs.platforms }}
-        cache-from: type=gha
+        cache-from: |
+          type=gha
+          ${{ steps.check-tag.outputs.image_pulled == 'true' && format('{0}:${{inputs.version}}', inputs.image) || '' }}
         cache-to: type=gha,mode=max
         target: ${{ inputs.target }}
+        pull: ${{ steps.check-tag.outputs.is_tag == 'true' && inputs.pull_on_tag == 'true' }}
 
     - name: Output Image Info
       shell: bash
@@ -153,11 +184,13 @@ runs:
           echo "| Option        | Value                                       |"
           echo "|---------------|---------------------------------------------|"
           echo "| Context       |   \`${{ inputs.context }}\`                 |"
-          echo "| Dockerfile    |   \`${{ inputs.dockerfile_path }}\`         |"
+          echo "| Dockerfile    |   \`${{ inputs.dockerfile }}\`              |"
           echo "| Push          |   ${{ steps.facts.outputs.push }}           |"
           echo "| Tags          |   \`${{ steps.prep-tags.outputs.tags }}\`   |"
           echo "| Build Args    |   \`${{ env.build_args }}\`                 |"
           echo "| Secrets       |   \`${{ env.secret_args }}\`                |"
           echo "| Platforms     |   \`${{ inputs.platforms }}\`               |"
           echo "| Target        |   \`${{ inputs.target }}\`                  |"
+          echo "| On Tag        |   \`${{ steps.check-tag.outputs.is_tag }}\` |"
+          echo "| Image Pulled  |   \`${{ steps.check-tag.outputs.image_pulled }}\` |"
         } >> $GITHUB_STEP_SUMMARY
