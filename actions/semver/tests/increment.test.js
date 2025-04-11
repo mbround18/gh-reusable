@@ -1,53 +1,92 @@
 const github = require("@actions/github");
+const path = require("path");
+const fs = require("fs");
 const {
   resolveIncrementFromLabels,
   detectIncrement,
 } = require("../src/increment");
 
-jest.mock("../src/tag", () => ({
-  fetchQuery: jest.fn().mockResolvedValue("query { test }"),
+// Mock GitHub context and fs
+jest.mock("@actions/github", () => ({
+  context: {
+    eventName: "push",
+    payload: {},
+    repo: { owner: "testowner", repo: "testrepo" },
+    sha: "abc123456789",
+    ref: "refs/heads/main",
+  },
+}));
+
+jest.mock("fs", () => ({
+  promises: {
+    readFile: jest.fn(),
+  },
 }));
 
 describe("resolveIncrementFromLabels", () => {
-  test("should return major for major label", () => {
+  test("should return patch by default with no labels", () => {
+    const result = resolveIncrementFromLabels([], "major", "minor", "patch");
+    expect(result).toBe("patch");
+  });
+
+  test("should return patch by default with unmatched labels", () => {
     const result = resolveIncrementFromLabels(
-      ["bug", "major", "feature"],
+      [{ name: "documentation" }, { name: "bug" }],
       "major",
       "minor",
+      "patch",
+    );
+    expect(result).toBe("patch");
+  });
+
+  test("should detect major label", () => {
+    const result = resolveIncrementFromLabels(
+      [{ name: "documentation" }, { name: "major" }],
+      "major",
+      "minor",
+      "patch",
     );
     expect(result).toBe("major");
   });
 
-  test("should return minor for minor label", () => {
+  test("should detect minor label", () => {
     const result = resolveIncrementFromLabels(
-      ["bug", "minor", "documentation"],
+      [{ name: "documentation" }, { name: "minor" }],
       "major",
       "minor",
+      "patch",
     );
     expect(result).toBe("minor");
   });
 
-  test("should default to patch when no labels match", () => {
+  test("should detect patch label", () => {
     const result = resolveIncrementFromLabels(
-      ["bug", "documentation"],
+      [{ name: "documentation" }, { name: "patch" }],
       "major",
       "minor",
+      "patch",
     );
     expect(result).toBe("patch");
   });
 
-  test("should handle empty labels array", () => {
-    const result = resolveIncrementFromLabels([], "major", "minor");
-    expect(result).toBe("patch");
-  });
-
-  test("should handle case sensitivity in labels", () => {
+  test("should prioritize major over minor and patch", () => {
     const result = resolveIncrementFromLabels(
-      ["MAJOR", "BUG"],
+      [{ name: "major" }, { name: "minor" }, { name: "patch" }],
       "major",
       "minor",
+      "patch",
     );
-    expect(result).toBe("patch");
+    expect(result).toBe("major");
+  });
+
+  test("should prioritize minor over patch", () => {
+    const result = resolveIncrementFromLabels(
+      [{ name: "minor" }, { name: "patch" }],
+      "major",
+      "minor",
+      "patch",
+    );
+    expect(result).toBe("minor");
   });
 });
 
@@ -65,19 +104,20 @@ describe("detectIncrement", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    fs.promises.readFile.mockResolvedValue("query { test }");
 
-    // Mock GitHub context
+    // Reset GitHub context
     github.context = {
       eventName: "push",
       payload: {},
       repo: { owner: "testowner", repo: "testrepo" },
-      sha: "abcdef1234567890",
+      sha: "abc123456789",
       ref: "refs/heads/main",
     };
   });
 
-  test("should return increment input if provided", async () => {
-    const increment = await detectIncrement(
+  test("should use provided increment input", async () => {
+    const result = await detectIncrement(
       mockOctokit,
       "owner",
       "repo",
@@ -87,26 +127,29 @@ describe("detectIncrement", () => {
       "patch-label",
       mockCore,
     );
-
-    expect(increment).toBe("minor");
+    expect(result).toBe("minor");
     expect(mockOctokit.graphql).not.toHaveBeenCalled();
   });
 
-  test("should detect increment from PR labels", async () => {
+  test("should detect PR labels in pull_request event", async () => {
+    // Set up GitHub context for PR
     github.context.eventName = "pull_request";
-    github.context.payload = { pull_request: { number: 123 } };
+    github.context.payload = {
+      pull_request: { number: 123 },
+    };
 
+    // Mock the GraphQL response for PR labels
     mockOctokit.graphql.mockResolvedValue({
       repository: {
         pullRequest: {
           labels: {
-            nodes: [{ name: "bug" }, { name: "minor-label" }],
+            nodes: [{ name: "documentation" }, { name: "minor-label" }],
           },
         },
       },
     });
 
-    const increment = await detectIncrement(
+    const result = await detectIncrement(
       mockOctokit,
       "owner",
       "repo",
@@ -117,16 +160,21 @@ describe("detectIncrement", () => {
       mockCore,
     );
 
-    expect(increment).toBe("minor");
+    expect(result).toBe("minor");
+    expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
 
-  test("should handle PR API errors", async () => {
+  test("should handle error getting PR labels", async () => {
+    // Set up GitHub context for PR
     github.context.eventName = "pull_request";
-    github.context.payload = { pull_request: { number: 123 } };
+    github.context.payload = {
+      pull_request: { number: 123 },
+    };
 
+    // Mock GraphQL error
     mockOctokit.graphql.mockRejectedValue(new Error("API error"));
 
-    const increment = await detectIncrement(
+    const result = await detectIncrement(
       mockOctokit,
       "owner",
       "repo",
@@ -137,22 +185,28 @@ describe("detectIncrement", () => {
       mockCore,
     );
 
-    expect(increment).toBe("patch");
-    expect(mockCore.warning).toHaveBeenCalled();
+    expect(result).toBe("patch");
+    expect(mockCore.warning).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to get PR labels"),
+    );
   });
 
-  test("should detect increment from commit associated PR labels", async () => {
+  test("should detect labels from commit-associated PR", async () => {
+    // Set up for push event with associated PR
     github.context.eventName = "push";
-    github.context.ref = "refs/heads/main";
+    github.context.sha = "commit123";
 
+    // Mock the GraphQL response for commit-associated PR
     mockOctokit.graphql.mockResolvedValue({
       repository: {
         object: {
           associatedPullRequests: {
             nodes: [
               {
+                title: "Test PR",
+                number: 456,
                 labels: {
-                  nodes: [{ name: "major-label" }],
+                  nodes: [{ name: "minor-label" }],
                 },
               },
             ],
@@ -161,7 +215,7 @@ describe("detectIncrement", () => {
       },
     });
 
-    const increment = await detectIncrement(
+    const result = await detectIncrement(
       mockOctokit,
       "owner",
       "repo",
@@ -172,45 +226,30 @@ describe("detectIncrement", () => {
       mockCore,
     );
 
-    expect(increment).toBe("major");
+    expect(result).toBe("minor");
+    expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
+    expect(mockCore.info).toHaveBeenCalledWith(
+      expect.stringContaining("Found 1 associated PRs"),
+    );
   });
 
-  test("should handle commit API errors", async () => {
+  test("should return patch when no associated PRs found", async () => {
+    // Set up for push event with no associated PR
     github.context.eventName = "push";
-    github.context.ref = "refs/heads/main";
+    github.context.sha = "commit456";
 
-    mockOctokit.graphql.mockRejectedValue(new Error("API error"));
-
-    const increment = await detectIncrement(
-      mockOctokit,
-      "owner",
-      "repo",
-      "",
-      "major-label",
-      "minor-label",
-      "patch-label",
-      mockCore,
-    );
-
-    expect(increment).toBe("patch");
-    expect(mockCore.warning).toHaveBeenCalled();
-  });
-
-  test("should default to patch when no matching labels found", async () => {
-    github.context.eventName = "pull_request";
-    github.context.payload = { pull_request: { number: 123 } };
-
+    // Mock the GraphQL response with no associated PRs
     mockOctokit.graphql.mockResolvedValue({
       repository: {
-        pullRequest: {
-          labels: {
-            nodes: [{ name: "bug" }, { name: "enhancement" }],
+        object: {
+          associatedPullRequests: {
+            nodes: [], // Empty array - no PRs
           },
         },
       },
     });
 
-    const increment = await detectIncrement(
+    const result = await detectIncrement(
       mockOctokit,
       "owner",
       "repo",
@@ -221,6 +260,73 @@ describe("detectIncrement", () => {
       mockCore,
     );
 
-    expect(increment).toBe("patch");
+    expect(result).toBe("patch");
+    expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
+    expect(mockCore.info).toHaveBeenCalledWith(
+      "No associated PRs found for this commit",
+    );
+  });
+
+  test("should handle error getting associated PR labels", async () => {
+    // Set up for push event
+    github.context.eventName = "push";
+
+    // Mock GraphQL error
+    mockOctokit.graphql.mockRejectedValue(new Error("API error"));
+
+    const result = await detectIncrement(
+      mockOctokit,
+      "owner",
+      "repo",
+      "",
+      "major-label",
+      "minor-label",
+      "patch-label",
+      mockCore,
+    );
+
+    expect(result).toBe("patch");
+    expect(mockCore.warning).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to get associated PR labels"),
+    );
+  });
+
+  test("should handle case-sensitive labels correctly", async () => {
+    // Set up for push event with associated PR
+    github.context.eventName = "push";
+
+    // Mock the GraphQL response with labels that don't exactly match
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        object: {
+          associatedPullRequests: {
+            nodes: [
+              {
+                labels: {
+                  nodes: [
+                    { name: "Minor-label" }, // Capital M, but looking for "minor-label"
+                    { name: "documentation" },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const result = await detectIncrement(
+      mockOctokit,
+      "owner",
+      "repo",
+      "",
+      "major-label",
+      "minor-label", // lowercase
+      "patch-label",
+      mockCore,
+    );
+
+    // Should not match due to case sensitivity
+    expect(result).toBe("patch");
   });
 });

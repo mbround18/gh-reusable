@@ -1,14 +1,16 @@
-query GetCommitAssociatedPR(
+query getAssociatedPRLabels(
   $owner: String!
   $repo: String!
-  $commitSha: String!
+  $commitSha: GitObjectID!
 ) {
   repository(owner: $owner, name: $repo) {
     object(oid: $commitSha) {
       ... on Commit {
         associatedPullRequests(first: 1) {
           nodes {
-            labels(first: 100) {
+            title
+            number
+            labels(first: 10) {
               nodes {
                 name
               }
