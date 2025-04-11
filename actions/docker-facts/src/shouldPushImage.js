@@ -18,33 +18,28 @@ function shouldPushImage(canaryLabel = "canary", forcePush = false) {
   try {
     core.startGroup("Push Decision Logic");
 
-    // Extract context information
     const context = github.context;
     const eventName = context.eventName;
     const ref = context.ref;
     const defaultBranch = context.payload.repository?.default_branch;
 
-    // Log context for debugging
     core.info(`Event: ${eventName}`);
     core.info(`Ref: ${ref}`);
     core.info(`Default branch: ${defaultBranch || "unknown"}`);
     core.info(`Force push: ${forcePush}`);
 
-    // Case 1: Force push enabled
     if (forcePush === true) {
       core.info("Force push is enabled, will push image.");
       core.endGroup();
       return true;
     }
 
-    // Case 2: Tag push
     if (ref.startsWith("refs/tags/")) {
       core.info("Push event for a tag, will push image.");
       core.endGroup();
       return true;
     }
 
-    // Case 3: Push to default branch
     if (
       eventName === "push" &&
       defaultBranch &&
@@ -55,7 +50,6 @@ function shouldPushImage(canaryLabel = "canary", forcePush = false) {
       return true;
     }
 
-    // Case 4: PR with canary label
     if (eventName === "pull_request") {
       const labels = parseLabels();
       const hasCanaryLabel = labels.some((label) => label === canaryLabel);
@@ -68,7 +62,6 @@ function shouldPushImage(canaryLabel = "canary", forcePush = false) {
       core.info(`PR does not have '${canaryLabel}' label, skipping push.`);
     }
 
-    // Default case: don't push
     core.info("No push conditions met, skipping push.");
     core.endGroup();
     return false;

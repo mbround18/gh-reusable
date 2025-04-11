@@ -1,9 +1,7 @@
-// Set environment variables for tests
 process.env.NODE_ENV = "test";
 process.env.GITHUB_WORKSPACE = "/workspace";
 process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
 
-// Mock fs module with promises support
 jest.mock("fs", () => ({
   ...jest.requireActual("fs"),
   promises: {
@@ -18,7 +16,6 @@ jest.mock("fs", () => ({
   },
 }));
 
-// Mock GitHub Actions core module
 jest.mock("@actions/core", () => ({
   getInput: jest.fn(),
   setOutput: jest.fn(),
@@ -39,7 +36,6 @@ jest.mock("@actions/core", () => ({
   },
 }));
 
-// Mock GitHub context
 jest.mock("@actions/github", () => ({
   context: {
     eventName: "push",
@@ -53,8 +49,6 @@ jest.mock("@actions/github", () => ({
   },
 }));
 
-// Do not use beforeEach directly in setup file
-// Instead, just export the mock reset function that tests can use
 module.exports = {
   resetMocks: () => {
     jest.resetAllMocks();

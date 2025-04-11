@@ -1,11 +1,9 @@
 const core = require("@actions/core");
 const github = require("@actions/github");
 
-// Mock modules
 jest.mock("@actions/core");
 jest.mock("@actions/github");
 
-// Import the function to test
 const { __testables } = require("../index");
 const { shouldPushImage } = __testables || {};
 

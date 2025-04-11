@@ -1,12 +1,14 @@
-query ($owner: String!, $repo: String!, $commitOid: GitObjectID!) {
+query GetCommitAssociatedPR(
+  $owner: String!
+  $repo: String!
+  $commitSha: String!
+) {
   repository(owner: $owner, name: $repo) {
-    object(oid: $commitOid) {
+    object(oid: $commitSha) {
       ... on Commit {
-        messageHeadline
-        associatedPullRequests(first: 1, states: [MERGED, CLOSED]) {
+        associatedPullRequests(first: 1) {
           nodes {
-            number
-            labels(first: 10) {
+            labels(first: 100) {
               nodes {
                 name
               }

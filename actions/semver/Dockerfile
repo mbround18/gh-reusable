@@ -1,16 +1,15 @@
-FROM node:22-alpine
+FROM node:23-slim
 
-# Set the working directory
-WORKDIR /action
+WORKDIR /app
 
-# Copy package.json (and package-lock.json if available)
-COPY package.json package-lock.json* ./
+# Copy only package files first for better layer caching
+COPY package*.json ./
+RUN npm ci --only=production
 
-# Install production dependencies
-RUN npm install --production
+# Copy remaining source code
+COPY index.js ./
+COPY src ./src
+COPY queries ./queries
 
-# Copy the rest of the action code
-COPY . .
-
-# Define the entrypoint to run your action script
-ENTRYPOINT ["node", "/action/index.js"]
+# Set entrypoint
+ENTRYPOINT ["node", "/app/index.js"]

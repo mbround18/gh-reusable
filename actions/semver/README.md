@@ -42,8 +42,52 @@ jobs:
 
 ### Looking up the last tag
 
-If the `base` input is not provided, the action will look up the last tag in the repository using the `git describe --tags --abbrev=0` command.
+If the `base` input is not provided, the action will look up the last tag in the repository using GitHub's GraphQL API.
 
 ### Incrementing the base or last tag
 
 The action will increment the base or last tag by the specified increment value. If the `increment` input is not provided, the action will use the labels of the last commit or PR to determine the increment value. The increment value can be `major`, `minor`, or `patch`.
+
+## Project Structure
+
+The codebase is organized into the following structure:
+
+```
+actions/semver/
+├── src/             # Source code
+│   ├── index.js     # Main entry point
+│   ├── version.js   # Version handling
+│   ├── increment.js # Increment detection
+│   └── tag.js       # Tag management
+├── queries/         # GraphQL query files
+│   ├── get_last_tag.gql
+│   ├── pr_labels.gql
+│   └── commit_associated_pr.gql
+├── tests/           # Test files
+│   ├── index.test.js
+│   ├── version.test.js
+│   ├── increment.test.js
+│   └── tag.test.js
+└── index.js         # Action entry point
+```
+
+## Development
+
+### Installing Dependencies
+
+```bash
+npm install
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Watch mode for development
+npm run test:watch
+```

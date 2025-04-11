@@ -202,7 +202,6 @@ jobs:
             const pr_title = context.payload.pull_request.title
             const pipeline_url = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
 
-            // Get the tags from docker-facts
             const tags = "${{ steps.docker-facts.outputs.tags }}".split(',')
 
             let message = `Docker image \`${image}\` has been built with the following tags:\n\n`

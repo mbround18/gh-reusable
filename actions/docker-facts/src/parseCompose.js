@@ -37,14 +37,12 @@ function parseCompose(composeFile, image) {
     const services = Object.keys(composeData.services);
     core.info(`Services found: ${services.join(", ")}`);
 
-    // Find matching service by image name
     let matchingService = null;
     let serviceName = null;
 
     for (const [name, service] of Object.entries(composeData.services)) {
       if (!service.image) continue;
 
-      // Extract base image name without tag
       const serviceImage = service.image.split(":")[0];
       if (serviceImage === image || service.image.startsWith(image)) {
         matchingService = service;
@@ -58,24 +56,21 @@ function parseCompose(composeFile, image) {
       return null;
     }
 
-    // Check if service has build configuration
     if (!matchingService.build) {
       core.info(`Service ${serviceName} has no build configuration`);
       return null;
     }
 
-    // Build can be a string (context path) or object
     if (typeof matchingService.build === "string") {
       core.info(
         `Found simple build config for ${serviceName}: ${matchingService.build}`,
       );
       return {
-        dockerfile: "Dockerfile", // Default
+        dockerfile: "Dockerfile",
         context: matchingService.build,
       };
     }
 
-    // Build is an object
     if (!matchingService.build.context) {
       core.info(
         `Service ${serviceName} has incomplete build configuration (missing context)`,

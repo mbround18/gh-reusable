@@ -1,10 +1,8 @@
 const path = require("path");
 const semver = require("semver");
 
-// Create mock implementations for fs functions first
 const mockReadFile = jest.fn();
 
-// Mock modules before requiring them
 jest.mock("@actions/core");
 jest.mock("@actions/github");
 jest.mock("fs", () => ({
@@ -18,12 +16,10 @@ jest.mock("fs", () => ({
   readFileSync: jest.fn(),
 }));
 
-// Now require the mocked modules
 const core = require("@actions/core");
 const github = require("@actions/github");
 const fs = require("fs");
 
-// Set up mockReadFile implementation
 mockReadFile.mockImplementation((filePath) => {
   if (filePath.includes("get_last_tag.gql")) {
     return Promise.resolve("query { repository { refs { nodes { name } } } }");
@@ -44,15 +40,16 @@ mockReadFile.mockImplementation((filePath) => {
   }
 });
 
-// Import the module after all mocks are in place
-const index = require("./index");
+jest.mock("./src/version");
+jest.mock("./src/increment");
+jest.mock("./src/tag");
 
-// Create a backup of the original run function before tests modify it
+const index = require("./tests/test-helpers");
+
 const originalRun = index.run;
 
 describe("buildNewVersion", () => {
   beforeEach(() => {
-    // Reset github.context between tests
     github.context = {
       eventName: "push",
       payload: {},
@@ -151,7 +148,6 @@ describe("buildNewVersion", () => {
   });
 
   test("should use exact tag version when running on a tag", () => {
-    // Set up github.context to simulate tag event
     github.context.ref = "refs/tags/v1.5.0";
 
     const result = index.buildNewVersion(
@@ -162,12 +158,10 @@ describe("buildNewVersion", () => {
       "abc123456789",
     );
 
-    // Should return the exact tag name
     expect(result).toBe("v1.5.0");
   });
 
   test("should preserve prefix when using exact tag version", () => {
-    // Set up github.context to simulate tag event with custom prefix
     github.context.ref = "refs/tags/app-v2.0.0";
 
     const result = index.buildNewVersion(
@@ -178,7 +172,6 @@ describe("buildNewVersion", () => {
       "abc123456789",
     );
 
-    // Should return the exact tag name
     expect(result).toBe("app-v2.0.0");
   });
 
@@ -241,7 +234,6 @@ describe("resolveIncrementFromLabels", () => {
 describe("fetchQuery", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset query cache by re-requiring the module
     jest.resetModules();
   });
 
@@ -252,7 +244,6 @@ describe("fetchQuery", () => {
     expect(query1).toBe("query TestQuery { test }");
     expect(fs.promises.readFile).toHaveBeenCalledTimes(1);
 
-    // Second call should use cache
     const query2 = await index.fetchQuery("queries/test_query.gql");
     expect(query2).toBe("query TestQuery { test }");
     expect(fs.promises.readFile).toHaveBeenCalledTimes(1);
@@ -486,7 +477,6 @@ describe("detectIncrement", () => {
       }
     });
 
-    // Mock GitHub context
     github.context = {
       eventName: "push",
       payload: {},
@@ -565,7 +555,6 @@ describe("detectIncrement", () => {
     github.context.eventName = "push";
     github.context.ref = "refs/heads/main";
 
-    // First create a more accurate mock implementation for index.js
     const originalDetectIncrement = index.detectIncrement;
     index.detectIncrement = jest
       .fn()
@@ -599,7 +588,6 @@ describe("detectIncrement", () => {
 
     expect(increment).toBe("major");
 
-    // Restore original function
     index.detectIncrement = originalDetectIncrement;
   });
 
@@ -657,7 +645,6 @@ describe("run function", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Mock core inputs/outputs
     core.getInput = jest.fn((name) => {
       const inputs = {
         token: "fake-token",
@@ -678,7 +665,6 @@ describe("run function", () => {
     core.endGroup = jest.fn();
     core.debug = jest.fn();
 
-    // Mock github context
     github.context = {
       eventName: "push",
       payload: {},
@@ -687,12 +673,10 @@ describe("run function", () => {
       ref: "refs/heads/main",
     };
 
-    // Mock octokit
     github.getOctokit = jest.fn().mockReturnValue({
       graphql: jest.fn(),
     });
 
-    // Mock fs
     fs.promises.readFile.mockImplementation((path) => {
       if (path.includes("get_last_tag.gql")) {
         return Promise.resolve(
@@ -715,7 +699,6 @@ describe("run function", () => {
       }
     });
 
-    // Mock successful API responses
     const octokitInstance = github.getOctokit();
     octokitInstance.graphql.mockImplementation((query) => {
       if (query.includes("refs(")) {
@@ -743,7 +726,6 @@ describe("run function", () => {
       }
     });
 
-    // Mock the module functions to avoid actual implementation
     index.getLastTag = jest.fn().mockResolvedValue({
       lastTag: "v1.2.0",
       updatedPrefix: "v",
@@ -751,7 +733,6 @@ describe("run function", () => {
 
     index.detectIncrement = jest.fn().mockResolvedValue("patch");
 
-    // Keep the original buildNewVersion to test actual version increments
     const originalBuildNewVersion = index.buildNewVersion;
     index.buildNewVersion = jest
       .fn()
@@ -759,7 +740,6 @@ describe("run function", () => {
         return originalBuildNewVersion(lastTag, prefix, increment, isPR, sha);
       });
 
-    // Create a custom implementation for run that actually calls core.setOutput
     index.run = jest.fn().mockImplementation(async () => {
       try {
         const token = core.getInput("token") || process.env.GITHUB_TOKEN;
@@ -767,7 +747,6 @@ describe("run function", () => {
           throw new Error("GitHub token is required");
         }
 
-        // Use the mocked values we've set up
         const { lastTag, updatedPrefix } = await index.getLastTag();
         const increment = await index.detectIncrement();
         const newVersion = index.buildNewVersion(
@@ -785,9 +764,7 @@ describe("run function", () => {
     });
   });
 
-  // Reset the mock implementations after tests
   afterEach(() => {
-    // Restore the original run function
     index.run = originalRun;
   });
 
@@ -798,7 +775,6 @@ describe("run function", () => {
   });
 
   test("run should handle base tag input", async () => {
-    // Update mocks to support this specific test case
     core.getInput = jest.fn((name) => {
       const inputs = {
         token: "fake-token",
@@ -812,7 +788,6 @@ describe("run function", () => {
       return inputs[name] || "";
     });
 
-    // Update mock to return values that match this test case
     index.getLastTag = jest.fn().mockResolvedValue({
       lastTag: "v2.0.0",
       updatedPrefix: "v",
@@ -844,13 +819,11 @@ describe("run function", () => {
   });
 
   test("run should handle version validation failure", async () => {
-    // Set up invalid version scenario by returning an invalid version string
     index.getLastTag = jest.fn().mockResolvedValue({
       lastTag: "invalid-version",
       updatedPrefix: "",
     });
 
-    // Make buildNewVersion throw an error as it would with an invalid version
     index.buildNewVersion = jest.fn().mockImplementation(() => {
       throw new Error("Invalid semver: invalid-version");
     });
@@ -860,7 +833,6 @@ describe("run function", () => {
   });
 
   test("run should handle API errors", async () => {
-    // Make getLastTag throw an API error
     index.getLastTag = jest.fn().mockRejectedValue(new Error("API failure"));
 
     await index.run();
@@ -868,17 +840,13 @@ describe("run function", () => {
   });
 
   test("run should handle PR event", async () => {
-    // Reset mocks first
     jest.clearAllMocks();
 
-    // Set up the PR context
     github.context.eventName = "pull_request";
     github.context.payload = { pull_request: { number: 123 } };
     github.context.sha = "abcdef1234567890";
 
-    // Create a simplified custom run implementation for this test
     index.run = jest.fn().mockImplementation(async () => {
-      // Directly call setOutput with a predetermined value
       core.setOutput("new_version", "v1.2.0-abcdef1");
     });
 
@@ -887,35 +855,28 @@ describe("run function", () => {
   });
 
   test("run should handle tag event correctly", async () => {
-    // Reset mocks first to prevent interference from previous tests
     jest.clearAllMocks();
 
-    // Set up the tag context
     github.context.eventName = "push";
     github.context.ref = "refs/tags/v2.0.0";
 
-    // Update getLastTag mock for this test
     index.getLastTag = jest.fn().mockResolvedValue({
       lastTag: "v1.2.0", // Previous version
       updatedPrefix: "v",
     });
 
-    // Reset the buildNewVersion mock to use the real function
     const originalBuildNewVersion = index.buildNewVersion;
     index.buildNewVersion = jest
       .fn()
       .mockImplementation((lastTag, prefix, increment, isPR, sha) => {
-        // When running on a tag, we should use the tag name
         if (github.context.ref.startsWith("refs/tags/")) {
           return github.context.ref.replace("refs/tags/", "");
         }
-        // Otherwise use normal version incrementing
         return `${prefix}1.2.1`;
       });
 
     index.detectIncrement = jest.fn().mockResolvedValue("patch");
 
-    // Create a custom run implementation for this test
     index.run = jest.fn().mockImplementation(async () => {
       try {
         const { lastTag, updatedPrefix } = await index.getLastTag();
@@ -935,7 +896,6 @@ describe("run function", () => {
 
     await index.run();
 
-    // Should output the exact tag version, not an incremented version
     expect(core.setOutput).toHaveBeenCalledWith("new_version", "v2.0.0");
     expect(core.setFailed).not.toHaveBeenCalled();
   });

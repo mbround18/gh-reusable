@@ -3,7 +3,6 @@ const github = require("@actions/github");
 const path = require("path");
 const yaml = require("js-yaml");
 
-// Mock core and github modules
 jest.mock("@actions/core");
 jest.mock("@actions/github");
 jest.mock("path");
@@ -21,14 +20,11 @@ jest.mock("fs", () => ({
   },
 }));
 
-// Mock resolveDockerContext function
 jest.mock("../src/resolveDockerContext", () => jest.fn());
 
-// Mock process.chdir to avoid actual directory changes
 const originalChdir = process.chdir;
 process.chdir = jest.fn();
 
-// Import modules after mocking
 const fs = require("fs");
 const resolveDockerContext = require("../src/resolveDockerContext");
 const { run } = require("../index");
@@ -37,7 +33,6 @@ describe("Main run function", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Standard core mocks
     core.getInput = jest.fn();
     core.setOutput = jest.fn();
     core.info = jest.fn();
@@ -47,7 +42,6 @@ describe("Main run function", () => {
     core.exportVariable = jest.fn();
     core.setFailed = jest.fn();
 
-    // Setup GitHub context
     github.context = {
       eventName: "push",
       ref: "refs/heads/main",
@@ -58,12 +52,10 @@ describe("Main run function", () => {
   });
 
   afterAll(() => {
-    // Restore process.chdir
     process.chdir = originalChdir;
   });
 
   test("should correctly process inputs and set outputs", async () => {
-    // Define standard input values
     core.getInput.mockImplementation((name) => {
       const inputs = {
         image: "myapp",
@@ -77,16 +69,13 @@ describe("Main run function", () => {
       return inputs[name] || "";
     });
 
-    // Mock resolveDockerContext to return the values from docker-compose
     resolveDockerContext.mockReturnValue({
       dockerfile: "Dockerfile.prod",
       context: "./app",
     });
 
-    // Run main function
     await run();
 
-    // Verify outputs
     expect(core.setOutput).toHaveBeenCalledWith(
       "dockerfile",
       "Dockerfile.prod",
@@ -100,20 +89,16 @@ describe("Main run function", () => {
   });
 
   test("should handle errors gracefully", async () => {
-    // Force an error in core.getInput
     core.getInput = jest.fn().mockImplementation(() => {
       throw new Error("Test error");
     });
 
-    // Run function
     await run();
 
-    // Verify error handling was triggered
     expect(core.setFailed).toHaveBeenCalledWith("Action failed: Test error");
   });
 
   test("should handle errors in GitHub context", async () => {
-    // Setup valid inputs
     core.getInput.mockImplementation((name) => {
       const inputs = {
         image: "myapp",
@@ -127,36 +112,30 @@ describe("Main run function", () => {
       return inputs[name] || "";
     });
 
-    // Mock resolveDockerContext
     resolveDockerContext.mockReturnValue({
       dockerfile: "Dockerfile",
       context: ".",
     });
 
-    // Force an error by making github.context.ref throw
     Object.defineProperty(github.context, "ref", {
       get: function () {
         throw new Error("Cannot read properties of undefined");
       },
     });
 
-    // Run function
     await run();
 
-    // Verify the error is caught with a proper message in warning
     expect(core.warning).toHaveBeenCalledWith(
       expect.stringContaining(
         "Error parsing GitHub context: Cannot read properties of undefined",
       ),
     );
 
-    // Function should still complete without failing
     expect(core.setOutput).toHaveBeenCalledWith("tags", expect.any(String));
   });
 
   const registries = ["docker.io", "ghcr.io"];
 
-  // Version variants now defined as an object with descriptive keys
   const versionVariants = {
     standard: {
       version: "1.0.0",
@@ -312,7 +291,6 @@ describe("Main run function", () => {
     const testCase = versionVariants.vStandard;
     jest.clearAllMocks();
 
-    // Mock resolveDockerContext
     resolveDockerContext.mockReturnValue({
       dockerfile: "Dockerfile",
       context: ".",
@@ -348,11 +326,9 @@ describe("Main run function", () => {
     );
   });
 
-  // Iterate over the named version variants
   for (const key in versionVariants) {
     test(`should correctly handle various version formats: ${key}`, async () => {
       const testCase = versionVariants[key];
-      // mutate all testCase.exceptedTags to include the registries
       const expectedTags = testCase.expectedTags.reduce(
         (acc, val) =>
           acc.concat(registries.map((registry) => `${registry}/${val}`)),
@@ -361,13 +337,11 @@ describe("Main run function", () => {
       expectedTags.push(...testCase.expectedTags);
       jest.clearAllMocks();
 
-      // Mock resolveDockerContext
       resolveDockerContext.mockReturnValue({
         dockerfile: "Dockerfile",
         context: ".",
       });
 
-      // Set up the core.getInput mock for this version variant
       core.getInput.mockImplementation((name) => {
         const inputs = {
           image: "myapp",
@@ -381,19 +355,15 @@ describe("Main run function", () => {
         return inputs[name] || "";
       });
 
-      // Ensure no docker-compose file is found
       fs.existsSync.mockReturnValue(false);
 
-      // Run the main function
       await run();
 
-      // Retrieve the "tags" output and split into an array
       const tagsOutput = core.setOutput.mock.calls.find(
         (call) => call[0] === "tags",
       )[1];
       const actualTags = tagsOutput.split(",");
 
-      // Assert that every expected tag is present
       expect(actualTags.sort()).toEqual(expectedTags.sort());
 
       testCase.expectedTags.forEach((expectedTag) => {

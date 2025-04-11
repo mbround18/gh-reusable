@@ -1,9 +1,7 @@
 const core = require("@actions/core");
 
-// Mock the core module
 jest.mock("@actions/core");
 
-// Import the function to test
 const { __testables } = require("../index");
 const { parseDockerImageName } = __testables || {};
 

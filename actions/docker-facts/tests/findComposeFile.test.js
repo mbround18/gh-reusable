@@ -2,7 +2,6 @@ const core = require("@actions/core");
 const fs = require("fs");
 const path = require("path");
 
-// Mock modules
 jest.mock("@actions/core");
 jest.mock("path");
 jest.mock("fs", () => ({
@@ -17,7 +16,6 @@ jest.mock("fs", () => ({
   },
 }));
 
-// Import the function to test
 const { __testables } = require("../index");
 const { findComposeFile } = __testables || {};
 
@@ -63,6 +61,6 @@ describe("findComposeFile function", () => {
     const result = findComposeFile(["/test/dir", "/another/dir"]);
 
     expect(result).toBeNull();
-    expect(fs.existsSync).toHaveBeenCalledTimes(4); // 2 files in 2 dirs
+    expect(fs.existsSync).toHaveBeenCalledTimes(4);
   });
 });

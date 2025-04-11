@@ -1,7 +1,6 @@
 const core = require("@actions/core");
 const generateTags = require("../src/generateTags");
 
-// Mock core functions
 jest.mock("@actions/core");
 
 describe("generateTags function - GitHub Context Handling", () => {
@@ -12,7 +11,6 @@ describe("generateTags function - GitHub Context Handling", () => {
   });
 
   test("should add PR-specific tags when in pull request context", () => {
-    // Set up with PR number as branch parameter
     const result = generateTags("myapp", "1.0.0", "pr-123", ["docker.io"]);
 
     expect(result).toContain("myapp:pr-123");
@@ -20,16 +18,12 @@ describe("generateTags function - GitHub Context Handling", () => {
   });
 
   test("should automatically add PR prefix to numeric branch values", () => {
-    // Set up with numeric branch parameter that should get PR- prefix
     const result = generateTags("myapp", "1.0.0", "123", ["docker.io"]);
-
-    // Verify PR-prefixed tags are created
     expect(result).toContain("myapp:pr-123");
     expect(result).toContain("docker.io/myapp:pr-123");
   });
 
   test("should add branch-specific tags when in branch context", () => {
-    // Set up with branch name
     const result = generateTags("myapp", "1.0.0", "feature-branch", [
       "docker.io",
     ]);
@@ -39,7 +33,6 @@ describe("generateTags function - GitHub Context Handling", () => {
   });
 
   test("should sanitize branch names with invalid characters", () => {
-    // Set up with branch name containing invalid characters
     const result = generateTags(
       "myapp",
       "1.0.0",
@@ -47,7 +40,6 @@ describe("generateTags function - GitHub Context Handling", () => {
       ["docker.io"],
     );
 
-    // Branch name should be sanitized
     expect(result).toContain("myapp:feature-branch-with-invalid-chars");
     expect(result).toContain(
       "docker.io/myapp:feature-branch-with-invalid-chars",
@@ -55,12 +47,10 @@ describe("generateTags function - GitHub Context Handling", () => {
   });
 
   test("should skip branch tags for main/master branches", () => {
-    // Test main branch
     const resultMain = generateTags("myapp", "1.0.0", "main", ["docker.io"]);
     expect(resultMain).not.toContain("myapp:main");
     expect(resultMain).not.toContain("docker.io/myapp:main");
 
-    // Test master branch
     const resultMaster = generateTags("myapp", "1.0.0", "master", [
       "docker.io",
     ]);
@@ -95,9 +85,8 @@ describe("generateTags function - GitHub Context Handling", () => {
   test("should handle non-semver versions", () => {
     const result = generateTags("myapp", "not-a-version", null, ["docker.io"]);
 
-    // Should have the basic tag but not generate semver cascading tags
     expect(result).toContain("myapp:not-a-version");
     expect(result).toContain("docker.io/myapp:not-a-version");
-    expect(result).not.toContain("myapp:not"); // Should not generate invalid cascading tags
+    expect(result).not.toContain("myapp:not");
   });
 });

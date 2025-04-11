@@ -18,11 +18,9 @@ function resolveDockerContext(image, defaultDockerfile, defaultContext = ".") {
     `  Inputs: image=${image}, dockerfile=${defaultDockerfile}, context=${defaultContext}`,
   );
 
-  // Get workspace root
   const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
   core.info(`  Workspace: ${workspace}`);
 
-  // Look for docker-compose.yml first, then docker-compose.yaml
   const ymlPath = path.join(workspace, "docker-compose.yml");
   const yamlPath = path.join(workspace, "docker-compose.yaml");
 
@@ -56,7 +54,6 @@ function resolveDockerContext(image, defaultDockerfile, defaultContext = ".") {
     core.info(`  No docker-compose file found in ${workspace}`);
   }
 
-  // Return fallback values if no compose file or no matching service
   core.info(
     `  Using fallback values: dockerfile=${defaultDockerfile}, context=${defaultContext}`,
   );

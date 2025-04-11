@@ -7,7 +7,6 @@ const core = require("@actions/core");
  */
 function validateTags(tags) {
   return tags.map((tag) => {
-    // Check for malformed tags (with multiple colons)
     const parts = tag.split(":");
     if (parts.length > 2) {
       core.warning(`Found malformed tag: ${tag}, fixing format`);

@@ -2,7 +2,6 @@ const core = require("@actions/core");
 const { __testables } = require("../index");
 const { validateTags } = __testables || {};
 
-// Mock @actions/core
 jest.mock("@actions/core");
 
 describe("validateTags", () => {

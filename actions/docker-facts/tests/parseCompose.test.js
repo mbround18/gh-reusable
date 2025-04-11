@@ -3,7 +3,6 @@ const yaml = require("js-yaml");
 const core = require("@actions/core");
 const { parseCompose, composeExists } = require("../src/parseCompose");
 
-// Mock dependencies
 jest.mock("fs");
 jest.mock("js-yaml");
 jest.mock("@actions/core");
@@ -159,7 +158,6 @@ describe("parseCompose function", () => {
           image: "myapp:latest",
           build: {
             dockerfile: "custom.Dockerfile",
-            // Missing context
           },
         },
       },
