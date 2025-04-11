@@ -2,6 +2,12 @@ const github = require("@actions/github");
 const { buildNewVersion } = require("../src/version");
 
 describe("buildNewVersion", () => {
+  const mockCore = {
+    startGroup: jest.fn(),
+    endGroup: jest.fn(),
+    info: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.GITHUB_REF;
@@ -45,6 +51,40 @@ describe("buildNewVersion", () => {
       "abc123456789",
     );
     expect(result).toBe("v2.0.0");
+  });
+
+  test("should log inputs when core is provided", () => {
+    buildNewVersion(
+      "v1.2.3",
+      "v",
+      "patch",
+      false,
+      "abc123456789",
+      mockCore
+    );
+    
+    expect(mockCore.startGroup).toHaveBeenCalledWith("Building new version");
+    expect(mockCore.info).toHaveBeenCalledWith("Last tag: v1.2.3");
+    expect(mockCore.info).toHaveBeenCalledWith("Prefix: v");
+    expect(mockCore.info).toHaveBeenCalledWith("Increment: patch");
+    expect(mockCore.info).toHaveBeenCalledWith("Is PR: false");
+    expect(mockCore.info).toHaveBeenCalledWith("SHA: abc123456789");
+    expect(mockCore.endGroup).toHaveBeenCalled();
+  });
+
+  test("should log return exact tag when on tag and core is provided", () => {
+    process.env.GITHUB_REF = "refs/tags/v3.0.0";
+    
+    buildNewVersion(
+      "v1.2.3",
+      "v", 
+      "patch",
+      false,
+      "abc123456789",
+      mockCore
+    );
+    
+    expect(mockCore.info).toHaveBeenCalledWith("Running on tag: v3.0.0, returning exactly this tag");
   });
 
   test("should handle PR with no increment", () => {

@@ -65,6 +65,7 @@ async function run() {
       increment,
       isPR,
       github.context.sha,
+      core,
     );
     core.info(`New version: ${newVersion}`);
     core.endGroup();
