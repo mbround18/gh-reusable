@@ -8,9 +8,16 @@ const semver = require("semver");
  * @param {string} version - Semver version (e.g. "1.2.3" or "v1.2.3")
  * @param {string} branch - Branch name or PR number
  * @param {string|string[]} registries - Registry prefixes
+ * @param {boolean} withLatest - Whether to include the "latest" tag
  * @returns {string[]} List of generated tags.
  */
-function generateTags(image, version, branch, registries = "docker.io") {
+function generateTags(
+  image,
+  version,
+  branch,
+  registries = "docker.io",
+  withLatest = false,
+) {
   const tags = [];
 
   // Validate and clean image name.
@@ -82,7 +89,8 @@ function generateTags(image, version, branch, registries = "docker.io") {
   }
 
   // Check if we're dealing with a PR branch
-  const isPrBranch = branch && (branch.startsWith('pr-') || /^\d+$/.test(branch));
+  const isPrBranch =
+    branch && (branch.startsWith("pr-") || /^\d+$/.test(branch));
 
   // For 'latest' version, stop here.
   if (version === "latest") {
@@ -132,7 +140,7 @@ function generateTags(image, version, branch, registries = "docker.io") {
     const versionPart = version.substring(lastHyphen + 1);
 
     // Add app-name-latest tag
-    pushTag(`${appNamePart}-latest`);
+    if (withLatest) pushTag(`${appNamePart}-latest`);
 
     // Check if version part is a semver
     if (!/^v?\d+(\.\d+)*$/.test(versionPart)) {
@@ -175,8 +183,9 @@ function generateTags(image, version, branch, registries = "docker.io") {
     /^\d{4}\.\d{2}\.\d{2}$/.test(version) ||
     /^v\d{4}\.\d{2}\.\d{2}$/.test(version)
   ) {
-    // Still add latest for date-based versions
-    pushTag("latest");
+    if (withLatest) {
+      pushTag("latest");
+    }
     return tags;
   }
 
@@ -186,7 +195,7 @@ function generateTags(image, version, branch, registries = "docker.io") {
   const parts = numericVersion.split(".");
 
   // For standard versions, add 'latest' tag if not a PR branch
-  if (!isPrBranch) {
+  if (!isPrBranch && withLatest) {
     pushTag("latest");
   }
 

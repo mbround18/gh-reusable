@@ -160,37 +160,37 @@ describe("Main run function", () => {
   const versionVariants = {
     standard: {
       version: "1.0.0",
-      expectedTags: ["myapp:1.0.0", "myapp:latest", "myapp:1.0", "myapp:1"],
+      expectedTags: ["myapp:1.0.0", "myapp:1.0", "myapp:1"],
       description: "standard semver",
     },
     initialDev: {
       version: "0.0.1",
-      expectedTags: ["myapp:0.0.1", "myapp:latest"],
+      expectedTags: ["myapp:0.0.1"],
       description: "initial development version",
     },
     earlyMinor: {
       version: "0.1.0",
-      expectedTags: ["myapp:0.1.0", "myapp:latest"],
+      expectedTags: ["myapp:0.1.0"],
       description: "early minor semver",
     },
     vPrefixedSemver: {
       version: "v1.1.1",
-      expectedTags: ["myapp:v1.1.1", "myapp:latest", "myapp:v1.1", "myapp:v1"],
+      expectedTags: ["myapp:v1.1.1", "myapp:v1.1", "myapp:v1"],
       description: "v-prefixed semver",
     },
     vStandard: {
       version: "v1.0.0",
-      expectedTags: ["myapp:v1.0.0", "myapp:latest", "myapp:v1.0", "myapp:v1"],
+      expectedTags: ["myapp:v1.0.0", "myapp:v1.0", "myapp:v1"],
       description: "v-prefixed standard semver",
     },
     vInitialDev: {
       version: "v0.0.1",
-      expectedTags: ["myapp:v0.0.1", "myapp:latest"],
+      expectedTags: ["myapp:v0.0.1"],
       description: "v-prefixed initial development",
     },
     vEarlyMinor: {
       version: "v0.1.0",
-      expectedTags: ["myapp:v0.1.0", "myapp:latest"],
+      expectedTags: ["myapp:v0.1.0"],
       description: "v-prefixed early minor semver",
     },
     betaRelease: {
@@ -205,7 +205,7 @@ describe("Main run function", () => {
     },
     appNameEmbedded: {
       version: "app-name-0.0.1",
-      expectedTags: ["myapp:app-name-0.0.1", "myapp:app-name-latest"],
+      expectedTags: ["myapp:app-name-0.0.1"],
       description: "embedded app name version",
     },
     appNameStandard: {
@@ -214,7 +214,6 @@ describe("Main run function", () => {
         "myapp:app-name-1.0.0",
         "myapp:app-name-1.0",
         "myapp:app-name-1",
-        "myapp:app-name-latest",
       ],
       description: "standard app name semver",
     },
@@ -224,13 +223,12 @@ describe("Main run function", () => {
         "myapp:app-name-v1.0.0",
         "myapp:app-name-v1.0",
         "myapp:app-name-v1",
-        "myapp:app-name-latest",
       ],
       description: "app name with v-prefix",
     },
     appNameVInitial: {
       version: "app-name-v0.1.0",
-      expectedTags: ["myapp:app-name-v0.1.0", "myapp:app-name-latest"],
+      expectedTags: ["myapp:app-name-v0.1.0"],
       description: "app name with v-prefix initial version",
     },
     latestTag: {
@@ -240,17 +238,17 @@ describe("Main run function", () => {
     },
     dateBasedCompact: {
       version: "20230101",
-      expectedTags: ["myapp:20230101", "myapp:latest"],
+      expectedTags: ["myapp:20230101"],
       description: "date based (compact)",
     },
     dateBasedDots: {
       version: "2023.04.09",
-      expectedTags: ["myapp:2023.04.09", "myapp:latest"],
+      expectedTags: ["myapp:2023.04.09"],
       description: "date based (dots)",
     },
     vDateTag: {
       version: "v2023.04.09",
-      expectedTags: ["myapp:v2023.04.09", "myapp:latest"],
+      expectedTags: ["myapp:v2023.04.09"],
       description: "v-prefixed date based",
     },
     branchTag: {
@@ -290,22 +288,22 @@ describe("Main run function", () => {
     },
     singleDigit: {
       version: "1",
-      expectedTags: ["myapp:1", "myapp:latest"],
+      expectedTags: ["myapp:1"],
       description: "single digit version",
     },
     partialSemver: {
       version: "1.2",
-      expectedTags: ["myapp:1.2", "myapp:1", "myapp:latest"],
+      expectedTags: ["myapp:1.2", "myapp:1"],
       description: "partial semver (major.minor)",
     },
     vMajorOnly: {
       version: "v1",
-      expectedTags: ["myapp:v1", "myapp:latest"],
+      expectedTags: ["myapp:v1"],
       description: "v-prefixed major only",
     },
     vMajorMinor: {
       version: "v1.2",
-      expectedTags: ["myapp:v1", "myapp:v1.2", "myapp:latest"],
+      expectedTags: ["myapp:v1", "myapp:v1.2"],
       description: "v-prefixed major.minor",
     },
   };
@@ -394,11 +392,6 @@ describe("Main run function", () => {
         (call) => call[0] === "tags",
       )[1];
       const actualTags = tagsOutput.split(",");
-
-      console.log(
-        `Generated tags for ${testCase.description}: ${actualTags.join(", ")}`,
-      );
-      console.log(`Expected tags: ${expectedTags.join(", ")}`);
 
       // Assert that every expected tag is present
       expect(actualTags.sort()).toEqual(expectedTags.sort());

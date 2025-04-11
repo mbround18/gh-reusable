@@ -17,7 +17,7 @@ lint:
 	@cargo fmt
 	@cargo clippy --all-targets --all-features -- -D warnings
 
-test: install
+test: install lint
 	@echo "🧪 Running tests in packages with test scripts..."
 	@find . -name package.json \
 		-not -path "*/node_modules/*" \

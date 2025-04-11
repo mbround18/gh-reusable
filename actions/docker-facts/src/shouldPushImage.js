@@ -1,5 +1,6 @@
 const core = require("@actions/core");
 const github = require("@actions/github");
+const parseLabels = require("./parseLabels");
 
 /**
  * Determines whether to push an image based on GitHub context.
@@ -56,8 +57,8 @@ function shouldPushImage(canaryLabel = "canary", forcePush = false) {
 
     // Case 4: PR with canary label
     if (eventName === "pull_request") {
-      const labels = context.payload.pull_request?.labels || [];
-      const hasCanaryLabel = labels.some((label) => label.name === canaryLabel);
+      const labels = parseLabels();
+      const hasCanaryLabel = labels.some((label) => label === canaryLabel);
 
       if (hasCanaryLabel) {
         core.info(`PR has '${canaryLabel}' label, will push image.`);

@@ -26,6 +26,10 @@ inputs:
     description: "Force push the image even if not tagged"
     required: false
     default: "false"
+  with_latest:
+    description: "Whether to tag the image with 'latest' only on versioned tags"
+    required: false
+    default: "false"
 outputs:
   dockerfile:
     description: "Resolved Dockerfile path"

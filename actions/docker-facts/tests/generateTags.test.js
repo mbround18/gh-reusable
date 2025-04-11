@@ -15,7 +15,7 @@ describe("generateTags", () => {
     const result = generateTags("myapp", "v1.0.0");
 
     expect(result).toContain("myapp:v1.0.0");
-    expect(result).toContain("myapp:latest");
+    expect(result).not.toContain("myapp:latest");
     expect(result).toContain("myapp:v1.0");
     expect(result).toContain("myapp:v1");
     // No registry prefixes since registries=undefined
@@ -24,10 +24,10 @@ describe("generateTags", () => {
 
     // Default registry is docker.io when none specified
     expect(result).toContain("docker.io/myapp:v1.0.0");
-    expect(result).toContain("docker.io/myapp:latest");
+    expect(result).not.toContain("docker.io/myapp:latest");
 
     // Accounting for the default docker.io registry tags
-    expect(result.length).toBe(8); // 4 tags * 2 variations (bare + docker.io)
+    expect(result.length).toBe(6); // 4 tags * 2 variations (bare + docker.io)
   });
 
   test("should include registry prefixes", () => {
@@ -38,9 +38,9 @@ describe("generateTags", () => {
     expect(result).toContain("myapp:v1.0.0");
     expect(result).toContain("docker.io/myapp:v1.0.0");
     expect(result).toContain("ghcr.io/myapp:v1.0.0");
-    expect(result).toContain("myapp:latest");
-    expect(result).toContain("docker.io/myapp:latest");
-    expect(result).toContain("ghcr.io/myapp:latest");
+    expect(result).not.toContain("myapp:latest");
+    expect(result).not.toContain("docker.io/myapp:latest");
+    expect(result).not.toContain("ghcr.io/myapp:latest");
 
     // Cascading versions
     expect(result).toContain("myapp:v1.0");
@@ -50,13 +50,13 @@ describe("generateTags", () => {
     expect(result).toContain("docker.io/myapp:v1");
     expect(result).toContain("ghcr.io/myapp:v1");
 
-    // Total: 4 tags * 3 registry variations (including no registry) = 12 tags
-    expect(result.length).toBe(12);
+    // Total: 3 tags * 3 registry variations (including no registry) = 12 tags
+    expect(result.length).toBe(9);
   });
 
   test("should automatically generate cascading versions for semver", () => {
     const registries = ["docker.io"];
-    const result = generateTags("myapp", "1.2.3", null, registries);
+    const result = generateTags("myapp", "1.2.3", null, registries, true);
 
     expect(result).toContain("myapp:1.2.3");
     expect(result).toContain("docker.io/myapp:1.2.3");
@@ -95,14 +95,14 @@ describe("generateTags", () => {
 
     expect(result).toContain("myapp:0.1.0");
     expect(result).toContain("docker.io/myapp:0.1.0");
-    expect(result).toContain("myapp:latest");
-    expect(result).toContain("docker.io/myapp:latest");
+    expect(result).not.toContain("myapp:latest");
+    expect(result).not.toContain("docker.io/myapp:latest");
     // No cascading tags for 0.x.x versions
-    expect(result.length).toBe(4);
+    expect(result.length).toBe(2);
   });
 
   test("should not duplicate tags when cascading version equals main version", () => {
-    const result = generateTags("myapp", "1", null, ["docker.io"]);
+    const result = generateTags("myapp", "1", null, ["docker.io"], true);
 
     expect(result).toContain("myapp:1");
     expect(result).toContain("docker.io/myapp:1");
@@ -116,21 +116,16 @@ describe("generateTags", () => {
 
     expect(result).toContain("myapp:1.2");
     expect(result).toContain("docker.io/myapp:1.2");
-    expect(result).toContain("myapp:latest");
-    expect(result).toContain("docker.io/myapp:latest");
+    expect(result).not.toContain("myapp:latest");
+    expect(result).not.toContain("docker.io/myapp:latest");
     expect(result).toContain("myapp:1");
     expect(result).toContain("docker.io/myapp:1");
-    expect(result.length).toBe(6);
+    expect(result.length).toBe(4);
   });
 
   test("should generate basic tags", () => {
     const result = generateTags("myapp", "v1.0.0", null, []);
-    expect(result).toEqual([
-      "myapp:v1.0.0",
-      "myapp:latest",
-      "myapp:v1.0",
-      "myapp:v1",
-    ]);
+    expect(result).toEqual(["myapp:v1.0.0", "myapp:v1.0", "myapp:v1"]);
   });
 
   test("should add branch-specific tags", () => {
@@ -148,7 +143,7 @@ describe("generateTags", () => {
   });
 
   test("should handle default version when not provided", () => {
-    const result = generateTags("myapp", "", null, ["docker.io"]);
+    const result = generateTags("myapp", "", null, ["docker.io"], true);
 
     expect(result).toEqual(["myapp:latest", "docker.io/myapp:latest"]);
   });

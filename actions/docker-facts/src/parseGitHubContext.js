@@ -1,5 +1,6 @@
 const core = require("@actions/core");
 const github = require("@actions/github");
+const parseLabels = require("./parseLabels");
 
 /**
  * Parse GitHub context and determine if we should push the image
@@ -21,18 +22,14 @@ function parseGitHubContext(canaryLabel = "canary", forcePush = false) {
       github.context.payload.repository?.default_branch || "main";
 
     // Extract pull request labels if available
-    const labels =
-      github.context.payload.pull_request?.labels?.map((l) => l.name) || [];
+    const labels = parseLabels();
 
     // Determine branch name for tagging
     let branchName = null;
 
     // PR event
     if (eventName === "pull_request") {
-      const prNumber = github.context.payload.pull_request?.number;
-      if (prNumber) {
-        branchName = `pr-${prNumber}`;
-      }
+      branchName = ref.replace("refs/pull/", "pr-").replace("/merge", "");
     }
     // Push to a branch
     else if (ref.startsWith("refs/heads/")) {
