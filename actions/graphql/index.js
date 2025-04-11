@@ -2,7 +2,6 @@ const core = require("@actions/core");
 const fs = require("fs");
 const { parse } = require("graphql");
 
-// Helper to unwrap the named type from any NonNullType or ListType wrappers
 function getNamedType(typeNode) {
   if (typeNode.kind === "NamedType") {
     return typeNode.name.value;
@@ -12,7 +11,6 @@ function getNamedType(typeNode) {
   return null;
 }
 
-// Coerce variables based on the variable definitions in the query AST
 function coerceVariables(query, variables) {
   try {
     const ast = parse(query);
@@ -42,7 +40,6 @@ function coerceVariables(query, variables) {
           case "Boolean":
             newVars[varName] = newVars[varName].toLowerCase() === "true";
             break;
-          // Strings and others are passed as-is
         }
       }
     }
@@ -68,7 +65,6 @@ async function run() {
     core.info(`URL: ${url}`);
     core.endGroup();
 
-    // Load query from file if it's a path
     if (fs.existsSync(queryInput)) {
       core.startGroup("📄 Reading Query File");
       queryInput = fs.readFileSync(queryInput, "utf8");
@@ -76,7 +72,6 @@ async function run() {
       core.endGroup();
     }
 
-    // Parse args
     core.startGroup("🧩 Parsing Variables");
     const variables = {};
     if (argsInput) {
@@ -99,7 +94,6 @@ async function run() {
     );
     core.endGroup();
 
-    // Construct and log payload
     core.startGroup("📦 GraphQL Payload");
     const payload = {
       query: queryInput,
@@ -108,7 +102,6 @@ async function run() {
     core.info(JSON.stringify(payload, null, 2));
     core.endGroup();
 
-    // Perform request
     core.startGroup("🚀 Sending GraphQL Request");
     const response = await fetch(url, {
       method: "POST",

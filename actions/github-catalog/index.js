@@ -34,11 +34,9 @@ function sanitizeInputs(obj) {
     }, {});
 }
 
-// Helper to read file content
 const readFile = (filePath) =>
   fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf-8") : "";
 
-// Fetch the latest version (tag or default branch)
 const getLatestVersion = async (graphqlWithAuth, owner, repo) => {
   const queryPath = path.join(__dirname, "queries", "get-latest-version.gql");
   const query = readFile(queryPath);
@@ -49,7 +47,6 @@ const getLatestVersion = async (graphqlWithAuth, owner, repo) => {
   return latestTag || defaultBranch || "main";
 };
 
-// Update the README.md with the generated HTML table
 const updateReadme = (readme, tableHTML) => {
   const start = "<!-- GENERATED:GITHUB-CATALOG:START -->";
   const end = "<!-- GENERATED:GITHUB-CATALOG:STOP -->";
@@ -101,7 +98,6 @@ async function run() {
       };
     });
 
-    // Render the EJS template
     const templatePath = path.join(
       __dirname,
       "templates",

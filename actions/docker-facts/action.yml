@@ -5,6 +5,13 @@ inputs:
   image:
     description: "Base image name (e.g., mbround18/steamcmd)"
     required: true
+  version:
+    description: "Image version to use (e.g., 1.0.0)"
+    required: true
+  registries:
+    description: "Comma-separated list of registry prefixes (e.g., docker.io,ghcr.io)"
+    required: false
+    default: ""
   dockerfile:
     description: "Default Dockerfile path if not found in compose"
     required: false
@@ -14,8 +21,13 @@ inputs:
   canary_label:
     description: "Label to trigger canary pushes"
     required: false
+    default: "canary"
   force_push:
     description: "Force push the image even if not tagged"
+    required: false
+    default: "false"
+  with_latest:
+    description: "Whether to tag the image with 'latest' only on versioned tags"
     required: false
     default: "false"
 outputs:
@@ -25,6 +37,8 @@ outputs:
     description: "Resolved context path"
   push:
     description: "Whether to push the image"
+  tags:
+    description: "Comma-separated list of generated Docker tags"
 runs:
   using: "docker"
   image: "Dockerfile"

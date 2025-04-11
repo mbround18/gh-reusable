@@ -1,4 +1,4 @@
-.PHONY: install lint update readme
+.PHONY: install lint update readme test
 
 install:
 	@echo "🔍 Installing npm dependencies..."
@@ -16,6 +16,12 @@ lint:
 	@npx -y prettier --write .
 	@cargo fmt
 	@cargo clippy --all-targets --all-features -- -D warnings
+
+test: install lint
+	@echo "🧪 Running tests in packages with test scripts..."
+	@find . -name package.json \
+		-not -path "*/node_modules/*" \
+		-execdir sh -c 'if grep -q "\"test\":" package.json; then echo "🧪 Running tests in $$(pwd)"; npm test; fi' \;
 
 readme:
 	@cd actions/github-catalog && docker build -t actions/github-catalog .
