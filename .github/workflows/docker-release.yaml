@@ -95,7 +95,7 @@ jobs:
         name: Expanding Vars
         run: |
           CONTEXT="${GITHUB_WORKSPACE}/${WORKING_DIRECTORY}/${INPUT_CONTEXT}"
-          RELATIVE_CONTEXT=$(realpath --relative-to="${GITHUB_WORKSPACE}/${WORKING_DIRECTORY}" "$CONTEXT")
+          RELATIVE_CONTEXT=$(realpath --relative-to="${GITHUB_WORKSPACE}" "$CONTEXT")
           echo "context=./$RELATIVE_CONTEXT" >> "$GITHUB_OUTPUT"
         env:
           WORKING_DIRECTORY: ${{ inputs.working-directory }}
