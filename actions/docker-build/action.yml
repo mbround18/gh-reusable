@@ -48,7 +48,7 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - uses: mbround18/gh-reusable/actions/docker-facts@docker-facts-tests
+    - uses: mbround18/gh-reusable/actions/docker-facts@main
       id: facts
       with:
         force_push: ${{ inputs.push }}
