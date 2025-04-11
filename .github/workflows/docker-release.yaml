@@ -118,13 +118,13 @@ jobs:
           echo "Working Directory: ${{ inputs.working-directory }}"
           echo "Dockerfile: ${{ inputs.dockerfile }}"
 
-      - uses: mbround18/gh-reusable/actions/install-cli@docker-facts-tests
+      - uses: mbround18/gh-reusable/actions/install-cli@main
         with:
           repository: "mikefarah/yq"
           asset: "yq_linux_amd64"
           override-name: "yq"
       - id: semver
-        uses: mbround18/gh-reusable/actions/semver@docker-facts-tests
+        uses: mbround18/gh-reusable/actions/semver@main
         with:
           prefix: ${{ inputs.semver_prefix }}
       - name: Set up Docker Buildx
@@ -153,7 +153,7 @@ jobs:
 
       - name: Docker Facts
         id: docker-facts
-        uses: mbround18/gh-reusable/actions/docker-facts@docker-facts-tests
+        uses: mbround18/gh-reusable/actions/docker-facts@main
         with:
           image: ${{ inputs.image }}
           version: ${{ steps.semver.outputs.new_version }}
@@ -176,7 +176,7 @@ jobs:
           echo "Docker Facts Output (push): ${{ steps.docker-facts.outputs.push }}"
 
       - name: Build and Push Docker Image
-        uses: mbround18/gh-reusable/actions/docker-build@docker-facts-tests
+        uses: mbround18/gh-reusable/actions/docker-build@main
         env:
           BUILD_ARG_GITHUB_SHA: ${GITHUB_SHA}
           BUILD_ARG_GITHUB_REF: ${GITHUB_REF}
