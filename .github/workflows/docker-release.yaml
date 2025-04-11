@@ -97,10 +97,15 @@ jobs:
           CONTEXT="${GITHUB_WORKSPACE}/${WORKING_DIRECTORY}/${INPUT_CONTEXT}"
           RELATIVE_CONTEXT=$(realpath --relative-to="${GITHUB_WORKSPACE}" "$CONTEXT")
           echo "context=./$RELATIVE_CONTEXT" >> "$GITHUB_OUTPUT"
+
+          DOCKERFILE="${GITHUB_WORKSPACE}/${WORKING_DIRECTORY}/${INPUT_DOCKERFILE}"
+          RELATIVE_DOCKERFILE=$(realpath --relative-to="${GITHUB_WORKSPACE}" "$DOCKERFILE")
+          echo "dockerfile=./$RELATIVE_DOCKERFILE" >> "$GITHUB_OUTPUT"
         env:
           WORKING_DIRECTORY: ${{ inputs.working-directory }}
           INPUT_CONTEXT: ${{ inputs.context }}
-      
+          INPUT_DOCKERFILE: ${{ inputs.dockerfile }}
+
       - if: ${{ inputs.download_artifact != '' }}
         uses: actions/download-artifact@v4
         with:
@@ -153,7 +158,7 @@ jobs:
           image: ${{ inputs.image }}
           version: ${{ steps.semver.outputs.new_version }}
           registries: ${{ steps.registries.outputs.list }}
-          dockerfile: ${{ inputs.dockerfile }}
+          dockerfile: ${{ steps.vars.outputs.dockerfile }}
           context: ${{ steps.vars.outputs.context }}
           canary_label: ${{ inputs.canary_label }}
 

@@ -52,6 +52,16 @@ function generateTags(image, version, branch, registries = "docker.io") {
     }
   }
 
+  // Remove tag
+  function removeTag(tag) {
+    for (const registry of registryList) {
+      const index = tags.indexOf(`${registry}/${cleanImage}:${tag}`);
+      if (index !== -1) {
+        tags.splice(index, 1);
+      }
+    }
+  }
+
   // Always add the exact version
   pushTag(version);
 
@@ -88,6 +98,8 @@ function generateTags(image, version, branch, registries = "docker.io") {
     version === "release-candidate" ||
     isPrBranch
   ) {
+    // Remove 'latest' tag if it was added
+    removeTag("latest");
     return tags;
   }
 
@@ -98,6 +110,7 @@ function generateTags(image, version, branch, registries = "docker.io") {
     lowerVersion.includes("beta") ||
     lowerVersion.includes("rc")
   ) {
+    removeTag("latest");
     return tags;
   }
 
@@ -107,6 +120,7 @@ function generateTags(image, version, branch, registries = "docker.io") {
     version.endsWith("-prod") ||
     version.includes("-feature-")
   ) {
+    removeTag("latest");
     return tags;
   }
 
