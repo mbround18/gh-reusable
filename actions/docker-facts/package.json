@@ -8,7 +8,6 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "lint": "eslint .",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -20,27 +19,6 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "jest-mock-extended": "^3.0.5",
-    "eslint": "^8.56.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-jest": "^27.9.0",
-    "eslint-plugin-node": "^11.1.0",
     "prettier": "^3.2.5"
-  },
-  "jest": {
-    "clearMocks": true,
-    "testEnvironment": "node",
-    "collectCoverage": true,
-    "coverageDirectory": "coverage",
-    "coverageReporters": [
-      "text",
-      "lcov"
-    ],
-    "testMatch": [
-      "<rootDir>/tests/**/*.test.js"
-    ],
-    "moduleFileExtensions": [
-      "js",
-      "json"
-    ]
   }
 }

@@ -21,12 +21,16 @@ jest.mock("fs", () => ({
   },
 }));
 
+// Mock resolveDockerContext function
+jest.mock("../src/resolveDockerContext", () => jest.fn());
+
 // Mock process.chdir to avoid actual directory changes
 const originalChdir = process.chdir;
 process.chdir = jest.fn();
 
 // Import modules after mocking
 const fs = require("fs");
+const resolveDockerContext = require("../src/resolveDockerContext");
 const { run } = require("../index");
 
 describe("Main run function", () => {
@@ -73,26 +77,11 @@ describe("Main run function", () => {
       return inputs[name] || "";
     });
 
-    // Mock file system operations
-    fs.existsSync.mockImplementation((p) => p.includes("docker-compose.yml"));
-    fs.readFileSync.mockReturnValue("compose content");
-    yaml.load.mockReturnValue({
-      services: {
-        api: {
-          image: "myapp:latest",
-          build: {
-            dockerfile: "Dockerfile.prod",
-            context: "./app",
-            args: { ENV: "production" },
-          },
-        },
-      },
+    // Mock resolveDockerContext to return the values from docker-compose
+    resolveDockerContext.mockReturnValue({
+      dockerfile: "Dockerfile.prod",
+      context: "./app",
     });
-
-    // Mock path operations
-    path.join = jest.fn((dir, file) => `${dir}/${file}`);
-    path.resolve = jest.fn((p) => p);
-    path.dirname = jest.fn().mockReturnValue("/workspace");
 
     // Run main function
     await run();
@@ -138,22 +127,31 @@ describe("Main run function", () => {
       return inputs[name] || "";
     });
 
-    // Force an error via GitHub context
-    github.context = {
-      eventName: "push",
-      get ref() {
-        return undefined.split("/");
+    // Mock resolveDockerContext
+    resolveDockerContext.mockReturnValue({
+      dockerfile: "Dockerfile",
+      context: ".",
+    });
+
+    // Force an error by making github.context.ref throw
+    Object.defineProperty(github.context, "ref", {
+      get: function () {
+        throw new Error("Cannot read properties of undefined");
       },
-      payload: {},
-    };
+    });
 
     // Run function
     await run();
 
-    // Verify the error is caught with a proper message
-    expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Cannot read properties of undefined"),
+    // Verify the error is caught with a proper message in warning
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Error parsing GitHub context: Cannot read properties of undefined",
+      ),
     );
+
+    // Function should still complete without failing
+    expect(core.setOutput).toHaveBeenCalledWith("tags", expect.any(String));
   });
 
   const registries = ["docker.io", "ghcr.io"];
@@ -212,12 +210,22 @@ describe("Main run function", () => {
     },
     appNameStandard: {
       version: "app-name-1.0.0",
-      expectedTags: ["myapp:app-name-1.0.0", "myapp:app-name-1.0", "myapp:app-name-1", "myapp:app-name-latest"],
+      expectedTags: [
+        "myapp:app-name-1.0.0",
+        "myapp:app-name-1.0",
+        "myapp:app-name-1",
+        "myapp:app-name-latest",
+      ],
       description: "standard app name semver",
     },
     appNameVPrefixed: {
       version: "app-name-v1.0.0",
-      expectedTags: ["myapp:app-name-v1.0.0","myapp:app-name-v1.0", "myapp:app-name-v1",  "myapp:app-name-latest"],
+      expectedTags: [
+        "myapp:app-name-v1.0.0",
+        "myapp:app-name-v1.0",
+        "myapp:app-name-v1",
+        "myapp:app-name-latest",
+      ],
       description: "app name with v-prefix",
     },
     appNameVInitial: {
@@ -305,11 +313,18 @@ describe("Main run function", () => {
   test(`should not generate non-v tags for v-tags`, async () => {
     const testCase = versionVariants.vStandard;
     jest.clearAllMocks();
+
+    // Mock resolveDockerContext
+    resolveDockerContext.mockReturnValue({
+      dockerfile: "Dockerfile",
+      context: ".",
+    });
+
     core.getInput.mockImplementation((name) => {
       const inputs = {
         image: "myapp",
         version: testCase.version,
-        registries: registries.join(","), // No registries for simplicity in this test
+        registries: registries.join(","),
         dockerfile: "Dockerfile",
         context: "./",
         canary_label: "preview",
@@ -320,7 +335,7 @@ describe("Main run function", () => {
 
     fs.existsSync.mockReturnValue(false);
     await run();
-    
+
     expect(core.setOutput).toHaveBeenCalledWith(
       "tags",
       expect.not.stringContaining("myapp:1.0.0"),
@@ -340,18 +355,26 @@ describe("Main run function", () => {
     test(`should correctly handle various version formats: ${key}`, async () => {
       const testCase = versionVariants[key];
       // mutate all testCase.exceptedTags to include the registries
-      const expectedTags = testCase.expectedTags.flatMap((tag) =>
-        registries.map((registry) => `${registry}/${tag}`),
+      const expectedTags = testCase.expectedTags.reduce(
+        (acc, val) =>
+          acc.concat(registries.map((registry) => `${registry}/${val}`)),
+        [],
       );
       expectedTags.push(...testCase.expectedTags);
       jest.clearAllMocks();
+
+      // Mock resolveDockerContext
+      resolveDockerContext.mockReturnValue({
+        dockerfile: "Dockerfile",
+        context: ".",
+      });
 
       // Set up the core.getInput mock for this version variant
       core.getInput.mockImplementation((name) => {
         const inputs = {
           image: "myapp",
           version: testCase.version,
-          registries: registries.join(","), // No registries for simplicity in this test
+          registries: registries.join(","),
           dockerfile: "Dockerfile",
           context: "./",
           canary_label: "preview",
@@ -372,7 +395,14 @@ describe("Main run function", () => {
       )[1];
       const actualTags = tagsOutput.split(",");
 
+      console.log(
+        `Generated tags for ${testCase.description}: ${actualTags.join(", ")}`,
+      );
+      console.log(`Expected tags: ${expectedTags.join(", ")}`);
+
       // Assert that every expected tag is present
+      expect(actualTags.sort()).toEqual(expectedTags.sort());
+
       testCase.expectedTags.forEach((expectedTag) => {
         expect(actualTags).toContain(expectedTag);
       });

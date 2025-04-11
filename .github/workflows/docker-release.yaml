@@ -155,7 +155,7 @@ jobs:
           echo "Dockerfile: ${{ inputs.dockerfile }}"
           echo "Context: ${{ inputs.context }}"
           echo "Canary Label: ${{ inputs.canary_label }}"
-          echo "Docker Facts Output: ${{ steps.docker-facts.outputs.tags }}"
+          echo "Docker Facts Output (tags): ${{ steps.docker-facts.outputs.tags }}"
           echo "Docker Facts Output (context): ${{ steps.docker-facts.outputs.context }}"
           echo "Docker Facts Output (dockerfile): ${{ steps.docker-facts.outputs.dockerfile }}"
           echo "Docker Facts Output (push): ${{ steps.docker-facts.outputs.push }}"
