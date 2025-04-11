@@ -89,12 +89,12 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.semver_prefix }}-${{ inputs.image }}-${{ github.event_name }}
       cancel-in-progress: true
     steps:
+      - uses: actions/checkout@v4
+
       - id: vars
         run: |
           CONTEXT="${{ github.workspace }}/${{inputs.working-directory}}/${{ inputs.context }}"
           echo "context=$(realpath "${CONTEXT}")" >> $GITHUB_OUTPUT
-
-      - uses: actions/checkout@v4
 
       - if: ${{ inputs.download_artifact != '' }}
         uses: actions/download-artifact@v4
