@@ -71,6 +71,9 @@ function generateTags(image, version, branch, registries = "docker.io") {
     }
   }
 
+  // Check if we're dealing with a PR branch
+  const isPrBranch = branch && (branch.startsWith('pr-') || /^\d+$/.test(branch));
+
   // For 'latest' version, stop here.
   if (version === "latest") {
     return tags;
@@ -82,7 +85,8 @@ function generateTags(image, version, branch, registries = "docker.io") {
     /^[0-9a-f]{20,40}$/.test(version) ||
     version === "main" ||
     version === "master" ||
-    version === "release-candidate"
+    version === "release-candidate" ||
+    isPrBranch
   ) {
     return tags;
   }
@@ -167,8 +171,10 @@ function generateTags(image, version, branch, registries = "docker.io") {
   const numericVersion = isVPrefixed ? version.substring(1) : version;
   const parts = numericVersion.split(".");
 
-  // For standard versions, add 'latest' tag
-  pushTag("latest");
+  // For standard versions, add 'latest' tag if not a PR branch
+  if (!isPrBranch) {
+    pushTag("latest");
+  }
 
   // For a one-part version, nothing more to cascade (e.g., "1")
   if (parts.length === 1) {

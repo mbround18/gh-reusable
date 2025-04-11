@@ -89,6 +89,11 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.semver_prefix }}-${{ inputs.image }}-${{ github.event_name }}
       cancel-in-progress: true
     steps:
+      - id: vars
+        run: |
+          CONTEXT="${{ github.workspace }}/${{inputs.working-directory}}/${{ inputs.context }}"
+          echo "context=$(realpath "${CONTEXT}")" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@v4
 
       - if: ${{ inputs.download_artifact != '' }}
@@ -144,7 +149,7 @@ jobs:
           version: ${{ steps.semver.outputs.new_version }}
           registries: ${{ steps.registries.outputs.list }}
           dockerfile: ${{ inputs.dockerfile }}
-          context: ${{ inputs.context }}
+          context: ${{ steps.vars.outputs.context }}
           canary_label: ${{ inputs.canary_label }}
 
       - name: Log some facts
