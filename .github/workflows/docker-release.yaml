@@ -176,17 +176,18 @@ jobs:
           echo "Docker Facts Output (push): ${{ steps.docker-facts.outputs.push }}"
 
       - name: Build and Push Docker Image
-        uses: mbround18/gh-reusable/actions/docker-build@main
-        env:
-          BUILD_ARG_GITHUB_SHA: ${GITHUB_SHA}
-          BUILD_ARG_GITHUB_REF: ${GITHUB_REF}
-          BUILD_ARG_GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}
+        id: docker-push
+        uses: docker/build-push-action@v6
         with:
           context: ${{ steps.docker-facts.outputs.context }}
-          dockerfile: ${{ steps.docker-facts.outputs.dockerfile }}
-          platforms: ${{ inputs.platforms }}
+          file: ${{ steps.docker-facts.outputs.dockerfile }}
           push: ${{ steps.docker-facts.outputs.push }}
-          image: ${{ steps.docker-facts.outputs.tags }}
+          tags: ${{ steps.docker-facts.outputs.tags }}
+          platforms: ${{ inputs.platforms }}
+          cache-from: |
+            type=gha,mode=max
+          cache-to: |
+            type=gha,mode=max
           target: ${{ inputs.target }}
 
       - name: Comment on PR

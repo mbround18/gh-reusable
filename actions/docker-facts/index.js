@@ -1,5 +1,6 @@
 const core = require("@actions/core");
 const github = require("@actions/github");
+const path = require("path");
 const { composeExists, parseCompose } = require("./src/parseCompose");
 const generateTags = require("./src/generateTags");
 const validateTags = require("./src/validateTags");
@@ -29,8 +30,8 @@ async function run() {
       context,
       target,
     );
-    core.setOutput("dockerfile", dockerContext.dockerfile);
-    core.setOutput("context", dockerContext.context);
+    core.setOutput("dockerfile", path.normalize(dockerContext.dockerfile));
+    core.setOutput("context", path.normalize(dockerContext.context));
 
     let branchName = null;
     try {

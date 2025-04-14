@@ -115,8 +115,8 @@ runs:
       id: docker-push
       uses: docker/build-push-action@v6
       with:
-        context: ${{ inputs.context }}
-        file: ${{ inputs.dockerfile }}
+        context: ${{ teps.facts.outputs.context }}
+        file: ${{ teps.facts.outputs.dockerfile }}
         push: ${{ steps.facts.outputs.push }}
         tags: ${{ steps.facts.outputs.tags }}
         build-args: ${{ env.build_args }}
