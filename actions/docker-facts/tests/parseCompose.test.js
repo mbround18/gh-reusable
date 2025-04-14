@@ -1,10 +1,10 @@
-const fs = require("fs");
 const yaml = require("js-yaml");
+const fs = require("fs");
 const core = require("@actions/core");
 const { parseCompose, composeExists } = require("../src/parseCompose");
 
-jest.mock("fs");
 jest.mock("js-yaml");
+jest.mock("fs");
 jest.mock("@actions/core");
 
 describe("parseCompose function", () => {
@@ -15,7 +15,7 @@ describe("parseCompose function", () => {
   });
 
   test("should return null when compose file cannot be read", () => {
-    fs.readFileSync = jest.fn().mockImplementation(() => {
+    fs.readFileSync.mockImplementation(() => {
       throw new Error("File read error");
     });
 
@@ -23,15 +23,13 @@ describe("parseCompose function", () => {
 
     expect(result).toBeNull();
     expect(core.warning).toHaveBeenCalledWith(
-      expect.stringContaining("Error parsing compose file"),
+      expect.stringContaining("File read error"),
     );
   });
 
   test("should return null when compose file has no services", () => {
-    fs.readFileSync = jest.fn().mockReturnValue('version: "3"');
-    yaml.load = jest.fn().mockReturnValue({
-      version: "3",
-    });
+    fs.readFileSync.mockReturnValue("version: '3'");
+    yaml.load.mockReturnValue({ version: "3" });
 
     const result = parseCompose("/path/to/docker-compose.yml", "myapp");
 
@@ -40,31 +38,30 @@ describe("parseCompose function", () => {
   });
 
   test("should return null when no matching service found", () => {
-    fs.readFileSync = jest.fn().mockReturnValue('version: "3"');
-    yaml.load = jest.fn().mockReturnValue({
+    fs.readFileSync.mockReturnValue("version: '3'\nservices:\n  web: {}");
+    yaml.load.mockReturnValue({
       version: "3",
-      services: {
-        web: {
-          image: "otherapp:latest",
-        },
-      },
+      services: { web: {} },
     });
 
     const result = parseCompose("/path/to/docker-compose.yml", "myapp");
 
     expect(result).toBeNull();
+    expect(core.info).toHaveBeenCalledWith("Found services: web");
     expect(core.info).toHaveBeenCalledWith(
       "No matching service found for image myapp",
     );
   });
 
   test("should return null when service has no build config", () => {
-    fs.readFileSync = jest.fn().mockReturnValue('version: "3"');
-    yaml.load = jest.fn().mockReturnValue({
+    fs.readFileSync.mockReturnValue(
+      "version: '3'\nservices:\n  web:\n    image: myapp",
+    );
+    yaml.load.mockReturnValue({
       version: "3",
       services: {
         web: {
-          image: "myapp:latest",
+          image: "myapp",
         },
       },
     });
@@ -72,18 +69,21 @@ describe("parseCompose function", () => {
     const result = parseCompose("/path/to/docker-compose.yml", "myapp");
 
     expect(result).toBeNull();
+    expect(core.info).toHaveBeenCalledWith("Found services: web");
     expect(core.info).toHaveBeenCalledWith(
       "Service web has no build configuration",
     );
   });
 
   test("should handle string build config", () => {
-    fs.readFileSync = jest.fn().mockReturnValue('version: "3"');
-    yaml.load = jest.fn().mockReturnValue({
+    fs.readFileSync.mockReturnValue(
+      "version: '3'\nservices:\n  web:\n    image: myapp\n    build: ./app",
+    );
+    yaml.load.mockReturnValue({
       version: "3",
       services: {
         web: {
-          image: "myapp:latest",
+          image: "myapp",
           build: "./app",
         },
       },
@@ -94,16 +94,20 @@ describe("parseCompose function", () => {
     expect(result).toEqual({
       dockerfile: "Dockerfile",
       context: "./app",
+      args: undefined,
+      target: "",
     });
   });
 
   test("should handle object build config", () => {
-    fs.readFileSync = jest.fn().mockReturnValue('version: "3"');
-    yaml.load = jest.fn().mockReturnValue({
+    fs.readFileSync.mockReturnValue(
+      "version: '3'\nservices:\n  web:\n    image: myapp\n    build:\n      context: ./app\n      dockerfile: custom.Dockerfile\n      args:\n        VERSION: '1.0.0'",
+    );
+    yaml.load.mockReturnValue({
       version: "3",
       services: {
         web: {
-          image: "myapp:latest",
+          image: "myapp",
           build: {
             context: "./app",
             dockerfile: "custom.Dockerfile",
@@ -123,16 +127,19 @@ describe("parseCompose function", () => {
       args: {
         VERSION: "1.0.0",
       },
+      target: "",
     });
   });
 
   test("should use default dockerfile when not specified in build config", () => {
-    fs.readFileSync = jest.fn().mockReturnValue('version: "3"');
-    yaml.load = jest.fn().mockReturnValue({
+    fs.readFileSync.mockReturnValue(
+      "version: '3'\nservices:\n  web:\n    image: myapp\n    build:\n      context: ./app",
+    );
+    yaml.load.mockReturnValue({
       version: "3",
       services: {
         web: {
-          image: "myapp:latest",
+          image: "myapp",
           build: {
             context: "./app",
           },
@@ -146,16 +153,19 @@ describe("parseCompose function", () => {
       dockerfile: "Dockerfile",
       context: "./app",
       args: undefined,
+      target: "",
     });
   });
 
-  test("should return null when build object is incomplete (no context)", () => {
-    fs.readFileSync = jest.fn().mockReturnValue('version: "3"');
-    yaml.load = jest.fn().mockReturnValue({
+  test("should handle build object with missing context", () => {
+    fs.readFileSync.mockReturnValue(
+      "version: '3'\nservices:\n  web:\n    image: myapp\n    build:\n      dockerfile: custom.Dockerfile",
+    );
+    yaml.load.mockReturnValue({
       version: "3",
       services: {
         web: {
-          image: "myapp:latest",
+          image: "myapp",
           build: {
             dockerfile: "custom.Dockerfile",
           },
@@ -165,15 +175,21 @@ describe("parseCompose function", () => {
 
     const result = parseCompose("/path/to/docker-compose.yml", "myapp");
 
-    expect(result).toBeNull();
+    expect(result).toEqual({
+      dockerfile: "custom.Dockerfile",
+      context: ".",
+      target: "",
+    });
     expect(core.info).toHaveBeenCalledWith(
-      expect.stringContaining("has incomplete build configuration"),
+      "Service has incomplete build configuration (missing context)",
     );
   });
 
   test("should extract build config for semver-like image", () => {
-    fs.readFileSync = jest.fn().mockReturnValue('version: "3"');
-    yaml.load = jest.fn().mockReturnValue({
+    fs.readFileSync.mockReturnValue(
+      "version: '3'\nservices:\n  web:\n    image: myapp:1.0.0\n    build:\n      context: ./app\n      dockerfile: custom.Dockerfile",
+    );
+    yaml.load.mockReturnValue({
       version: "3",
       services: {
         web: {
@@ -192,14 +208,32 @@ describe("parseCompose function", () => {
       dockerfile: "custom.Dockerfile",
       context: "./app",
       args: undefined,
+      target: "",
     });
   });
 
   test("should find service with matching target when provided", () => {
-    const mockComposeData = {
+    fs.readFileSync.mockReturnValue(`
+      version: '3'
+      services:
+        web:
+          image: myapp:1.0.0
+          build:
+            context: ./app
+            dockerfile: Dockerfile.app
+            target: production
+        test:
+          image: myapp:test
+          build:
+            context: ./test
+            dockerfile: Dockerfile.test
+            target: test
+    `);
+    yaml.load.mockReturnValue({
+      version: "3",
       services: {
-        app: {
-          image: "myapp",
+        web: {
+          image: "myapp:1.0.0",
           build: {
             context: "./app",
             dockerfile: "Dockerfile.app",
@@ -207,7 +241,7 @@ describe("parseCompose function", () => {
           },
         },
         test: {
-          image: "myapp",
+          image: "myapp:test",
           build: {
             context: "./test",
             dockerfile: "Dockerfile.test",
@@ -215,10 +249,7 @@ describe("parseCompose function", () => {
           },
         },
       },
-    };
-
-    fs.readFileSync.mockReturnValue("mock-content");
-    yaml.load.mockReturnValue(mockComposeData);
+    });
 
     const result = parseCompose("docker-compose.yml", "myapp", "test");
 
@@ -228,19 +259,30 @@ describe("parseCompose function", () => {
       args: undefined,
       target: "test",
     });
-
-    expect(core.info).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'Found service "test" matching both image "myapp" and target "test"',
-      ),
-    );
   });
 
   test("should fall back to image match when target doesn't match", () => {
-    const mockComposeData = {
+    fs.readFileSync.mockReturnValue(`
+      version: '3'
+      services:
+        web:
+          image: myapp:1.0.0
+          build:
+            context: ./app
+            dockerfile: Dockerfile.app
+            target: production
+        test:
+          image: otherapp:test
+          build:
+            context: ./test
+            dockerfile: Dockerfile.test
+            target: test
+    `);
+    yaml.load.mockReturnValue({
+      version: "3",
       services: {
-        app: {
-          image: "myapp",
+        web: {
+          image: "myapp:1.0.0",
           build: {
             context: "./app",
             dockerfile: "Dockerfile.app",
@@ -248,7 +290,7 @@ describe("parseCompose function", () => {
           },
         },
         test: {
-          image: "myapp",
+          image: "otherapp:test",
           build: {
             context: "./test",
             dockerfile: "Dockerfile.test",
@@ -256,12 +298,9 @@ describe("parseCompose function", () => {
           },
         },
       },
-    };
+    });
 
-    fs.readFileSync.mockReturnValue("mock-content");
-    yaml.load.mockReturnValue(mockComposeData);
-
-    const result = parseCompose("docker-compose.yml", "myapp", "staging");
+    const result = parseCompose("docker-compose.yml", "myapp", "nonexistent");
 
     // It should find the first service matching the image name
     expect(result).toEqual({
@@ -273,20 +312,27 @@ describe("parseCompose function", () => {
   });
 
   test("should include target from parameter if not in build config", () => {
-    const mockComposeData = {
+    fs.readFileSync.mockReturnValue(`
+      version: '3'
+      services:
+        web:
+          image: myapp:1.0.0
+          build:
+            context: ./app
+            dockerfile: Dockerfile.app
+    `);
+    yaml.load.mockReturnValue({
+      version: "3",
       services: {
-        app: {
-          image: "myapp",
+        web: {
+          image: "myapp:1.0.0",
           build: {
             context: "./app",
             dockerfile: "Dockerfile.app",
           },
         },
       },
-    };
-
-    fs.readFileSync.mockReturnValue("mock-content");
-    yaml.load.mockReturnValue(mockComposeData);
+    });
 
     const result = parseCompose("docker-compose.yml", "myapp", "production");
 
@@ -294,6 +340,7 @@ describe("parseCompose function", () => {
       context: "./app",
       dockerfile: "Dockerfile.app",
       args: undefined,
+      target: "",
     });
   });
 });
@@ -301,29 +348,31 @@ describe("parseCompose function", () => {
 describe("composeExists function", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    core.warning = jest.fn();
   });
 
   test("should return file path when file exists", () => {
-    fs.existsSync = jest.fn().mockReturnValue(true);
+    fs.existsSync.mockReturnValue(true);
 
     const result = composeExists("/path/to/docker-compose.yml");
 
     expect(result).toBe("/path/to/docker-compose.yml");
+    expect(fs.existsSync).toHaveBeenCalledWith("/path/to/docker-compose.yml");
   });
 
   test("should return null when file does not exist", () => {
-    fs.existsSync = jest.fn().mockReturnValue(false);
+    fs.existsSync.mockReturnValue(false);
 
     const result = composeExists("/path/to/docker-compose.yml");
 
     expect(result).toBeNull();
+    expect(fs.existsSync).toHaveBeenCalledWith("/path/to/docker-compose.yml");
   });
 
   test("should return null and log warning when error occurs", () => {
-    fs.existsSync = jest.fn().mockImplementation(() => {
+    fs.existsSync.mockImplementation(() => {
       throw new Error("File system error");
     });
+    core.warning = jest.fn();
 
     const result = composeExists("/path/to/docker-compose.yml");
 

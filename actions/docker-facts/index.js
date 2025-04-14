@@ -42,13 +42,24 @@ async function run() {
 
     core.info(`🏷️ Tag Preparation`);
     const registryList = registries ? registries.split(",") : ["docker.io"];
+
+    // Use the target from docker-compose if it exists and prepend_target is true
+    let tagTarget = "";
+    if (prepend_target) {
+      // Prioritize input target over docker-compose target
+      tagTarget = target || dockerContext.target || "";
+      if (tagTarget) {
+        core.info(`  Using target "${tagTarget}" for tag generation`);
+      }
+    }
+
     const tags = generateTags(
       image,
       version,
       branchName,
       registryList,
       withLatest,
-      target,
+      tagTarget, // Use the resolved target
       prepend_target,
     );
 

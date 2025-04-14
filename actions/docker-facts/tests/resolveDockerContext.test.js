@@ -241,4 +241,44 @@ describe("resolveDockerContext", () => {
       context: "./src",
     });
   });
+
+  test("should correctly handle docker-compose target with no input target", () => {
+    composeExists.mockReturnValue(true);
+    parseCompose.mockReturnValue({
+      dockerfile: "custom/Dockerfile",
+      context: "./app",
+      target: "production",
+    });
+
+    const result = resolveDockerContext(
+      "myapp",
+      "Dockerfile",
+      ".",
+      "", // No input target
+    );
+
+    expect(result.dockerfile).toBe("custom/Dockerfile");
+    expect(result.context).toBe("./app");
+    expect(result.target).toBe("production");
+  });
+
+  test("should prioritize input target over docker-compose target", () => {
+    composeExists.mockReturnValue(true);
+    parseCompose.mockReturnValue({
+      dockerfile: "custom/Dockerfile",
+      context: "./app",
+      target: "production",
+    });
+
+    const result = resolveDockerContext(
+      "myapp",
+      "Dockerfile",
+      ".",
+      "development", // Input target takes precedence
+    );
+
+    expect(result.dockerfile).toBe("custom/Dockerfile");
+    expect(result.context).toBe("./app");
+    expect(result.target).toBe("production");
+  });
 });

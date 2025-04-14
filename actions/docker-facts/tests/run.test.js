@@ -134,6 +134,105 @@ describe("Main run function", () => {
     expect(core.setOutput).toHaveBeenCalledWith("tags", expect.any(String));
   });
 
+  test("should use target from docker-compose when prepend_target is enabled", async () => {
+    core.getInput.mockImplementation((name) => {
+      const inputs = {
+        image: "myapp",
+        version: "1.0.0",
+        registries: "docker.io",
+        dockerfile: "Dockerfile",
+        context: ".",
+        canary_label: "canary",
+        force_push: "false",
+        prepend_target: "true",
+        target: "", // No target specified in inputs
+      };
+      return inputs[name] || "";
+    });
+
+    // Mock resolveDockerContext to return a target from docker-compose
+    resolveDockerContext.mockReturnValue({
+      dockerfile: "Dockerfile",
+      context: "./app",
+      target: "production", // Target found in docker-compose
+    });
+
+    await run();
+
+    // Check that the target was properly prepended to tags
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "tags",
+      expect.stringContaining("myapp:production-1.0.0"),
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "tags",
+      expect.stringContaining("docker.io/myapp:production-1.0.0"),
+    );
+  });
+
+  test("should prioritize input target over docker-compose target", async () => {
+    core.getInput.mockImplementation((name) => {
+      const inputs = {
+        image: "myapp",
+        version: "1.0.0",
+        registries: "docker.io",
+        dockerfile: "Dockerfile",
+        context: ".",
+        prepend_target: "true",
+        target: "custom-target", // Target specified in inputs
+      };
+      return inputs[name] || "";
+    });
+
+    // Mock resolveDockerContext to return a different target from docker-compose
+    resolveDockerContext.mockReturnValue({
+      dockerfile: "Dockerfile",
+      context: "./app",
+      target: "production", // Different target found in docker-compose
+    });
+
+    await run();
+
+    // Check that the input target was properly used
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "tags",
+      expect.stringContaining("myapp:custom-target-1.0.0"),
+    );
+  });
+
+  test("should not prepend target when prepend_target is false", async () => {
+    core.getInput.mockImplementation((name) => {
+      const inputs = {
+        image: "myapp",
+        version: "1.0.0",
+        registries: "docker.io",
+        dockerfile: "Dockerfile",
+        context: ".",
+        prepend_target: "false",
+        target: "custom-target",
+      };
+      return inputs[name] || "";
+    });
+
+    resolveDockerContext.mockReturnValue({
+      dockerfile: "Dockerfile",
+      context: ".",
+      target: "custom-target",
+    });
+
+    await run();
+
+    // Check that tags don't have the target prefix
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "tags",
+      expect.stringContaining("myapp:1.0.0"),
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "tags",
+      expect.not.stringContaining("myapp:custom-target-1.0.0"),
+    );
+  });
+
   const registries = ["docker.io", "ghcr.io"];
 
   const versionVariants = {
