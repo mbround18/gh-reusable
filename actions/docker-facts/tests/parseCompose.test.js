@@ -194,6 +194,108 @@ describe("parseCompose function", () => {
       args: undefined,
     });
   });
+
+  test("should find service with matching target when provided", () => {
+    const mockComposeData = {
+      services: {
+        app: {
+          image: "myapp",
+          build: {
+            context: "./app",
+            dockerfile: "Dockerfile.app",
+            target: "production",
+          },
+        },
+        test: {
+          image: "myapp",
+          build: {
+            context: "./test",
+            dockerfile: "Dockerfile.test",
+            target: "test",
+          },
+        },
+      },
+    };
+
+    fs.readFileSync.mockReturnValue("mock-content");
+    yaml.load.mockReturnValue(mockComposeData);
+
+    const result = parseCompose("docker-compose.yml", "myapp", "test");
+
+    expect(result).toEqual({
+      context: "./test",
+      dockerfile: "Dockerfile.test",
+      args: undefined,
+      target: "test",
+    });
+
+    expect(core.info).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Found service "test" matching both image "myapp" and target "test"',
+      ),
+    );
+  });
+
+  test("should fall back to image match when target doesn't match", () => {
+    const mockComposeData = {
+      services: {
+        app: {
+          image: "myapp",
+          build: {
+            context: "./app",
+            dockerfile: "Dockerfile.app",
+            target: "production",
+          },
+        },
+        test: {
+          image: "myapp",
+          build: {
+            context: "./test",
+            dockerfile: "Dockerfile.test",
+            target: "test",
+          },
+        },
+      },
+    };
+
+    fs.readFileSync.mockReturnValue("mock-content");
+    yaml.load.mockReturnValue(mockComposeData);
+
+    const result = parseCompose("docker-compose.yml", "myapp", "staging");
+
+    // It should find the first service matching the image name
+    expect(result).toEqual({
+      context: "./app",
+      dockerfile: "Dockerfile.app",
+      args: undefined,
+      target: "production",
+    });
+  });
+
+  test("should include target from parameter if not in build config", () => {
+    const mockComposeData = {
+      services: {
+        app: {
+          image: "myapp",
+          build: {
+            context: "./app",
+            dockerfile: "Dockerfile.app",
+          },
+        },
+      },
+    };
+
+    fs.readFileSync.mockReturnValue("mock-content");
+    yaml.load.mockReturnValue(mockComposeData);
+
+    const result = parseCompose("docker-compose.yml", "myapp", "production");
+
+    expect(result).toEqual({
+      context: "./app",
+      dockerfile: "Dockerfile.app",
+      args: undefined,
+    });
+  });
 });
 
 describe("composeExists function", () => {

@@ -46,6 +46,10 @@ on:
         type: string
         default: ""
         description: "Prefixer for semver, use this if you publish multiple artifacts like example-0.0.0"
+      prepend_target:
+        type: boolean
+        default: false
+        description: "Prepend the target to the version tag (e.g., target-v0.0.0 instead of v0.0.0)"
       target:
         type: string
         default: ""
@@ -95,11 +99,11 @@ jobs:
         name: Expanding Vars
         run: |
           CONTEXT="${GITHUB_WORKSPACE}/${WORKING_DIRECTORY}/${INPUT_CONTEXT}"
-          RELATIVE_CONTEXT=$(realpath --relative-to="${GITHUB_WORKSPACE}" "$CONTEXT")
+          RELATIVE_CONTEXT=$(realpath --relative-to="${GITHUB_WORKSPACE}" "$CONTEXT)
           echo "context=./$RELATIVE_CONTEXT" >> "$GITHUB_OUTPUT"
 
           DOCKERFILE="${GITHUB_WORKSPACE}/${WORKING_DIRECTORY}/${INPUT_DOCKERFILE}"
-          RELATIVE_DOCKERFILE=$(realpath --relative-to="${GITHUB_WORKSPACE}" "$DOCKERFILE")
+          RELATIVE_DOCKERFILE=$(realpath --relative-to="${GITHUB_WORKSPACE}" "$DOCKERFILE)
           echo "dockerfile=./$RELATIVE_DOCKERFILE" >> "$GITHUB_OUTPUT"
         env:
           WORKING_DIRECTORY: ${{ inputs.working-directory }}
@@ -161,6 +165,9 @@ jobs:
           dockerfile: ${{ steps.vars.outputs.dockerfile }}
           context: ${{ steps.vars.outputs.context }}
           canary_label: ${{ inputs.canary_label }}
+          compose: ${{ inputs.compose }}
+          prepend_target: ${{ inputs.prepend_target }}
+          target: ${{ inputs.target }}
 
       - name: Log some facts
         run: |

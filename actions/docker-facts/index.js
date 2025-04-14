@@ -19,7 +19,16 @@ async function run() {
     const canaryLabel = core.getInput("canary_label") || "canary";
     const registries = core.getInput("registries") || "docker.io";
     const forcePush = core.getInput("force_push") === "true";
-    const dockerContext = resolveDockerContext(image, dockerfile, context);
+    const withLatest = core.getInput("with_latest") === "true";
+    const target = core.getInput("target") || "";
+    const prepend_target = core.getInput("prepend_target") === "true";
+
+    const dockerContext = resolveDockerContext(
+      image,
+      dockerfile,
+      context,
+      target,
+    );
     core.setOutput("dockerfile", dockerContext.dockerfile);
     core.setOutput("context", dockerContext.context);
 
@@ -33,7 +42,15 @@ async function run() {
 
     core.info(`🏷️ Tag Preparation`);
     const registryList = registries ? registries.split(",") : ["docker.io"];
-    const tags = generateTags(image, version, branchName, registryList);
+    const tags = generateTags(
+      image,
+      version,
+      branchName,
+      registryList,
+      withLatest,
+      target,
+      prepend_target,
+    );
 
     const validatedTags = validateTags(tags);
 

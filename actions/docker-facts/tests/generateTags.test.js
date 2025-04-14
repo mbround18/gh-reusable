@@ -137,4 +137,80 @@ describe("generateTags", () => {
 
     expect(result).toEqual(["myapp:latest", "docker.io/myapp:latest"]);
   });
+
+  test("should prepend target to version tags when prepend_target is true", () => {
+    const result = generateTags(
+      "myapp",
+      "1.0.0",
+      null,
+      ["docker.io"],
+      false,
+      "base",
+      true,
+    );
+
+    expect(result).toContain("myapp:base-1.0.0");
+    expect(result).toContain("docker.io/myapp:base-1.0.0");
+    expect(result).toContain("myapp:base-1.0");
+    expect(result).toContain("docker.io/myapp:base-1.0");
+    expect(result).toContain("myapp:base-1");
+    expect(result).toContain("docker.io/myapp:base-1");
+    expect(result.length).toBe(6);
+  });
+
+  test("should not prepend target when prepend_target is false", () => {
+    const result = generateTags(
+      "myapp",
+      "1.0.0",
+      null,
+      ["docker.io"],
+      false,
+      "base",
+      false,
+    );
+
+    expect(result).toContain("myapp:1.0.0");
+    expect(result).toContain("docker.io/myapp:1.0.0");
+    expect(result).not.toContain("myapp:base-1.0.0");
+    expect(result).not.toContain("docker.io/myapp:base-1.0.0");
+  });
+
+  test("should use latest tag with prepended target when appropriate", () => {
+    const result = generateTags(
+      "myapp",
+      "1.0.0",
+      null,
+      ["docker.io"],
+      true,
+      "base",
+      true,
+    );
+
+    expect(result).toContain("myapp:base-1.0.0");
+    expect(result).toContain("docker.io/myapp:base-1.0.0");
+    expect(result).toContain("myapp:base-latest");
+    expect(result).toContain("docker.io/myapp:base-latest");
+    expect(result).not.toContain("myapp:latest");
+    expect(result).not.toContain("docker.io/myapp:latest");
+  });
+
+  test("should not prepend anything when prepend_target is true but no target is provided", () => {
+    const result = generateTags(
+      "myapp",
+      "1.0.0",
+      null,
+      ["docker.io"],
+      false,
+      "",
+      true,
+    );
+
+    expect(result).toContain("myapp:1.0.0");
+    expect(result).toContain("docker.io/myapp:1.0.0");
+    expect(result).toContain("myapp:1.0");
+    expect(result).toContain("docker.io/myapp:1.0");
+    expect(result).toContain("myapp:1");
+    expect(result).toContain("docker.io/myapp:1");
+    expect(result.length).toBe(6);
+  });
 });

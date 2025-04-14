@@ -30,6 +30,14 @@ inputs:
     description: "Whether to tag the image with 'latest' only on versioned tags"
     required: false
     default: "false"
+  target:
+    description: "Target to build or match in compose mode"
+    required: false
+    default: ""
+  prepend_target:
+    description: "Prepend target to version tag (e.g., target-v0.0.0)"
+    required: false
+    default: "false"
 outputs:
   dockerfile:
     description: "Resolved Dockerfile path"

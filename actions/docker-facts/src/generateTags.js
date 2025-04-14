@@ -9,6 +9,8 @@ const semver = require("semver");
  * @param {string} branch - Branch name or PR number
  * @param {string|string[]} registries - Registry prefixes
  * @param {boolean} withLatest - Whether to include the "latest" tag
+ * @param {string} target - Target name to prepend to tags
+ * @param {boolean} prepend_target - Whether to prepend target to version tags
  * @returns {string[]} List of generated tags.
  */
 function generateTags(
@@ -17,6 +19,8 @@ function generateTags(
   branch,
   registries = "docker.io",
   withLatest = false,
+  target = "",
+  prepend_target = false,
 ) {
   const tags = [];
 
@@ -35,6 +39,12 @@ function generateTags(
     version = "latest";
   }
 
+  // Handle target prefix if prepend_target is enabled and target is provided
+  let tagPrefix = "";
+  if (prepend_target && target) {
+    tagPrefix = `${target}-`;
+  }
+
   let registryList = [];
   if (Array.isArray(registries)) {
     registryList = registries.filter((r) => r && r !== "");
@@ -46,16 +56,23 @@ function generateTags(
   }
 
   function pushTag(tag) {
-    tags.push(`${cleanImage}:${tag}`);
+    tags.push(`${cleanImage}:${tagPrefix}${tag}`);
 
     for (const registry of registryList) {
-      tags.push(`${registry}/${cleanImage}:${tag}`);
+      tags.push(`${registry}/${cleanImage}:${tagPrefix}${tag}`);
     }
   }
 
   function removeTag(tag) {
+    const index = tags.indexOf(`${cleanImage}:${tagPrefix}${tag}`);
+    if (index !== -1) {
+      tags.splice(index, 1);
+    }
+
     for (const registry of registryList) {
-      const index = tags.indexOf(`${registry}/${cleanImage}:${tag}`);
+      const index = tags.indexOf(
+        `${registry}/${cleanImage}:${tagPrefix}${tag}`,
+      );
       if (index !== -1) {
         tags.splice(index, 1);
       }

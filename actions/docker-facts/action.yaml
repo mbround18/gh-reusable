@@ -1,0 +1,231 @@
+name: Docker Facts
+description: This action will produce build facts for docker images.
+inputs:
+  image:
+    description: Name of the image
+    required: true
+  version:
+    description: Version tag for the image
+    required: true
+  registries:
+    description: List of registries to push to
+    required: false
+    default: "docker.io"
+  dockerfile:
+    description: Path to the Dockerfile
+    required: false
+    default: "./Dockerfile"
+  context:
+    description: Build context
+    required: false
+    default: "."
+  canary_label:
+    description: Label to trigger canary pushes
+    required: false
+    default: "canary"
+  compose:
+    description: Want us to pull information from a docker-compose file?
+    required: false
+    default: "false"
+  prepend_target:
+    description: Prepend target to version tag (e.g., target-v0.0.0)
+    required: false
+    default: "false"
+  target:
+    description: Target to build or match in compose mode
+    required: false
+    default: ""
+outputs:
+  tags:
+    description: Tags to push to
+    value: ${{ steps.docker-tags.outputs.tags }}
+  context:
+    description: Build context
+    value: ${{ steps.docker-context.outputs.context }}
+  dockerfile:
+    description: Path to the Dockerfile
+    value: ${{ steps.docker-dockerfile.outputs.dockerfile }}
+  push:
+    description: Whether to push the image
+    value: ${{ steps.docker-push.outputs.push }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Find Compose
+      id: find-compose
+      if: ${{ inputs.compose == 'true' }}
+      shell: bash
+      run: |
+        declare -a FILES=("./docker-compose.yml" "./docker-compose.yaml" "./compose.yaml" "./compose.yml")
+        for file in "${FILES[@]}"; do
+          if [ -f "$file" ]; then
+            echo "file=$(realpath $file)" >> $GITHUB_OUTPUT
+            echo "Found compose file: $file"
+            break
+          fi
+        done
+
+    - name: Extract Context, Dockerfile, and Target from Compose
+      if: ${{ inputs.compose == 'true' && steps.find-compose.outputs.file != '' }}
+      id: extract-compose
+      shell: bash
+      run: |
+        COMPOSE_FILE="${{ steps.find-compose.outputs.file }}"
+        echo "Compose file: $COMPOSE_FILE"
+        echo "Image to search for: ${{ inputs.image }}"
+        echo "Target to match: ${{ inputs.target }}"
+
+        # Get service name that matches the image
+        SERVICE=$(yq e '.services | to_entries | .[] | select(.value.image == "${{ inputs.image }}" or .key == "${{ inputs.image }}") | .key' "$COMPOSE_FILE")
+
+        # If target is provided, try to find a service that matches both image and target
+        if [[ -n "${{ inputs.target }}" ]]; then
+          TARGET_SERVICE=$(yq e '.services | to_entries | .[] | select((.value.image == "${{ inputs.image }}" or .key == "${{ inputs.image }}") and .value.build.target == "${{ inputs.target }}") | .key' "$COMPOSE_FILE")
+          if [[ -n "$TARGET_SERVICE" ]]; then
+            SERVICE="$TARGET_SERVICE"
+            echo "Found service matching both image and target: $SERVICE"
+          fi
+        fi
+
+        if [[ -z "$SERVICE" ]]; then
+          echo "Could not find service for image: ${{ inputs.image }}"
+          exit 1
+        fi
+
+        echo "Found service: $SERVICE"
+
+        # Extract build context
+        CONTEXT=$(yq e ".services.$SERVICE.build.context" "$COMPOSE_FILE")
+        if [[ "$CONTEXT" == "null" ]]; then
+          # Try simple string format
+          CONTEXT=$(yq e ".services.$SERVICE.build" "$COMPOSE_FILE")
+          if [[ "$CONTEXT" == "null" ]]; then
+            CONTEXT="."
+          fi
+        fi
+        echo "context=$CONTEXT" >> $GITHUB_OUTPUT
+
+        # Extract dockerfile
+        DOCKERFILE=$(yq e ".services.$SERVICE.build.dockerfile" "$COMPOSE_FILE")
+        if [[ "$DOCKERFILE" == "null" ]]; then
+          DOCKERFILE="./Dockerfile"
+        fi
+        echo "dockerfile=$DOCKERFILE" >> $GITHUB_OUTPUT
+
+        # Extract target if it exists
+        TARGET=$(yq e ".services.$SERVICE.build.target" "$COMPOSE_FILE")
+        if [[ "$TARGET" != "null" ]]; then
+          echo "target=$TARGET" >> $GITHUB_OUTPUT
+        elif [[ -n "${{ inputs.target }}" ]]; then
+          echo "target=${{ inputs.target }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Context
+      id: docker-context
+      shell: bash
+      run: |
+        if [ "${{ inputs.compose }}" == "true" ] && [ -n "${{ steps.extract-compose.outputs.context }}" ]; then
+          echo "context=${{ steps.extract-compose.outputs.context }}" >> $GITHUB_OUTPUT
+        else
+          echo "context=${{ inputs.context }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Dockerfile
+      id: docker-dockerfile
+      shell: bash
+      run: |
+        if [ "${{ inputs.compose }}" == "true" ] && [ -n "${{ steps.extract-compose.outputs.dockerfile }}" ]; then
+          echo "dockerfile=${{ steps.extract-compose.outputs.dockerfile }}" >> $GITHUB_OUTPUT
+        else
+          echo "dockerfile=${{ inputs.dockerfile }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Target
+      id: docker-target
+      shell: bash
+      run: |
+        if [ "${{ inputs.compose }}" == "true" ] && [ -n "${{ steps.extract-compose.outputs.target }}" ]; then
+          echo "target=${{ steps.extract-compose.outputs.target }}" >> $GITHUB_OUTPUT
+        else
+          echo "target=${{ inputs.target }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate Tags
+      id: docker-tags
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        TAG_PREFIX=""
+
+        # If prepend_target is true and target is provided, prepend the target to the version
+        if [ "${{ inputs.prepend_target }}" == "true" ] && [ -n "${{ steps.docker-target.outputs.target || inputs.target }}" ]; then
+          TARGET="${{ steps.docker-target.outputs.target || inputs.target }}"
+          TAG_PREFIX="${TARGET}-"
+          echo "Prepending target '$TARGET' to version tags"
+        fi
+
+        IFS=',' read -r -a REGISTRIES <<< "${{ inputs.registries }}"
+        TAGS=()
+
+        for REGISTRY in "${REGISTRIES[@]}"
+        do
+          TAGS+=("${REGISTRY}/${{ inputs.image }}:${TAG_PREFIX}${VERSION}")
+          TAGS+=("${REGISTRY}/${{ inputs.image }}:${TAG_PREFIX}latest")
+          
+          REF="${GITHUB_REF:-}"
+          if [[ $REF == "refs/heads/main" ]]; then
+            echo "$REF is main branch"
+            TAGS+=("${REGISTRY}/${{ inputs.image }}:${TAG_PREFIX}main")
+            TAGS+=("${REGISTRY}/${{ inputs.image }}:${TAG_PREFIX}stable")
+          elif [[ $REF == "refs/heads/master" ]]; then
+            echo "$REF is master branch"
+            TAGS+=("${REGISTRY}/${{ inputs.image }}:${TAG_PREFIX}master")
+            TAGS+=("${REGISTRY}/${{ inputs.image }}:${TAG_PREFIX}stable")
+          elif [[ $REF == refs/pull/* ]]; then
+            PR=${REF/refs\/pull\//}
+            PR=${PR/\/merge/}
+            echo "$REF is a PR: $PR"
+            TAGS+=("${REGISTRY}/${{ inputs.image }}:${TAG_PREFIX}pr-${PR}")
+          elif [[ $REF == refs/heads/* ]]; then
+            BRANCH=${REF/refs\/heads\//}
+            echo "$REF is a branch: $BRANCH"
+            TAGS+=("${REGISTRY}/${{ inputs.image }}:${TAG_PREFIX}${BRANCH}")
+            
+            LABELS=$(git show -s --format=%b | grep -o "${{ inputs.canary_label }}")
+            if [[ ! -z "$LABELS" ]]; then
+              echo "Found canary label: ${{ inputs.canary_label }}"
+              TAGS+=("${REGISTRY}/${{ inputs.image }}:${TAG_PREFIX}${{ inputs.canary_label }}")
+              TAGS+=("${REGISTRY}/${{ inputs.image }}:${TAG_PREFIX}unstable")
+            fi
+          fi
+        done
+
+        TAGS_STR=$(IFS=,; echo "${TAGS[*]}")
+        echo "tags=$TAGS_STR" >> $GITHUB_OUTPUT
+
+    - name: Set Push
+      id: docker-push
+      shell: bash
+      run: |
+        REF="${GITHUB_REF:-}"
+        EVENT_NAME="${GITHUB_EVENT_NAME:-}"
+
+        if [[ $REF == "refs/heads/main" ]] || [[ $REF == "refs/heads/master" ]]; then
+          echo "push=true" >> $GITHUB_OUTPUT
+        elif [[ $REF == refs/tags/* ]]; then
+          echo "push=true" >> $GITHUB_OUTPUT
+        else
+          LABELS=$(git show -s --format=%b | grep -o "${{ inputs.canary_label }}")
+          if [[ ! -z "$LABELS" ]]; then
+            echo "Found canary label: ${{ inputs.canary_label }}"
+            echo "push=true" >> $GITHUB_OUTPUT
+          else
+            echo "push=false" >> $GITHUB_OUTPUT
+          fi
+        fi
+
+        if [[ $EVENT_NAME == "pull_request" ]]; then
+          echo "Event is pull_request, setting push=false"
+          echo "push=false" >> $GITHUB_OUTPUT
+        fi
