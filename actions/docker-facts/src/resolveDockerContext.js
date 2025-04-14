@@ -35,21 +35,28 @@ function resolveDockerContext(
     "compose.yaml",
   ]
     .reduce((acc, file) => {
-      acc.push(path.join(workspace, file));
-      // Optionally check in the context directory too
+      // If defaultContext is not '.', use it as a base directory to look for compose files
       if (defaultContext !== ".") {
         acc.push(path.join(workspace, defaultContext, file));
       }
+      acc.push(path.join(workspace, file));
       return acc;
     }, [])
     .map((p) => path.normalize(p));
 
   // Find first existing compose file
   let composeFile = null;
+  let composeDir = null;
   for (const filePath of possiblePaths) {
     const exists = composeExists(filePath);
     if (exists) {
       composeFile = exists;
+      // Get the directory part of the compose file path
+      // This is safer than using path.dirname if it might not be available
+      composeDir = composeFile.substring(0, composeFile.lastIndexOf("/"));
+      if (!composeDir) {
+        composeDir = ".";
+      }
       break;
     }
   }
@@ -63,6 +70,40 @@ function resolveDockerContext(
 
       if (buildConfig) {
         core.info(`  Using configuration from docker-compose for ${image}`);
+
+        // Ensure context paths from compose file are relative to the compose file's directory
+        let resolvedContext = buildConfig.context;
+        if (resolvedContext && !path.isAbsolute(resolvedContext)) {
+          // If the compose file is in a subdirectory, adjust the context path
+          if (composeDir !== workspace) {
+            // Manually join the paths
+            let fullContextPath = `${composeDir}/${resolvedContext}`;
+            // Clean up any double slashes
+            fullContextPath = fullContextPath.replace(/\/\//g, "/");
+
+            // Make it relative to workspace
+            resolvedContext = fullContextPath;
+            if (resolvedContext.startsWith(workspace)) {
+              resolvedContext = resolvedContext.substring(workspace.length);
+              if (resolvedContext.startsWith("/")) {
+                resolvedContext = resolvedContext.substring(1);
+              }
+            }
+
+            // Ensure paths are POSIX style for Docker
+            resolvedContext = resolvedContext.replace(/\\/g, "/");
+            // Add ./ prefix if needed
+            if (
+              !resolvedContext.startsWith("./") &&
+              !resolvedContext.startsWith("/")
+            ) {
+              resolvedContext = `./${resolvedContext}`;
+            }
+
+            buildConfig.context = resolvedContext;
+          }
+        }
+
         core.info(
           `  Dockerfile: ${buildConfig.dockerfile}, Context: ${buildConfig.context}`,
         );

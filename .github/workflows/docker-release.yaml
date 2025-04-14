@@ -97,6 +97,9 @@ jobs:
           DOCKERFILE="${GITHUB_WORKSPACE}/${WORKING_DIRECTORY}/${INPUT_DOCKERFILE}"
           RELATIVE_DOCKERFILE=$(realpath --relative-to="${GITHUB_WORKSPACE}" "$DOCKERFILE")
           echo "dockerfile=./$RELATIVE_DOCKERFILE" >> "$GITHUB_OUTPUT"
+
+          echo "dockerfile=$DOCKERFILE"
+          echo "context=$CONTEXT"
         env:
           WORKING_DIRECTORY: ${{ inputs.working-directory }}
           INPUT_CONTEXT: ${{ inputs.context }}

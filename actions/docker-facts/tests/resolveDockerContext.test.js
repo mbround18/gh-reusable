@@ -12,6 +12,7 @@ jest.mock("../src/parseCompose");
 jest.mock("path", () => ({
   join: jest.fn((...parts) => parts.join("/")),
   normalize: jest.fn((path) => path),
+  isAbsolute: jest.fn((path) => path.startsWith("/")),
 }));
 
 describe("resolveDockerContext", () => {
@@ -24,16 +25,18 @@ describe("resolveDockerContext", () => {
   });
 
   test("should use docker-compose.yml config when available", () => {
+    // Mock file existence
     composeExists.mockImplementation((filePath) => {
       if (
         typeof filePath === "string" &&
         filePath.includes("docker-compose.yml")
       ) {
-        return filePath;
+        return "/test-workspace/docker-compose.yml";
       }
       return null;
     });
 
+    // Mock parseCompose return value
     parseCompose.mockReturnValue({
       dockerfile: "custom.Dockerfile",
       context: "./app",
@@ -53,7 +56,7 @@ describe("resolveDockerContext", () => {
       expect.stringContaining("docker-compose.yml"),
     );
     expect(parseCompose).toHaveBeenCalledWith(
-      expect.stringContaining("docker-compose.yml"),
+      "/test-workspace/docker-compose.yml",
       "myapp",
       "",
     );
@@ -80,11 +83,12 @@ describe("resolveDockerContext", () => {
         typeof filePath === "string" &&
         filePath.includes("docker-compose.yaml")
       ) {
-        return filePath;
+        return "/test-workspace/docker-compose.yaml";
       }
       return null;
     });
 
+    // Mock parseCompose return value
     parseCompose.mockReturnValue({
       dockerfile: "custom.Dockerfile",
       context: "./app",
@@ -110,7 +114,7 @@ describe("resolveDockerContext", () => {
     expect(yamlCalls.length).toBeGreaterThan(0);
 
     expect(parseCompose).toHaveBeenCalledWith(
-      expect.stringContaining("docker-compose.yaml"),
+      "/test-workspace/docker-compose.yaml",
       "myapp",
       "",
     );
@@ -122,7 +126,7 @@ describe("resolveDockerContext", () => {
         typeof filePath === "string" &&
         filePath.includes("docker-compose.yml")
       ) {
-        return filePath;
+        return "/test-workspace/docker-compose.yml";
       }
       return null;
     });
@@ -150,7 +154,7 @@ describe("resolveDockerContext", () => {
         typeof filePath === "string" &&
         filePath.includes("docker-compose.yml")
       ) {
-        return filePath;
+        return "/test-workspace/docker-compose.yml";
       }
       return null;
     });
@@ -189,7 +193,7 @@ describe("resolveDockerContext", () => {
         typeof filePath === "string" &&
         filePath.includes("docker-compose.yml")
       ) {
-        return filePath;
+        return "/test-workspace/docker-compose.yml";
       }
       return null;
     });
@@ -208,7 +212,7 @@ describe("resolveDockerContext", () => {
     );
 
     expect(parseCompose).toHaveBeenCalledWith(
-      expect.stringContaining("docker-compose.yml"),
+      "/test-workspace/docker-compose.yml",
       "myapp",
       "production",
     );
@@ -253,7 +257,7 @@ describe("resolveDockerContext", () => {
         typeof filePath === "string" &&
         filePath.includes("docker-compose.yml")
       ) {
-        return filePath;
+        return "/test-workspace/docker-compose.yml";
       }
       return null;
     });
@@ -284,7 +288,7 @@ describe("resolveDockerContext", () => {
         typeof filePath === "string" &&
         filePath.includes("docker-compose.yml")
       ) {
-        return filePath;
+        return "/test-workspace/docker-compose.yml";
       }
       return null;
     });
