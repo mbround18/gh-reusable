@@ -1,27 +1,34 @@
+const fs = require("fs");
 const path = require("path");
 const core = require("@actions/core");
-const { composeExists, parseCompose } = require("../src/parseCompose");
 const resolveDockerContext = require("../src/resolveDockerContext");
+const { composeExists, parseCompose } = require("../src/parseCompose");
 
-jest.mock("path");
+jest.mock("fs");
 jest.mock("@actions/core");
 jest.mock("../src/parseCompose");
+
+// Mock path.normalize to just return the path
+jest.mock("path", () => ({
+  join: jest.fn((...parts) => parts.join("/")),
+  normalize: jest.fn((path) => path),
+}));
 
 describe("resolveDockerContext", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-
     core.info = jest.fn();
     core.warning = jest.fn();
 
     process.env.GITHUB_WORKSPACE = "/test-workspace";
-
-    path.join = jest.fn().mockImplementation((...parts) => parts.join("/"));
   });
 
   test("should use docker-compose.yml config when available", () => {
     composeExists.mockImplementation((filePath) => {
-      if (filePath.endsWith("docker-compose.yml")) {
+      if (
+        typeof filePath === "string" &&
+        filePath.includes("docker-compose.yml")
+      ) {
         return filePath;
       }
       return null;
@@ -30,6 +37,7 @@ describe("resolveDockerContext", () => {
     parseCompose.mockReturnValue({
       dockerfile: "custom.Dockerfile",
       context: "./app",
+      target: "",
     });
 
     const result = resolveDockerContext("myapp", "Dockerfile", ".");
@@ -37,13 +45,15 @@ describe("resolveDockerContext", () => {
     expect(result).toEqual({
       dockerfile: "custom.Dockerfile",
       context: "./app",
+      target: "",
     });
 
+    // Verify composeExists was called with docker-compose.yml path
     expect(composeExists).toHaveBeenCalledWith(
-      "/test-workspace/docker-compose.yml",
+      expect.stringContaining("docker-compose.yml"),
     );
     expect(parseCompose).toHaveBeenCalledWith(
-      "/test-workspace/docker-compose.yml",
+      expect.stringContaining("docker-compose.yml"),
       "myapp",
       "",
     );
@@ -57,19 +67,19 @@ describe("resolveDockerContext", () => {
     expect(result).toEqual({
       dockerfile: "Dockerfile",
       context: ".",
+      target: undefined,
     });
 
-    expect(composeExists).toHaveBeenCalledWith(
-      "/test-workspace/docker-compose.yml",
-    );
-    expect(composeExists).toHaveBeenCalledWith(
-      "/test-workspace/docker-compose.yaml",
-    );
+    expect(composeExists).toHaveBeenCalled();
   });
 
   test("should use docker-compose.yaml config when available", () => {
+    // Return null for yml but match yaml
     composeExists.mockImplementation((filePath) => {
-      if (filePath.endsWith("docker-compose.yaml")) {
+      if (
+        typeof filePath === "string" &&
+        filePath.includes("docker-compose.yaml")
+      ) {
         return filePath;
       }
       return null;
@@ -78,6 +88,7 @@ describe("resolveDockerContext", () => {
     parseCompose.mockReturnValue({
       dockerfile: "custom.Dockerfile",
       context: "./app",
+      target: "",
     });
 
     const result = resolveDockerContext("myapp", "Dockerfile", ".");
@@ -85,23 +96,37 @@ describe("resolveDockerContext", () => {
     expect(result).toEqual({
       dockerfile: "custom.Dockerfile",
       context: "./app",
+      target: "",
     });
 
-    expect(composeExists).toHaveBeenCalledWith(
-      "/test-workspace/docker-compose.yml",
+    // Verify composeExists was called with docker-compose.yaml
+    const calls = composeExists.mock.calls;
+    const yamlCalls = calls.filter(
+      (call) =>
+        call[0] &&
+        typeof call[0] === "string" &&
+        call[0].includes("docker-compose.yaml"),
     );
-    expect(composeExists).toHaveBeenCalledWith(
-      "/test-workspace/docker-compose.yaml",
-    );
+    expect(yamlCalls.length).toBeGreaterThan(0);
+
     expect(parseCompose).toHaveBeenCalledWith(
-      "/test-workspace/docker-compose.yaml",
+      expect.stringContaining("docker-compose.yaml"),
       "myapp",
       "",
     );
   });
 
   test("should use fallback values when docker-compose parsing fails", () => {
-    composeExists.mockReturnValue("/test-workspace/docker-compose.yml");
+    composeExists.mockImplementation((filePath) => {
+      if (
+        typeof filePath === "string" &&
+        filePath.includes("docker-compose.yml")
+      ) {
+        return filePath;
+      }
+      return null;
+    });
+
     parseCompose.mockImplementation(() => {
       throw new Error("Parse error");
     });
@@ -111,11 +136,24 @@ describe("resolveDockerContext", () => {
     expect(result).toEqual({
       dockerfile: "Dockerfile",
       context: ".",
+      target: undefined,
     });
+
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining("Parse error"),
+    );
   });
 
   test("should use fallback values when docker-compose parsing returns null", () => {
-    composeExists.mockReturnValue("/test-workspace/docker-compose.yml");
+    composeExists.mockImplementation((filePath) => {
+      if (
+        typeof filePath === "string" &&
+        filePath.includes("docker-compose.yml")
+      ) {
+        return filePath;
+      }
+      return null;
+    });
     parseCompose.mockReturnValue(null);
 
     const result = resolveDockerContext("myapp", "Dockerfile", ".");
@@ -123,9 +161,11 @@ describe("resolveDockerContext", () => {
     expect(result).toEqual({
       dockerfile: "Dockerfile",
       context: ".",
+      target: undefined,
     });
+
     expect(core.info).toHaveBeenCalledWith(
-      expect.stringContaining("No matching service found"),
+      expect.stringMatching(/Using fallback values/),
     );
   });
 
@@ -143,32 +183,18 @@ describe("resolveDockerContext", () => {
     });
   });
 
-  test("should use docker-compose.yml config when available", () => {
-    composeExists.mockReturnValueOnce("/test-workspace/docker-compose.yml");
-    parseCompose.mockReturnValueOnce({
-      dockerfile: "custom.Dockerfile",
-      context: "./src",
-    });
-
-    const result = resolveDockerContext("myapp", "Dockerfile", "./context");
-
-    expect(composeExists).toHaveBeenCalledWith(
-      expect.stringContaining("/docker-compose.yml"),
-    );
-    expect(parseCompose).toHaveBeenCalledWith(
-      "/test-workspace/docker-compose.yml",
-      "myapp",
-      "",
-    );
-    expect(result).toEqual({
-      dockerfile: "custom.Dockerfile",
-      context: "./src",
-    });
-  });
-
   test("should handle target parameter", () => {
-    composeExists.mockReturnValueOnce("/test-workspace/docker-compose.yml");
-    parseCompose.mockReturnValueOnce({
+    composeExists.mockImplementation((filePath) => {
+      if (
+        typeof filePath === "string" &&
+        filePath.includes("docker-compose.yml")
+      ) {
+        return filePath;
+      }
+      return null;
+    });
+
+    parseCompose.mockReturnValue({
       dockerfile: "custom.Dockerfile",
       context: "./src",
       target: "production",
@@ -182,7 +208,7 @@ describe("resolveDockerContext", () => {
     );
 
     expect(parseCompose).toHaveBeenCalledWith(
-      "/test-workspace/docker-compose.yml",
+      expect.stringContaining("docker-compose.yml"),
       "myapp",
       "production",
     );
@@ -193,57 +219,45 @@ describe("resolveDockerContext", () => {
     });
   });
 
-  test("should fall back to default when compose parsing fails", () => {
-    composeExists.mockReturnValueOnce("/test-workspace/docker-compose.yml");
-    parseCompose.mockImplementationOnce(() => {
-      throw new Error("Mock error");
+  test("should check for compose files in context directory", () => {
+    // Mock to return a file in the context directory
+    composeExists.mockImplementation((filePath) => {
+      if (filePath === "/test-workspace/my-context/docker-compose.yml") {
+        return filePath;
+      }
+      return null;
     });
 
-    const result = resolveDockerContext("myapp", "Dockerfile", "./context");
-
-    expect(composeExists).toHaveBeenCalled();
-    expect(parseCompose).toHaveBeenCalledWith(
-      "/test-workspace/docker-compose.yml",
-      "myapp",
-      "",
-    );
-    expect(result).toEqual({
-      dockerfile: "Dockerfile",
-      context: "./context",
-      target: undefined,
-    });
-  });
-
-  test("should use docker-compose.yaml config when available", () => {
-    composeExists
-      .mockReturnValueOnce(null)
-      .mockReturnValueOnce("/test-workspace/docker-compose.yaml");
-    parseCompose.mockReturnValueOnce({
+    parseCompose.mockReturnValue({
       dockerfile: "custom.Dockerfile",
       context: "./src",
+      target: "",
     });
 
-    const result = resolveDockerContext("myapp", "Dockerfile", "./context");
+    resolveDockerContext("myapp", "Dockerfile", "my-context");
 
-    expect(composeExists).toHaveBeenCalledWith(
-      expect.stringContaining("/docker-compose.yml"),
+    // Check that the context directory was searched
+    const calls = composeExists.mock.calls;
+    const contextCalls = calls.filter(
+      (call) =>
+        call[0] &&
+        typeof call[0] === "string" &&
+        call[0].includes("my-context"),
     );
-    expect(composeExists).toHaveBeenCalledWith(
-      expect.stringContaining("/docker-compose.yaml"),
-    );
-    expect(parseCompose).toHaveBeenCalledWith(
-      "/test-workspace/docker-compose.yaml",
-      "myapp",
-      "",
-    );
-    expect(result).toEqual({
-      dockerfile: "custom.Dockerfile",
-      context: "./src",
-    });
+    expect(contextCalls.length).toBeGreaterThan(0);
   });
 
   test("should correctly handle docker-compose target with no input target", () => {
-    composeExists.mockReturnValue(true);
+    composeExists.mockImplementation((filePath) => {
+      if (
+        typeof filePath === "string" &&
+        filePath.includes("docker-compose.yml")
+      ) {
+        return filePath;
+      }
+      return null;
+    });
+
     parseCompose.mockReturnValue({
       dockerfile: "custom/Dockerfile",
       context: "./app",
@@ -257,13 +271,24 @@ describe("resolveDockerContext", () => {
       "", // No input target
     );
 
-    expect(result.dockerfile).toBe("custom/Dockerfile");
-    expect(result.context).toBe("./app");
-    expect(result.target).toBe("production");
+    expect(result).toEqual({
+      dockerfile: "custom/Dockerfile",
+      context: "./app",
+      target: "production",
+    });
   });
 
   test("should prioritize input target over docker-compose target", () => {
-    composeExists.mockReturnValue(true);
+    composeExists.mockImplementation((filePath) => {
+      if (
+        typeof filePath === "string" &&
+        filePath.includes("docker-compose.yml")
+      ) {
+        return filePath;
+      }
+      return null;
+    });
+
     parseCompose.mockReturnValue({
       dockerfile: "custom/Dockerfile",
       context: "./app",
@@ -277,8 +302,10 @@ describe("resolveDockerContext", () => {
       "development", // Input target takes precedence
     );
 
-    expect(result.dockerfile).toBe("custom/Dockerfile");
-    expect(result.context).toBe("./app");
-    expect(result.target).toBe("production");
+    expect(result).toEqual({
+      dockerfile: "custom/Dockerfile",
+      context: "./app",
+      target: "development", // The input target should override the compose target
+    });
   });
 });

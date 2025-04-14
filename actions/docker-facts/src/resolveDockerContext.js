@@ -27,20 +27,31 @@ function resolveDockerContext(
   const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
   core.info(`  Workspace: ${workspace}`);
 
-  const ymlPath = path.join(workspace, defaultContext, "docker-compose.yml");
-  const yamlPath = path.join(workspace, defaultContext, "docker-compose.yaml");
-  const composePath = path.join(workspace, defaultContext,"compose.yml");
-  const composePathYaml = path.join(workspace, defaultContext, "compose.yaml");
+  // Generate possible compose file paths to check
+  const possiblePaths = [
+    "docker-compose.yml",
+    "docker-compose.yaml",
+    "compose.yml",
+    "compose.yaml",
+  ]
+    .reduce((acc, file) => {
+      acc.push(path.join(workspace, file));
+      // Optionally check in the context directory too
+      if (defaultContext !== ".") {
+        acc.push(path.join(workspace, defaultContext, file));
+      }
+      return acc;
+    }, [])
+    .map((p) => path.normalize(p));
 
-  let composeFile = composeExists(ymlPath);
-  if (!composeFile) {
-    composeFile = composeExists(yamlPath);
-  }
-  if (!composeFile) {
-    composeFile = composeExists(composePath);
-  }
-  if (!composeFile) {
-    composeFile = composeExists(composePathYaml);
+  // Find first existing compose file
+  let composeFile = null;
+  for (const filePath of possiblePaths) {
+    const exists = composeExists(filePath);
+    if (exists) {
+      composeFile = exists;
+      break;
+    }
   }
 
   if (composeFile) {
@@ -56,19 +67,15 @@ function resolveDockerContext(
           `  Dockerfile: ${buildConfig.dockerfile}, Context: ${buildConfig.context}`,
         );
 
-        // If target was provided and not already in buildConfig, include it
-        if (target && !buildConfig.target) {
+        // If input target was provided, it should override the docker-compose target
+        if (target) {
           buildConfig.target = target;
           core.info(`  Target: ${target} (from input)`);
         } else if (buildConfig.target) {
           core.info(`  Target: ${buildConfig.target} (from docker-compose)`);
         }
 
-        return {
-          dockerfile: buildConfig.dockerfile,
-          context: buildConfig.context,
-          target: buildConfig.target,
-        };
+        return buildConfig;
       }
 
       core.info(
