@@ -1,5 +1,9 @@
 name: "Test | Ensure Repository"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_call:
     inputs:
@@ -12,11 +16,17 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "actions/ensure-repository/**"
+      - ".github/workflows/test-ensure-repository.yml"
   push:
     tags:
       - "*"
     branches:
       - main
+    paths:
+      - "actions/ensure-repository/**"
+      - ".github/workflows/test-ensure-repository.yml"
 
 jobs:
   test_ensure_repository:

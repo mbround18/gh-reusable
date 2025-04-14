@@ -84,9 +84,6 @@ jobs:
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.semver_prefix }}-${{ inputs.image }}-${{ inputs.target }}-${{ github.event_name }}
-      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 

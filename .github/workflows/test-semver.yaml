@@ -3,9 +3,19 @@ name: "Test | Semver Action"
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "actions/semver/**"
+      - ".github/workflows/test-semver.yaml"
   push:
     tags: ["*"]
     branches: [main]
+    paths:
+      - "actions/semver/**"
+      - ".github/workflows/test-semver.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ensure_repository:

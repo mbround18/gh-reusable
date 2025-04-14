@@ -4,11 +4,29 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "actions/setup-rust/**"
+      - ".github/workflows/rust-build-n-test.yml"
+      - ".github/workflows/test-rust-build-n-test.yml"
+      - "**/*.rs"
+      - "**/*.toml"
+      - "**/Cargo.lock"
   push:
     tags:
       - "*"
     branches:
       - main
+    paths:
+      - "actions/setup-rust/**"
+      - ".github/workflows/rust-build-n-test.yml"
+      - ".github/workflows/test-rust-build-n-test.yml"
+      - "**/*.rs"
+      - "**/*.toml"
+      - "**/Cargo.lock"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ensure_repository:

@@ -4,9 +4,19 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "actions/graphql/**"
+      - ".github/workflows/test-graphql-action.yaml"
   pull_request:
     branches:
       - main
+    paths:
+      - "actions/graphql/**"
+      - ".github/workflows/test-graphql-action.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   query_default_branch:

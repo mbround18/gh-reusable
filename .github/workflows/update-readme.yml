@@ -14,9 +14,19 @@ on:
       - main
     paths:
       - "actions/**/action.yml"
+      - "README.md"
+    paths-ignore:
+      - "**/*.md"
+      - "!README.md"
+      - ".github/workflows/**"
+      - "!.github/workflows/update-readme.yml"
 
 permissions:
   contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   update_readme:

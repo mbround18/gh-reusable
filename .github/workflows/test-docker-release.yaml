@@ -4,11 +4,23 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "actions/docker-facts/**"
+      - ".github/workflows/test-docker-release.yaml"
+      - ".github/workflows/docker-release.yaml"
   push:
     tags:
       - "*"
     branches:
       - main
+    paths:
+      - "actions/docker-facts/**"
+      - ".github/workflows/test-docker-release.yaml"
+      - ".github/workflows/docker-release.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ensure_repository:
@@ -54,7 +66,7 @@ jobs:
   call_docker_release_compose:
     strategy:
       matrix:
-        target: [ "compose", "compose2" ]
+        target: ["compose", "compose2"]
     name: Call Docker Release Workflow (Compose)
     uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
     with:
@@ -66,7 +78,7 @@ jobs:
   call_docker_release_compose_with_target:
     strategy:
       matrix:
-        target: [ "compose", "compose2" ]
+        target: ["compose", "compose2"]
     name: Call Docker Release Workflow (Compose)
     uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
     with:

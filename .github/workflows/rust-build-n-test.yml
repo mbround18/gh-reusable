@@ -1,4 +1,4 @@
-name: Rust Build and Test
+name: "Rust Build and Test"
 
 on:
   workflow_call:
@@ -23,10 +23,6 @@ on:
         type: string
         description: "GitHub runner to use for this workflow."
         default: "ubuntu-latest"
-
-concurrency:
-  group: ${{ github.workflow_ref }}-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   NAME: "Rust Test"
