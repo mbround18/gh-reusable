@@ -27,10 +27,10 @@ function resolveDockerContext(
   const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
   core.info(`  Workspace: ${workspace}`);
 
-  const ymlPath = path.join(workspace, "docker-compose.yml");
-  const yamlPath = path.join(workspace, "docker-compose.yaml");
-  const composePath = path.join(workspace, "compose.yml");
-  const composePathYaml = path.join(workspace, "compose.yaml");
+  const ymlPath = path.join(workspace, defaultContext, "docker-compose.yml");
+  const yamlPath = path.join(workspace, defaultContext, "docker-compose.yaml");
+  const composePath = path.join(workspace, defaultContext,"compose.yml");
+  const composePathYaml = path.join(workspace, defaultContext, "compose.yaml");
 
   let composeFile = composeExists(ymlPath);
   if (!composeFile) {
