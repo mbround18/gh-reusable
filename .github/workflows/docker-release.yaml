@@ -7,11 +7,6 @@ on:
         required: true
         default: "mbround18/test"
         description: "Name of the image to be built"
-      compose:
-        type: boolean
-        required: false
-        default: false
-        description: "Want us to pull information from a docker-compose file?"
       context:
         type: string
         required: false
@@ -118,7 +113,6 @@ jobs:
       - run: |
           echo "Running Docker Release Workflow"
           echo "Image: ${{ inputs.image }}"
-          echo "Compose: ${{ inputs.compose }}"
           echo "Working Directory: ${{ inputs.working-directory }}"
           echo "Dockerfile: ${{ inputs.dockerfile }}"
 

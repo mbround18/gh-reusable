@@ -49,30 +49,29 @@ jobs:
       image: "mbround18/gh-reusable-testing" # Specify the test image name here
       ghcr: true
       working-directory: "tests/docker"
-    secrets:
-      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
-      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+    secrets: inherit
 
-  call_docker_release_compose_1:
+  call_docker_release_compose:
+    strategy:
+      matrix:
+        target: [ "compose", "compose2" ]
     name: Call Docker Release Workflow (Compose)
     uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
     with:
-      image: "mbround18/gh-reusable-testing-compose" # Specify the test image name here
+      image: "mbround18/gh-reusable-testing-${{matrix.target}}" # Specify the test image name here
       ghcr: true
-      compose: true
       working-directory: "tests/docker-compose"
-    secrets:
-      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
-      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+    secrets: inherit
 
-  call_docker_release_compose_2:
+  call_docker_release_compose_with_target:
+    strategy:
+      matrix:
+        target: [ "compose", "compose2" ]
     name: Call Docker Release Workflow (Compose)
     uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
     with:
-      image: "mbround18/gh-reusable-testing-compose2" # Specify the test image name here
+      image: "mbround18/gh-reusable-testing-${{matrix.target}}" # Specify the test image name here
       ghcr: true
-      compose: true
+      prepend_target: true
       working-directory: "tests/docker-compose"
-    secrets:
-      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
-      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+    secrets: inherit
