@@ -1,6 +1,14 @@
 name: "Test | Ensure Repository"
 
 on:
+  workflow_call:
+    inputs:
+      runs-on:
+        required: false
+        type: string
+        description: "GitHub runner to use for this workflow."
+        default: "ubuntu-latest"
+  workflow_dispatch:
   pull_request:
     branches:
       - main
@@ -11,18 +19,12 @@ on:
       - main
 
 jobs:
-  test:
-    name: Test | Ensure Repository
-    runs-on: ubuntu-latest
+  test_ensure_repository:
+    name: Test Ensure Repository
+    runs-on: ${{ inputs.runs-on || 'ubuntu-latest' }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Positive Test
-        uses: ./actions/ensure-repository
-
-      - name: Negative Test
-        continue-on-error: true
-        uses: ./actions/ensure-repository
+      - uses: ./actions/ensure-repository
         with:
-          repository: mbround18/this-repo-does-not-exist-193913
+          repository: mbround18/gh-reusable

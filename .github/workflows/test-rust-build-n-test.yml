@@ -20,3 +20,5 @@ jobs:
   call_build_and_test_workflow:
     name: Call Rust Build and Test Workflow
     uses: ./.github/workflows/rust-build-n-test.yml
+    with:
+      runs-on: ubuntu-latest

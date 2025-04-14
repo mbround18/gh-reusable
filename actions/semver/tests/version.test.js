@@ -54,15 +54,8 @@ describe("buildNewVersion", () => {
   });
 
   test("should log inputs when core is provided", () => {
-    buildNewVersion(
-      "v1.2.3",
-      "v",
-      "patch",
-      false,
-      "abc123456789",
-      mockCore
-    );
-    
+    buildNewVersion("v1.2.3", "v", "patch", false, "abc123456789", mockCore);
+
     expect(mockCore.startGroup).toHaveBeenCalledWith("Building new version");
     expect(mockCore.info).toHaveBeenCalledWith("Last tag: v1.2.3");
     expect(mockCore.info).toHaveBeenCalledWith("Prefix: v");
@@ -74,17 +67,12 @@ describe("buildNewVersion", () => {
 
   test("should log return exact tag when on tag and core is provided", () => {
     process.env.GITHUB_REF = "refs/tags/v3.0.0";
-    
-    buildNewVersion(
-      "v1.2.3",
-      "v", 
-      "patch",
-      false,
-      "abc123456789",
-      mockCore
+
+    buildNewVersion("v1.2.3", "v", "patch", false, "abc123456789", mockCore);
+
+    expect(mockCore.info).toHaveBeenCalledWith(
+      "Running on tag: v3.0.0, returning exactly this tag",
     );
-    
-    expect(mockCore.info).toHaveBeenCalledWith("Running on tag: v3.0.0, returning exactly this tag");
   });
 
   test("should handle PR with no increment", () => {

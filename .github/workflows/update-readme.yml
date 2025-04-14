@@ -1,18 +1,27 @@
-name: Update Readme
+name: "Update README"
 
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      runs-on:
+        required: false
+        type: string
+        description: "GitHub runner to use for this workflow."
+        default: "ubuntu-latest"
+  workflow_dispatch:
   push:
-    tags:
-      - "*"
     branches:
       - main
+    paths:
+      - "actions/**/action.yml"
+
+permissions:
+  contents: write
 
 jobs:
-  update-readme:
-    runs-on: ubuntu-latest
+  update_readme:
+    name: Update README
+    runs-on: ${{ inputs.runs-on || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
