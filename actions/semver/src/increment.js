@@ -11,7 +11,13 @@ const { fetchQuery } = require("./tag");
  * @param {object} core - GitHub Actions core object for logging
  * @returns {string} - The increment type: 'major', 'minor', or 'patch'
  */
-function resolveIncrementFromLabels(labels, majorLabel, minorLabel, patchLabel, core) {
+function resolveIncrementFromLabels(
+  labels,
+  majorLabel,
+  minorLabel,
+  patchLabel,
+  core,
+) {
   let increment = "patch";
 
   if (!labels || !labels.length) {
@@ -26,7 +32,9 @@ function resolveIncrementFromLabels(labels, majorLabel, minorLabel, patchLabel, 
   // Log labels for debugging using core.info instead of console.log
   if (core) {
     core.info(`Checking labels: ${JSON.stringify(labelNames)}`);
-    core.info(`Looking for major: "${majorLabel}", minor: "${minorLabel}", patch: "${patchLabel}"`);
+    core.info(
+      `Looking for major: "${majorLabel}", minor: "${minorLabel}", patch: "${patchLabel}"`,
+    );
   }
 
   if (labelNames.includes(majorLabel)) {
@@ -39,7 +47,10 @@ function resolveIncrementFromLabels(labels, majorLabel, minorLabel, patchLabel, 
     if (core) core.info(`Found patch label: ${patchLabel}`);
     increment = "patch";
   } else {
-    if (core) core.info("No matching semver labels found, using default patch increment");
+    if (core)
+      core.info(
+        "No matching semver labels found, using default patch increment",
+      );
   }
 
   if (core) core.info(`Resolved increment: ${increment}`);
@@ -96,7 +107,13 @@ async function detectIncrement(
       const labels = result.repository.pullRequest.labels.nodes;
       core.info(`PR labels: ${JSON.stringify(labels.map((l) => l.name))}`);
 
-      return resolveIncrementFromLabels(labels, majorLabel, minorLabel, patchLabel, core);
+      return resolveIncrementFromLabels(
+        labels,
+        majorLabel,
+        minorLabel,
+        patchLabel,
+        core,
+      );
     } catch (error) {
       core.warning(`Failed to get PR labels: ${error.message}`);
       return "patch";
@@ -129,7 +146,13 @@ async function detectIncrement(
       core.info(
         `Associated PR labels: ${JSON.stringify(labels.map((l) => l.name))}`,
       );
-      return resolveIncrementFromLabels(labels, majorLabel, minorLabel, patchLabel, core);
+      return resolveIncrementFromLabels(
+        labels,
+        majorLabel,
+        minorLabel,
+        patchLabel,
+        core,
+      );
     } else {
       core.info("No associated PRs found for this commit");
     }
