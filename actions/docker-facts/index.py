@@ -104,7 +104,7 @@ def load_event_data() -> Dict:
     """Load GitHub event data from GITHUB_EVENT_PATH"""
     event_data = {}
     event_path = get_github_event_path()
-    if (event_path and os.path.exists(event_path)):
+    if event_path and os.path.exists(event_path):
         try:
             with open(event_path, "r") as f:
                 event_data = json.load(f)
@@ -326,15 +326,15 @@ def main():
     if not get_input_image():
         logger.error("Required input 'image' not provided")
         sys.exit(1)
-        
+
     if not get_input_version():
         logger.error("Required input 'version' not provided")
         sys.exit(1)
-    
+
     # Get input context and dockerfile paths
     input_context = get_input_context()
     input_dockerfile = get_input_dockerfile()
-    
+
     # Initialize result with defaults
     result = {
         "dockerfile": resolve_path(input_dockerfile),
@@ -342,12 +342,12 @@ def main():
         "target": get_input_target(),
         "push": should_push_image(),
     }
-    
+
     # Find and parse docker-compose file
     compose_file = find_docker_compose()
     if compose_file:
         compose_data = parse_docker_compose(compose_file, get_input_image())
-        
+
         # Override defaults with compose values if available
         if compose_data["dockerfile"]:
             # If docker-compose specifies a dockerfile, resolve it relative to the context
@@ -356,37 +356,41 @@ def main():
                 compose_context = os.path.join(input_context, compose_data["context"])
                 result["context"] = resolve_path(compose_context)
                 # Resolve dockerfile relative to the compose context
-                dockerfile_path = os.path.join(compose_context, compose_data["dockerfile"])
+                dockerfile_path = os.path.join(
+                    compose_context, compose_data["dockerfile"]
+                )
                 result["dockerfile"] = resolve_path(dockerfile_path)
             else:
                 # No context in compose, just resolve dockerfile relative to input context
-                dockerfile_path = os.path.join(input_context, compose_data["dockerfile"])
+                dockerfile_path = os.path.join(
+                    input_context, compose_data["dockerfile"]
+                )
                 result["dockerfile"] = resolve_path(dockerfile_path)
         elif compose_data["context"]:
             # Only context specified in compose, resolve it relative to input context
             compose_context = os.path.join(input_context, compose_data["context"])
             result["context"] = resolve_path(compose_context)
-        
+
         if compose_data["target"] and not get_input_target():
             result["target"] = compose_data["target"]
-        
+
         # Set build args as environment variables
         for name, value in compose_data["build_args"].items():
             env_var_name = f"BUILD_ARG_{name.upper()}"
             os.environ[env_var_name] = str(value)
             logger.info(f"Setting build arg: {env_var_name}={value}")
-    
+
     # Generate tags
     tags = generate_tags(get_input_version())
     result["tags"] = ",".join(tags)
-    
+
     # Log results
     logger.info(f"Dockerfile: {result['dockerfile']}")
     logger.info(f"Context: {result['context']}")
     logger.info(f"Target: {result['target']}")
     logger.info(f"Should push: {result['push']}")
     logger.info(f"Tags: {result['tags']}")
-    
+
     # Set GitHub outputs
     github_output = get_github_output()
     if github_output and os.path.exists(os.path.dirname(github_output)):

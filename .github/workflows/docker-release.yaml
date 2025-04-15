@@ -116,13 +116,13 @@ jobs:
           echo "Working Directory: ${{ inputs.working-directory }}"
           echo "Dockerfile: ${{ inputs.dockerfile }}"
 
-      - uses: mbround18/gh-reusable/actions/install-cli@main
+      - uses: mbround18/gh-reusable/actions/install-cli@upgrade-docker-facts
         with:
           repository: "mikefarah/yq"
           asset: "yq_linux_amd64"
           override-name: "yq"
       - id: semver
-        uses: mbround18/gh-reusable/actions/semver@main
+        uses: mbround18/gh-reusable/actions/semver@upgrade-docker-facts
         with:
           prefix: ${{ inputs.semver_prefix }}
       - name: Set up Docker Buildx
@@ -151,7 +151,7 @@ jobs:
 
       - name: Docker Facts
         id: docker-facts
-        uses: mbround18/gh-reusable/actions/docker-facts@main
+        uses: mbround18/gh-reusable/actions/docker-facts@upgrade-docker-facts
         with:
           image: ${{ inputs.image }}
           version: ${{ steps.semver.outputs.new_version }}

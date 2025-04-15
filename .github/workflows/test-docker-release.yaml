@@ -56,7 +56,7 @@ jobs:
 
   call_docker_release:
     name: Call Docker Release Workflow
-    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@upgrade-docker-facts
     with:
       image: "mbround18/gh-reusable-testing" # Specify the test image name here
       ghcr: true
@@ -68,7 +68,7 @@ jobs:
       matrix:
         target: ["compose", "compose2"]
     name: Call Docker Release Workflow (Compose)
-    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@upgrade-docker-facts
     with:
       image: "mbround18/gh-reusable-testing-${{matrix.target}}" # Specify the test image name here
       ghcr: true
@@ -80,7 +80,7 @@ jobs:
       matrix:
         target: ["compose", "compose2"]
     name: Call Docker Release Workflow (Compose)
-    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@upgrade-docker-facts
     with:
       image: "mbround18/gh-reusable-testing-${{matrix.target}}" # Specify the test image name here
       ghcr: true
