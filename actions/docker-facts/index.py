@@ -8,11 +8,10 @@ from docker-compose.yml files or falls back to provided defaults.
 
 import os
 import sys
-import yaml
 import json
+import yaml
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union, Any
+from typing import Dict, List, Optional
 
 # Configure logging
 logging.basicConfig(
@@ -141,6 +140,54 @@ def resolve_path(path: str, to_relative: bool = False) -> str:
             return path
         # Join with workspace and normalize to handle .. notation
         return os.path.normpath(os.path.join(workspace, path.lstrip("./")))
+
+
+def find_dockerfile(dockerfile_path: str, context_path: str) -> str:
+    """
+    Find Dockerfile by checking multiple possible locations.
+
+    Args:
+        dockerfile_path: User-provided Dockerfile path
+        context_path: Build context path
+
+    Returns:
+        Resolved Dockerfile path that exists, or the original path if none found
+    """
+    # Resolve the absolute paths
+    abs_dockerfile = resolve_path(dockerfile_path)
+    abs_context = resolve_path(context_path)
+
+    # Try these locations in order:
+    # 1. As provided by the user (absolute path)
+    # 2. Relative to the workspace (as provided)
+    # 3. Relative to the context
+    # 4. Just the filename in the context
+
+    possible_paths = [
+        abs_dockerfile,
+        # If it's a simple filename like "Dockerfile", try it in the context
+        os.path.join(abs_context, os.path.basename(dockerfile_path)),
+        # If dockerfile path has directories, try appending to context
+        os.path.join(abs_context, dockerfile_path.lstrip("./")),
+    ]
+
+    # Remove duplicates while preserving order
+    unique_paths = []
+    for path in possible_paths:
+        if path not in unique_paths:
+            unique_paths.append(path)
+
+    # Check each path
+    for path in unique_paths:
+        if os.path.exists(path):
+            logger.info(f"Found Dockerfile at: {path}")
+            return path
+
+    # If no file found, return the original path for consistency
+    logger.warning(
+        f"Could not find Dockerfile at any expected location, using: {abs_dockerfile}"
+    )
+    return abs_dockerfile
 
 
 def find_docker_compose() -> Optional[str]:
@@ -364,11 +411,13 @@ def main():
 
     # Initialize result with defaults - initially use absolute paths for processing
     result = {
-        "dockerfile": resolve_path(input_dockerfile),
         "context": resolve_path(input_context),
         "target": get_input_target(),
         "push": should_push_image(),
     }
+
+    # First resolve the dockerfile path with our more robust finder
+    result["dockerfile"] = find_dockerfile(input_dockerfile, input_context)
 
     # Find and parse docker-compose file
     compose_file = find_docker_compose()
@@ -386,17 +435,23 @@ def main():
                 dockerfile_path = os.path.join(
                     compose_context, compose_data["dockerfile"]
                 )
-                result["dockerfile"] = resolve_path(dockerfile_path)
+                result["dockerfile"] = find_dockerfile(
+                    dockerfile_path, result["context"]
+                )
             else:
                 # No context in compose, just resolve dockerfile relative to input context
                 dockerfile_path = os.path.join(
                     input_context, compose_data["dockerfile"]
                 )
-                result["dockerfile"] = resolve_path(dockerfile_path)
+                result["dockerfile"] = find_dockerfile(
+                    dockerfile_path, result["context"]
+                )
         elif compose_data["context"]:
             # Only context specified in compose, resolve it relative to input context
             compose_context = os.path.join(input_context, compose_data["context"])
             result["context"] = resolve_path(compose_context)
+            # Re-check dockerfile against new context
+            result["dockerfile"] = find_dockerfile(input_dockerfile, result["context"])
 
         if compose_data["target"] and not get_input_target():
             result["target"] = compose_data["target"]
