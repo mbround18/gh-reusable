@@ -193,10 +193,10 @@ def find_dockerfile(dockerfile_path: str, context_path: str) -> str:
 def find_docker_compose(context_path: str = None) -> Optional[str]:
     """
     Find docker-compose.yml in the repository
-    
+
     Args:
         context_path: Optional context directory to also search in
-        
+
     Returns:
         Path to the found docker-compose file or None
     """
@@ -208,15 +208,15 @@ def find_docker_compose(context_path: str = None) -> Optional[str]:
     ]
 
     workspace = get_github_workspace()
-    
+
     # Search in workspace first for each file
     for path in compose_paths:
         full_path = os.path.join(workspace, path)
         if os.path.exists(full_path):
             logger.info(f"Found Docker Compose file in workspace: {full_path}")
             return full_path
-    
-    # If not found in workspace and context path is provided and different from workspace, 
+
+    # If not found in workspace and context path is provided and different from workspace,
     # search there
     if context_path and context_path not in [".", "./"]:
         abs_context = resolve_path(context_path)
@@ -328,13 +328,16 @@ def should_push_image() -> bool:
     return False
 
 
-def generate_tags(version: str, registries: List[str] = None) -> List[str]:
+def generate_tags(
+    version: str, registries: List[str] = None, target: str = None
+) -> List[str]:
     """
     Generate Docker tags based on the version and registries
 
     Args:
         version: The version string
         registries: List of registry prefixes
+        target: The target stage for Docker multi-stage builds
 
     Returns:
         List of complete tag strings
@@ -355,10 +358,16 @@ def generate_tags(version: str, registries: List[str] = None) -> List[str]:
 
     # Handle target prepending if enabled
     target_prefix = ""
-    input_target = get_input_target()
-    if input_target and get_input_prepend_target():
-        target_prefix = f"{input_target}-"
-    elif get_input_prepend_target() and not input_target:
+    prepend_target = get_input_prepend_target()
+
+    # If target explicitly provided as parameter, use it
+    if target:
+        if prepend_target:
+            target_prefix = f"{target}-"
+    # Otherwise check if explicit input target was provided
+    elif get_input_target() and prepend_target:
+        target_prefix = f"{get_input_target()}-"
+    elif prepend_target:
         logger.warning(
             "Target prepending enabled but no target provided. Skipping target prefix."
         )
@@ -428,14 +437,15 @@ def main():
     # Get input context and dockerfile paths
     input_context = get_input_context()
     input_dockerfile = get_input_dockerfile()
+    input_target = get_input_target()
 
     # Initialize result with defaults - initially use absolute paths for processing
     result = {
         "context": resolve_path(input_context),
-        "target": get_input_target(),
+        "target": input_target,  # Will be overridden by compose target if available
         "push": should_push_image(),
     }
-    
+
     # First resolve the dockerfile path with our more robust finder
     result["dockerfile"] = find_dockerfile(input_dockerfile, input_context)
 
@@ -455,13 +465,17 @@ def main():
                 dockerfile_path = os.path.join(
                     compose_context, compose_data["dockerfile"]
                 )
-                result["dockerfile"] = find_dockerfile(dockerfile_path, result["context"])
+                result["dockerfile"] = find_dockerfile(
+                    dockerfile_path, result["context"]
+                )
             else:
                 # No context in compose, just resolve dockerfile relative to input context
                 dockerfile_path = os.path.join(
                     input_context, compose_data["dockerfile"]
                 )
-                result["dockerfile"] = find_dockerfile(dockerfile_path, result["context"])
+                result["dockerfile"] = find_dockerfile(
+                    dockerfile_path, result["context"]
+                )
         elif compose_data["context"]:
             # Only context specified in compose, resolve it relative to input context
             compose_context = os.path.join(input_context, compose_data["context"])
@@ -469,8 +483,10 @@ def main():
             # Re-check dockerfile against new context
             result["dockerfile"] = find_dockerfile(input_dockerfile, result["context"])
 
-        if compose_data["target"] and not get_input_target():
+        # Use target from docker-compose if available and no target explicitly provided
+        if compose_data["target"] and not input_target:
             result["target"] = compose_data["target"]
+            logger.info(f"Using target from docker-compose: {result['target']}")
 
         # Set build args as environment variables
         for name, value in compose_data["build_args"].items():
@@ -478,8 +494,8 @@ def main():
             os.environ[env_var_name] = str(value)
             logger.info(f"Setting build arg: {env_var_name}={value}")
 
-    # Generate tags
-    tags = generate_tags(get_input_version())
+    # Generate tags - now passing the target for prepending
+    tags = generate_tags(get_input_version(), target=result["target"])
     result["tags"] = ",".join(tags)
 
     # Convert paths to relative format before output

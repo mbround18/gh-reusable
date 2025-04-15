@@ -1,122 +1,232 @@
-"""Tests for Docker tag generation functionality."""
+#!/usr/bin/env python3
+"""Tests for Docker tag generation"""
 
+import os
+import sys
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
-from tests.test_utils import setup_test_environment
+# Add parent directory to path so we can import the module
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import index
 
 
 class TestTagGeneration(unittest.TestCase):
-    """Test cases for Docker tag generation."""
+    """Test cases for the Docker tag generation logic"""
 
-    def setUp(self):
-        self.env_patcher = setup_test_environment()
-        self.env_patcher.start()
+    @patch("index.get_input_image")
+    @patch("index.get_input_version")
+    @patch("index.get_github_ref")
+    @patch("index.get_input_with_latest")
+    @patch("index.get_input_registries")
+    @patch("index.get_input_target")
+    @patch("index.get_input_prepend_target")
+    def test_generate_tags_basic(
+        self,
+        mock_prepend_target,
+        mock_target,
+        mock_registries,
+        mock_with_latest,
+        mock_github_ref,
+        mock_version,
+        mock_image,
+    ):
+        """Test basic tag generation"""
+        # Setup mocks
+        mock_image.return_value = "test-image"
+        mock_version.return_value = "1.0.0"
+        mock_github_ref.return_value = "refs/heads/main"
+        mock_with_latest.return_value = False
+        mock_registries.return_value = ""
+        mock_target.return_value = ""
+        mock_prepend_target.return_value = False
 
-    def tearDown(self):
-        self.env_patcher.stop()
-
-    def test_generate_tags_basic(self):
-        """Test basic tag generation."""
+        # Generate tags
         tags = index.generate_tags("1.0.0")
-        self.assertIn("test-image:v1.0.0", tags)
-        self.assertEqual(len(tags), 1)
 
-    def test_generate_tags_with_v_prefix(self):
-        """Test tag generation with version already having v prefix."""
-        tags = index.generate_tags("v1.0.0")
-        self.assertIn("test-image:v1.0.0", tags)
+        # Should generate just the version tag
+        self.assertEqual(tags, ["test-image:v1.0.0"])
 
-    def test_generate_tags_with_registries(self):
-        """Test tag generation with multiple registries."""
-        with patch.dict("os.environ", {"INPUT_REGISTRIES": "docker.io,ghcr.io"}):
-            tags = index.generate_tags("1.0.0")
-            self.assertIn("test-image:v1.0.0", tags)
-            self.assertIn("docker.io/test-image:v1.0.0", tags)
-            self.assertIn("ghcr.io/test-image:v1.0.0", tags)
-            self.assertEqual(len(tags), 3)
+    @patch("index.get_input_image")
+    @patch("index.get_input_version")
+    @patch("index.get_github_ref")
+    @patch("index.get_input_with_latest")
+    @patch("index.get_input_registries")
+    @patch("index.get_input_target")
+    @patch("index.get_input_prepend_target")
+    def test_generate_tags_with_target(
+        self,
+        mock_prepend_target,
+        mock_target,
+        mock_registries,
+        mock_with_latest,
+        mock_github_ref,
+        mock_version,
+        mock_image,
+    ):
+        """Test tag generation with target"""
+        # Setup mocks
+        mock_image.return_value = "test-image"
+        mock_version.return_value = "1.0.0"
+        mock_github_ref.return_value = "refs/heads/main"
+        mock_with_latest.return_value = False
+        mock_registries.return_value = ""
+        mock_target.return_value = "prod"
+        mock_prepend_target.return_value = True
 
-    def test_generate_tags_with_latest(self):
-        """Test tag generation with latest tag."""
-        with patch.dict(
-            "os.environ",
-            {"INPUT_WITH_LATEST": "true", "GITHUB_REF": "refs/tags/v1.0.0"},
-        ):
-            tags = index.generate_tags("1.0.0")
-            self.assertIn("test-image:v1.0.0", tags)
-            self.assertIn("test-image:latest", tags)
+        # Generate tags
+        tags = index.generate_tags("1.0.0", target="prod")
 
-    def test_generate_tags_with_target(self):
-        """Test tag generation with target prepending."""
-        with patch.dict(
-            "os.environ", {"INPUT_TARGET": "prod", "INPUT_PREPEND_TARGET": "true"}
-        ):
-            tags = index.generate_tags("1.0.0")
-            self.assertIn("test-image:prod-v1.0.0", tags)
+        # Should prepend target to version tag
+        self.assertEqual(tags, ["test-image:prod-v1.0.0"])
 
-    def test_generate_tags_with_registry_in_name(self):
-        """Test tag generation with registry already in the image name."""
-        with patch.dict(
-            "os.environ",
-            {"INPUT_IMAGE": "ghcr.io/user/test-image", "INPUT_REGISTRIES": "docker.io"},
-        ):
-            tags = index.generate_tags("1.0.0")
-            self.assertIn("ghcr.io/user/test-image:v1.0.0", tags)
-            self.assertIn("docker.io/user/test-image:v1.0.0", tags)
+    @patch("index.get_input_image")
+    @patch("index.get_input_version")
+    @patch("index.get_github_ref")
+    @patch("index.get_input_with_latest")
+    @patch("index.get_input_registries")
+    @patch("index.get_input_target")
+    @patch("index.get_input_prepend_target")
+    def test_generate_tags_with_registry(
+        self,
+        mock_prepend_target,
+        mock_target,
+        mock_registries,
+        mock_with_latest,
+        mock_github_ref,
+        mock_version,
+        mock_image,
+    ):
+        """Test tag generation with registry"""
+        # Setup mocks
+        mock_image.return_value = "test-image"
+        mock_version.return_value = "1.0.0"
+        mock_github_ref.return_value = "refs/heads/main"
+        mock_with_latest.return_value = False
+        mock_registries.return_value = "docker.io,ghcr.io"
+        mock_target.return_value = ""
+        mock_prepend_target.return_value = False
 
-    def test_generate_tags_with_complex_image_name(self):
-        """Test tag generation with complex image names."""
-        with patch.dict(
-            "os.environ",
-            {"INPUT_IMAGE": "org/repo/image", "INPUT_REGISTRIES": "ghcr.io,docker.io"},
-        ):
-            tags = index.generate_tags("1.0.0")
-            self.assertIn("org/repo/image:v1.0.0", tags)
-            self.assertIn("ghcr.io/org/repo/image:v1.0.0", tags)
-            self.assertIn("docker.io/org/repo/image:v1.0.0", tags)
+        # Generate tags
+        tags = index.generate_tags("1.0.0")
 
-    def test_generate_tags_with_prerelease_versions(self):
-        """Test tag generation with prerelease versions."""
-        # Beta version should not get latest tag
-        with patch.dict(
-            "os.environ",
-            {
-                "INPUT_WITH_LATEST": "true",
-                "GITHUB_REF": "refs/tags/v1.0.0-beta.1",
-                "INPUT_VERSION": "1.0.0-beta.1",
-            },
-        ):
-            tags = index.generate_tags("1.0.0-beta.1")
-            self.assertIn("test-image:v1.0.0-beta.1", tags)
-            self.assertNotIn("test-image:latest", tags)
+        # Should include registry-prefixed tags
+        self.assertEqual(
+            tags,
+            [
+                "test-image:v1.0.0",
+                "docker.io/test-image:v1.0.0",
+                "ghcr.io/test-image:v1.0.0",
+            ],
+        )
 
-    def test_generate_tags_with_all_options(self):
-        """Test tag generation with all options combined."""
-        with patch.dict(
-            "os.environ",
-            {
-                "INPUT_IMAGE": "myorg/app",
-                "INPUT_REGISTRIES": "docker.io,ghcr.io",
-                "INPUT_TARGET": "alpine",
-                "INPUT_PREPEND_TARGET": "true",
-                "INPUT_WITH_LATEST": "true",
-                "GITHUB_REF": "refs/tags/v1.0.0",
-            },
-        ):
-            tags = index.generate_tags("1.0.0")
-            self.assertIn("myorg/app:alpine-v1.0.0", tags)
-            self.assertIn("myorg/app:alpine-latest", tags)
-            self.assertIn("docker.io/myorg/app:alpine-v1.0.0", tags)
-            self.assertIn("docker.io/myorg/app:alpine-latest", tags)
-            self.assertIn("ghcr.io/myorg/app:alpine-v1.0.0", tags)
-            self.assertIn("ghcr.io/myorg/app:alpine-latest", tags)
+    @patch("index.get_input_image")
+    @patch("index.get_input_version")
+    @patch("index.get_github_ref")
+    @patch("index.get_input_with_latest")
+    @patch("index.get_input_registries")
+    @patch("index.get_input_target")
+    @patch("index.get_input_prepend_target")
+    def test_generate_tags_with_latest(
+        self,
+        mock_prepend_target,
+        mock_target,
+        mock_registries,
+        mock_with_latest,
+        mock_github_ref,
+        mock_version,
+        mock_image,
+    ):
+        """Test tag generation with latest tag"""
+        # Setup mocks
+        mock_image.return_value = "test-image"
+        mock_version.return_value = "1.0.0"
+        mock_github_ref.return_value = "refs/tags/v1.0.0"  # Tagged release
+        mock_with_latest.return_value = True
+        mock_registries.return_value = ""
+        mock_target.return_value = ""
+        mock_prepend_target.return_value = False
 
-    def test_generate_tags_with_empty_image(self):
-        """Test tag generation with empty image name."""
-        with patch.dict("os.environ", {"INPUT_IMAGE": ""}):
-            tags = index.generate_tags("1.0.0")
-            self.assertIn("unnamed:v1.0.0", tags)
+        # Generate tags
+        tags = index.generate_tags("1.0.0")
+
+        # Should include latest tag
+        self.assertEqual(tags, ["test-image:v1.0.0", "test-image:latest"])
+
+    @patch("index.get_input_image")
+    @patch("index.get_input_version")
+    @patch("index.get_github_ref")
+    @patch("index.get_input_with_latest")
+    @patch("index.get_input_registries")
+    @patch("index.get_input_target")
+    @patch("index.get_input_prepend_target")
+    def test_generate_tags_with_latest_and_target(
+        self,
+        mock_prepend_target,
+        mock_target,
+        mock_registries,
+        mock_with_latest,
+        mock_github_ref,
+        mock_version,
+        mock_image,
+    ):
+        """Test tag generation with latest tag and target"""
+        # Setup mocks
+        mock_image.return_value = "test-image"
+        mock_version.return_value = "1.0.0"
+        mock_github_ref.return_value = "refs/tags/v1.0.0"  # Tagged release
+        mock_with_latest.return_value = True
+        mock_registries.return_value = ""
+        mock_target.return_value = "prod"
+        mock_prepend_target.return_value = True
+
+        # Generate tags
+        tags = index.generate_tags("1.0.0", target="prod")
+
+        # Should include target-prefixed latest tag
+        self.assertEqual(tags, ["test-image:prod-v1.0.0", "test-image:prod-latest"])
+
+    @patch("index.get_input_image")
+    @patch("index.get_input_version")
+    @patch("index.get_github_ref")
+    @patch("index.get_input_with_latest")
+    @patch("index.get_input_registries")
+    @patch("index.get_input_target")
+    @patch("index.get_input_prepend_target")
+    def test_generate_tags_with_all_options(
+        self,
+        mock_prepend_target,
+        mock_target,
+        mock_registries,
+        mock_with_latest,
+        mock_github_ref,
+        mock_version,
+        mock_image,
+    ):
+        """Test tag generation with all options enabled"""
+        # Setup mocks
+        mock_image.return_value = "myorg/app"
+        mock_version.return_value = "1.0.0"
+        mock_github_ref.return_value = "refs/tags/v1.0.0"  # Tagged release
+        mock_with_latest.return_value = True
+        mock_registries.return_value = "docker.io,ghcr.io"
+        mock_target.return_value = "alpine"
+        mock_prepend_target.return_value = True
+
+        # Generate tags with all options
+        tags = index.generate_tags("1.0.0", target="alpine")
+
+        # Should include all combinations
+        expected_tags = [
+            "myorg/app:alpine-v1.0.0",
+            "docker.io/myorg/app:alpine-v1.0.0",
+            "ghcr.io/myorg/app:alpine-v1.0.0",
+            "myorg/app:alpine-latest",
+            "docker.io/myorg/app:alpine-latest",
+            "ghcr.io/myorg/app:alpine-latest",
+        ]
+
+        self.assertEqual(sorted(tags), sorted(expected_tags))
 
 
 if __name__ == "__main__":

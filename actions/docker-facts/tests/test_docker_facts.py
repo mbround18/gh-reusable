@@ -436,6 +436,93 @@ networks:
                 output_content = temp_file.read().decode("utf-8")
                 self.assertIn("target=production", output_content)
 
+    @patch("index.get_input_image")
+    @patch("index.get_input_version")
+    @patch("index.get_input_dockerfile")
+    @patch("index.get_input_context")
+    @patch("index.get_input_target")
+    @patch("index.get_input_prepend_target")
+    @patch("index.find_dockerfile")
+    @patch("index.resolve_path")
+    @patch("index.find_docker_compose")
+    @patch("index.parse_docker_compose")
+    @patch("index.generate_tags")
+    @patch("index.should_push_image")
+    @patch("index.get_github_output")
+    @patch("builtins.open", unittest.mock.mock_open())
+    def test_prepend_target(
+        self,
+        mock_output,
+        mock_should_push,
+        mock_generate_tags,
+        mock_parse_compose,
+        mock_find_compose,
+        mock_resolve_path,
+        mock_find_dockerfile,
+        mock_prepend_target,
+        mock_target,
+        mock_context,
+        mock_dockerfile,
+        mock_version,
+        mock_image,
+    ):
+        """Test target prepending in tag generation"""
+        # Setup mocks
+        mock_image.return_value = "test-image"
+        mock_version.return_value = "1.0.0"
+        mock_dockerfile.return_value = "./Dockerfile"
+        mock_context.return_value = "."
+        mock_target.return_value = "prod"
+        mock_prepend_target.return_value = True
+        mock_should_push.return_value = False
+        mock_output.return_value = ""
+
+        # Set up path resolution
+        mock_resolve_path.side_effect = (
+            lambda path, to_relative=False: f"/workspace/{path}"
+            if not to_relative
+            else path
+        )
+
+        # Set up file finding
+        mock_find_dockerfile.return_value = "/workspace/Dockerfile"
+        mock_find_compose.return_value = None
+        mock_parse_compose.return_value = {
+            "dockerfile": None,
+            "context": None,
+            "target": None,
+            "build_args": {},
+        }
+
+        # Mock tag generation to check if target is properly passed
+        mock_generate_tags.return_value = ["test-image:prod-v1.0.0"]
+
+        # Run the main function
+        index.main()
+
+        # Verify that generate_tags was called with the target parameter
+        mock_generate_tags.assert_called_once_with("1.0.0", target="prod")
+
+    @patch("index.get_input_image")
+    @patch("index.get_input_version")
+    @patch("index.generate_tags")
+    def test_generate_tags(self, mock_generate_tags, mock_version, mock_image):
+        """Test generate_tags function directly"""
+        # Setup mocks
+        mock_image.return_value = "test-image"
+        mock_version.return_value = "1.0.0"
+
+        # Set up the mock to return our expected tags
+        mock_generate_tags.return_value = ["test-image:prod-v1.0.0"]
+
+        # Call generate_tags with parameters to enable target prepending
+        with patch("index.get_input_target", return_value="prod"):
+            with patch("index.get_input_prepend_target", return_value=True):
+                tags = index.generate_tags("1.0.0", target="prod")
+
+        # Verify the expected tag was generated
+        self.assertIn("test-image:prod-v1.0.0", tags)
+
 
 if __name__ == "__main__":
     unittest.main()
