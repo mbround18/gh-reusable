@@ -1,105 +1,108 @@
-# 🚀 Docker Facts Action
+# Docker Facts Action
 
-**Extract Dockerfile, context, and build arguments from `docker-compose.yml` or fallback values.**
+This action extracts Dockerfile paths, context directories, and build arguments from docker-compose.yml files or uses provided fallback values. It also generates appropriate Docker tags based on branch, version, and registries.
 
-This action automatically detects the appropriate Dockerfile path, context directory, and build arguments for a given image in your `docker-compose.yml`. If no match is found or the file doesn’t exist, it falls back to provided defaults. It also determines whether the image should be pushed based on the current event context.
+## Features
 
----
+- Automatically locates Dockerfile and context from docker-compose.yml
+- Extract build arguments from docker-compose.yml
+- Generates appropriate tags, including multi-registry support
+- Smart decision logic for when to push images
+- Support for multi-stage builds
 
-## 🧰 Usage
+## Inputs
 
-```yaml
-jobs:
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+| Name             | Description                                                            | Required | Default        |
+| ---------------- | ---------------------------------------------------------------------- | -------- | -------------- |
+| `image`          | The name of the image to build                                         | Yes      |                |
+| `version`        | The version to tag the image with                                      | Yes      |                |
+| `registries`     | Comma-separated list of registries to push to                          | No       |                |
+| `dockerfile`     | Path to the Dockerfile (fallback if not found in docker-compose)       | No       | `./Dockerfile` |
+| `context`        | Path to the build context (fallback if not found in docker-compose)    | No       | `.`            |
+| `canary_label`   | Label to check for when determining if a canary build should be pushed | No       | `canary`       |
+| `force_push`     | Force push the image even if conditions are not met                    | No       | `false`        |
+| `with_latest`    | Also tag the image with latest                                         | No       | `false`        |
+| `target`         | Target stage to build                                                  | No       |                |
+| `prepend_target` | Prepend target to the tag name                                         | No       | `false`        |
 
-      - name: Get Docker Build Facts
-        id: facts
-        uses: mbround18/gh-reusable/actions/docker-facts@v0.0.6
-        with:
-          image: mbround18/steamcmd
-          dockerfile: ./Dockerfile # optional fallback
-          context: . # optional fallback
-          canary_label: canary # optional label match
-
-      - name: Show Results
-        run: |
-          echo "Dockerfile: ${{ steps.facts.outputs.dockerfile }}"
-          echo "Context: ${{ steps.facts.outputs.context }}"
-          echo "Should Push: ${{ steps.facts.outputs.push }}"
-```
-
----
-
-## 📥 Inputs
-
-| Name           | Description                                                                    | Required | Default        |
-| -------------- | ------------------------------------------------------------------------------ | -------- | -------------- |
-| `image`        | Base image name (e.g., `mbround18/steamcmd`) to match in `docker-compose.yml`. | ✅ Yes   | N/A            |
-| `dockerfile`   | Fallback Dockerfile path if not found in `docker-compose.yml`.                 | No       | `./Dockerfile` |
-| `context`      | Fallback build context if not found in `docker-compose.yml`.                   | No       | `.`            |
-| `canary_label` | Optional PR label to allow canary push on pull requests.                       | No       | `canary`       |
-
----
-
-## 📤 Outputs
+## Outputs
 
 | Name         | Description                                        |
 | ------------ | -------------------------------------------------- |
-| `dockerfile` | Dockerfile path from compose or fallback.          |
-| `context`    | Context path from compose or fallback.             |
-| `push`       | Whether the build should be pushed (`true/false`). |
+| `dockerfile` | Path to the Dockerfile to use                      |
+| `context`    | Path to the build context to use                   |
+| `target`     | Target stage to build (if any)                     |
+| `push`       | Whether to push the image (true/false)             |
+| `tags`       | Comma-separated list of tags to apply to the image |
 
----
+## Usage
 
-## 🧠 Behavior
+### Basic Usage
 
-- If `docker-compose.yml` exists and contains a service whose image starts with `${image}:`, the action extracts:
-  - `build.dockerfile`
-  - `build.context`
-  - `build.args` (exported to `$BUILD_ARG_*` environment variables)
-- If not found, it uses the fallback `dockerfile` and `context` values.
-- The `push` output is set to `true` if:
-  - PR includes the `canary_label`
-  - Or the ref is the default branch
-  - Or the ref is a tag
+```yaml
+- name: Get Docker Facts
+  id: docker-facts
+  uses: mbround18/gh-reusable/actions/docker-facts@main
+  with:
+    image: my-app
+    version: 1.0.0
+```
 
----
+### Using with Docker Build Action
 
-## 🔗 Related Resources
+```yaml
+- name: Get Docker Facts
+  id: docker-facts
+  uses: mbround18/gh-reusable/actions/docker-facts@main
+  with:
+    image: my-app
+    version: ${{ github.event.release.tag_name }}
+    registries: docker.io,ghcr.io
+    with_latest: true
 
-- [@actions/core](https://github.com/actions/toolkit/tree/main/packages/core)
-- [js-yaml](https://github.com/nodeca/js-yaml)
-- [GitHub Actions Context Docs](https://docs.github.com/en/actions/learn-github-actions/contexts)
+- name: Build and Push Docker Image
+  uses: docker/build-push-action@v4
+  with:
+    context: ${{ steps.docker-facts.outputs.context }}
+    file: ${{ steps.docker-facts.outputs.dockerfile }}
+    target: ${{ steps.docker-facts.outputs.target }}
+    push: ${{ steps.docker-facts.outputs.push }}
+    tags: ${{ steps.docker-facts.outputs.tags }}
+```
 
----
+### Using with docker-compose.yml
 
-## 🛠 Example Compose
+If you have a docker-compose.yml file like this:
 
 ```yaml
 services:
-  game-server:
-    image: mbround18/steamcmd:latest
+  app:
+    image: my-app:latest
     build:
-      context: ./server
-      dockerfile: Dockerfile
+      context: ./app
+      dockerfile: Dockerfile.prod
+      target: production
       args:
-        VERSION: 1.2.3
-        DEBUG: true
+        VERSION: 1.0.0
+        DEBUG: "false"
 ```
 
-This action would detect:
+The action will automatically extract:
 
-- Dockerfile: `Dockerfile`
-- Context: `./server`
-- Exported ENV: `BUILD_ARG_VERSION=1.2.3`, `BUILD_ARG_DEBUG=true`
+1. `dockerfile` = `./app/Dockerfile.prod`
+2. `context` = `./app`
+3. `target` = `production`
+4. Build args will be available as `BUILD_ARG_VERSION` and `BUILD_ARG_DEBUG` environment variables
 
----
+## Push Rules
 
-## 📦 Contributing
+Images will be pushed when:
 
-Pull requests welcome! If you hit issues or have suggestions, feel free to open an issue or PR.
-if you want this published to the Marketplace with metadata and logo, or bundled into a reusable workflow template.zs
+1. The action is on the default branch (main/master)
+2. The action is on a tagged release
+3. The PR has the canary label (configurable via `canary_label` input)
+4. Force push is enabled (`force_push: true`)
+
+## License
+
+MIT

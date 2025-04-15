@@ -1,16 +1,41 @@
-FROM node:23-slim
+# Build stage
+FROM python:3.13-slim AS builder
 
 # Set the working directory
 WORKDIR /action
 
-# Copy package.json (and package-lock.json if available)
-COPY package.json package-lock.json* ./
+# # Install system dependencies required for building Python packages
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     build-essential \
+#     curl \
+#     && rm -rf /var/lib/apt/lists/*
 
-# Install production dependencies
-RUN npm install --production
+# Install PDM
+RUN pip install --no-cache-dir pdm
 
-# Copy the rest of the action code
+# Disable PDM update check
+ENV PDM_CHECK_UPDATE=false
+
+# Copy pyproject.toml and pdm.lock (if available) 
+COPY pyproject.toml pdm.lock* ./
+
+# Install dependencies and project into a local virtual environment
+RUN pdm install --check --prod --no-editable
+
+# Runtime stage
+FROM python:3.13-slim
+
+# Set the working directory
+WORKDIR /action
+
+# Copy the virtual environment from the builder stage
+COPY --from=builder /action/.venv/ /action/.venv/
+
+# Set the PATH to include the virtual environment's bin directory
+ENV PATH="/action/.venv/bin:$PATH"
+
+# Copy the action code
 COPY . .
 
-# Define the entrypoint to run your action script
-ENTRYPOINT ["node", "/action/index.js"]
+# Define the entrypoint
+ENTRYPOINT ["python", "/action/index.py"]

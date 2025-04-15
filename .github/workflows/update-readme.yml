@@ -15,11 +15,6 @@ on:
     paths:
       - "actions/**/action.yml"
       - "README.md"
-    paths-ignore:
-      - "**/*.md"
-      - "!README.md"
-      - ".github/workflows/**"
-      - "!.github/workflows/update-readme.yml"
 
 permissions:
   contents: write

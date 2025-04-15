@@ -33,10 +33,6 @@ on:
         type: string
         default: "mbround18"
         description: Who to log into dockerhub as.
-      working-directory:
-        type: string
-        default: "."
-        description: "Working directory for the action"
       semver_prefix:
         type: string
         default: ""
@@ -83,27 +79,9 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ${{ inputs.working-directory }}
+        working-directory: ${{ inputs.context }}
     steps:
       - uses: actions/checkout@v4
-
-      - id: vars
-        name: Expanding Vars
-        run: |
-          CONTEXT="${GITHUB_WORKSPACE}/${WORKING_DIRECTORY}/${INPUT_CONTEXT}"
-          RELATIVE_CONTEXT=$(realpath --relative-to="${GITHUB_WORKSPACE}" "$CONTEXT")
-          echo "context=./$RELATIVE_CONTEXT" >> "$GITHUB_OUTPUT"
-
-          DOCKERFILE="${GITHUB_WORKSPACE}/${WORKING_DIRECTORY}/${INPUT_DOCKERFILE}"
-          RELATIVE_DOCKERFILE=$(realpath --relative-to="${GITHUB_WORKSPACE}" "$DOCKERFILE")
-          echo "dockerfile=./$RELATIVE_DOCKERFILE" >> "$GITHUB_OUTPUT"
-
-          echo "dockerfile=$DOCKERFILE"
-          echo "context=$CONTEXT"
-        env:
-          WORKING_DIRECTORY: ${{ inputs.working-directory }}
-          INPUT_CONTEXT: ${{ inputs.context }}
-          INPUT_DOCKERFILE: ${{ inputs.dockerfile }}
 
       - if: ${{ inputs.download_artifact != '' }}
         uses: actions/download-artifact@v4
@@ -113,16 +91,16 @@ jobs:
       - run: |
           echo "Running Docker Release Workflow"
           echo "Image: ${{ inputs.image }}"
-          echo "Working Directory: ${{ inputs.working-directory }}"
+          echo "Working Directory: ${{ inputs.context }}"
           echo "Dockerfile: ${{ inputs.dockerfile }}"
 
-      - uses: mbround18/gh-reusable/actions/install-cli@main
+      - uses: mbround18/gh-reusable/actions/install-cli@upgrade-docker-facts
         with:
           repository: "mikefarah/yq"
           asset: "yq_linux_amd64"
           override-name: "yq"
       - id: semver
-        uses: mbround18/gh-reusable/actions/semver@main
+        uses: mbround18/gh-reusable/actions/semver@upgrade-docker-facts
         with:
           prefix: ${{ inputs.semver_prefix }}
       - name: Set up Docker Buildx
@@ -151,13 +129,13 @@ jobs:
 
       - name: Docker Facts
         id: docker-facts
-        uses: mbround18/gh-reusable/actions/docker-facts@main
+        uses: mbround18/gh-reusable/actions/docker-facts@upgrade-docker-facts
         with:
           image: ${{ inputs.image }}
           version: ${{ steps.semver.outputs.new_version }}
           registries: ${{ steps.registries.outputs.list }}
-          dockerfile: ${{ steps.vars.outputs.dockerfile }}
-          context: ${{ steps.vars.outputs.context }}
+          dockerfile: ${{ inputs.dockerfile }}
+          context: ${{ inputs.context }}
           canary_label: ${{ inputs.canary_label }}
           prepend_target: ${{ inputs.prepend_target }}
           target: ${{ inputs.target }}
