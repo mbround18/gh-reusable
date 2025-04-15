@@ -36,9 +36,32 @@ class TestMainFunction(unittest.TestCase):
         # Setup mocks
         mock_find_docker_compose.return_value = None
         mock_should_push.return_value = True
-        mock_resolve_path.side_effect = (
-            lambda path: f"/workspace/{path}" if path else ""
-        )
+
+        # Fix mock to properly handle to_relative parameter
+        def mock_resolve_path_impl(path, to_relative=False):
+            if not path:
+                return ""
+
+            # For absolute to relative conversion
+            if to_relative:
+                # If path starts with /workspace/, strip it and add ./ if needed
+                if path.startswith("/workspace/"):
+                    rel_path = path[len("/workspace/") :]
+                    return (
+                        "./" + rel_path
+                        if rel_path and not rel_path.startswith(".")
+                        else "./"
+                    )
+                # Already relative or outside workspace
+                return path
+            else:
+                # For path to absolute conversion
+                if os.path.isabs(path):
+                    return path
+                # Join with workspace
+                return os.path.join("/workspace", path.lstrip("./"))
+
+        mock_resolve_path.side_effect = mock_resolve_path_impl
         mock_generate_tags.return_value = ["test-image:v1.0.0", "test-image:latest"]
 
         # Test with GitHub output file
@@ -57,8 +80,8 @@ class TestMainFunction(unittest.TestCase):
                 temp_file.seek(0)
                 output_content = temp_file.read().decode("utf-8")
 
-                self.assertIn("dockerfile=", output_content)
-                self.assertIn("context=", output_content)
+                self.assertIn("dockerfile=./Dockerfile", output_content)
+                self.assertIn("context=./", output_content)
                 self.assertIn("push=true", output_content)
                 self.assertIn(
                     "tags=test-image:v1.0.0,test-image:latest", output_content

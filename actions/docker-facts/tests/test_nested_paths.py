@@ -19,124 +19,120 @@ class TestNestedPaths(unittest.TestCase):
     def tearDown(self):
         self.env_patcher.stop()
 
-    @patch("index.find_docker_compose")
-    @patch("index.parse_docker_compose")
-    def test_nested_context_resolution(self, mock_parse_compose, mock_find_compose):
-        """Test resolution of nested context paths from Docker Compose."""
-        # Setup mocks
-        mock_find_compose.return_value = "/workspace/docker-compose.yml"
-        mock_parse_compose.return_value = {
+    def test_nested_context_resolution(self):
+        """Test nested context and dockerfile resolution."""
+        # Mock a compose file that has both dockerfile and context
+        mock_compose_data = {
             "dockerfile": "Dockerfile.prod",
-            "context": "./app",
+            "context": "app",
             "target": "production",
             "build_args": {},
         }
 
-        # Create a temp file for GITHUB_OUTPUT
-        with tempfile.NamedTemporaryFile() as temp_file:
+        with (
+            patch(
+                "index.find_docker_compose",
+                return_value="/workspace/docker-compose.yml",
+            ),
+            patch("index.parse_docker_compose", return_value=mock_compose_data),
+            tempfile.NamedTemporaryFile() as temp_file,
+        ):
             with patch.dict(
                 "os.environ",
                 {
                     "GITHUB_OUTPUT": temp_file.name,
                     "INPUT_IMAGE": "test-image",
                     "INPUT_VERSION": "1.0.0",
-                    "INPUT_CONTEXT": "./docker",  # Nested context
+                    "INPUT_CONTEXT": "docker",
+                    "INPUT_DOCKERFILE": "Dockerfile.default",
                 },
             ):
                 index.main()
 
-                # Read the output file
+                # Check output file
                 temp_file.seek(0)
                 output_content = temp_file.read().decode("utf-8")
 
-                # Should resolve to '/workspace/docker/app'
-                expected_context = os.path.normpath("/workspace/docker/app")
-                self.assertIn(f"context={expected_context}", output_content)
+                # Now expect relative paths
+                self.assertIn("dockerfile=./docker/app/Dockerfile.prod", output_content)
+                self.assertIn("context=./docker/app", output_content)
+                self.assertIn("target=production", output_content)
 
-                # Dockerfile should be resolved relative to context
-                expected_dockerfile = os.path.normpath(
-                    "/workspace/docker/app/Dockerfile.prod"
-                )
-                self.assertIn(f"dockerfile={expected_dockerfile}", output_content)
-
-    @patch("index.find_docker_compose")
-    @patch("index.parse_docker_compose")
-    def test_dockerfile_without_context(self, mock_parse_compose, mock_find_compose):
-        """Test resolution of dockerfile without context in Docker Compose."""
-        # Setup mocks
-        mock_find_compose.return_value = "/workspace/docker-compose.yml"
-        mock_parse_compose.return_value = {
+    def test_dockerfile_without_context(self):
+        """Test handling of dockerfile-only specification in docker-compose."""
+        # Mock a compose file that has dockerfile but no context
+        mock_compose_data = {
             "dockerfile": "Dockerfile.special",
             "context": None,
             "target": None,
             "build_args": {},
         }
 
-        # Create a temp file for GITHUB_OUTPUT
-        with tempfile.NamedTemporaryFile() as temp_file:
+        with (
+            patch(
+                "index.find_docker_compose",
+                return_value="/workspace/docker-compose.yml",
+            ),
+            patch("index.parse_docker_compose", return_value=mock_compose_data),
+            tempfile.NamedTemporaryFile() as temp_file,
+        ):
             with patch.dict(
                 "os.environ",
                 {
                     "GITHUB_OUTPUT": temp_file.name,
                     "INPUT_IMAGE": "test-image",
                     "INPUT_VERSION": "1.0.0",
-                    "INPUT_CONTEXT": "./docker",  # Nested context
+                    "INPUT_CONTEXT": "docker",
+                    "INPUT_DOCKERFILE": "Dockerfile.default",
                 },
             ):
                 index.main()
 
-                # Read the output file
+                # Check output file
                 temp_file.seek(0)
                 output_content = temp_file.read().decode("utf-8")
 
-                # Context should be input context
-                expected_context = os.path.normpath("/workspace/docker")
-                self.assertIn(f"context={expected_context}", output_content)
+                # Now expect relative paths
+                self.assertIn("dockerfile=./docker/Dockerfile.special", output_content)
+                self.assertIn("context=./docker", output_content)
 
-                # Dockerfile should be resolved relative to input context
-                expected_dockerfile = os.path.normpath(
-                    "/workspace/docker/Dockerfile.special"
-                )
-                self.assertIn(f"dockerfile={expected_dockerfile}", output_content)
-
-    @patch("index.find_docker_compose")
-    @patch("index.parse_docker_compose")
-    def test_context_only(self, mock_parse_compose, mock_find_compose):
-        """Test resolution of context only in Docker Compose."""
-        # Setup mocks
-        mock_find_compose.return_value = "/workspace/docker-compose.yml"
-        mock_parse_compose.return_value = {
+    def test_context_only(self):
+        """Test handling of context-only specification in docker-compose."""
+        # Mock a compose file that has only context (no dockerfile)
+        mock_compose_data = {
             "dockerfile": None,
-            "context": "./web",
+            "context": "web",
             "target": None,
             "build_args": {},
         }
 
-        # Create a temp file for GITHUB_OUTPUT
-        with tempfile.NamedTemporaryFile() as temp_file:
+        with (
+            patch(
+                "index.find_docker_compose",
+                return_value="/workspace/docker-compose.yml",
+            ),
+            patch("index.parse_docker_compose", return_value=mock_compose_data),
+            tempfile.NamedTemporaryFile() as temp_file,
+        ):
             with patch.dict(
                 "os.environ",
                 {
                     "GITHUB_OUTPUT": temp_file.name,
                     "INPUT_IMAGE": "test-image",
                     "INPUT_VERSION": "1.0.0",
-                    "INPUT_CONTEXT": "./docker",  # Nested context
-                    "INPUT_DOCKERFILE": "Dockerfile.default",  # Custom default
+                    "INPUT_CONTEXT": "docker",
+                    "INPUT_DOCKERFILE": "Dockerfile.default",
                 },
             ):
                 index.main()
 
-                # Read the output file
+                # Check output file
                 temp_file.seek(0)
                 output_content = temp_file.read().decode("utf-8")
 
-                # Context should be input context + compose context
-                expected_context = os.path.normpath("/workspace/docker/web")
-                self.assertIn(f"context={expected_context}", output_content)
-
-                # Dockerfile should be from input, but not resolved within the composed context
-                expected_dockerfile = os.path.normpath("/workspace/Dockerfile.default")
-                self.assertIn(f"dockerfile={expected_dockerfile}", output_content)
+                # Now expect relative paths
+                self.assertIn("dockerfile=./Dockerfile.default", output_content)
+                self.assertIn("context=./docker/web", output_content)
 
     @patch("index.find_docker_compose")
     @patch("index.parse_docker_compose")

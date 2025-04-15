@@ -34,9 +34,29 @@ class TestDockerFacts(unittest.TestCase):
         self.env_patcher.stop()
 
     def test_resolve_path(self):
+        # Test conversion to absolute paths
         self.assertEqual(index.resolve_path("./test"), "/workspace/test")
         self.assertEqual(index.resolve_path("/absolute/path"), "/absolute/path")
         self.assertEqual(index.resolve_path(""), "")
+
+        # Test conversion to workspace-relative paths
+        with patch.dict("os.environ", {"GITHUB_WORKSPACE": "/workspace"}):
+            self.assertEqual(
+                index.resolve_path("/workspace/test", to_relative=True), "./test"
+            )
+            self.assertEqual(
+                index.resolve_path("/workspace/nested/path", to_relative=True),
+                "./nested/path",
+            )
+            # Test handling of paths already relative or outside workspace
+            self.assertEqual(
+                index.resolve_path("./already/relative", to_relative=True),
+                "./already/relative",
+            )
+            self.assertEqual(
+                index.resolve_path("/outside/workspace", to_relative=True),
+                "/outside/workspace",
+            )
 
     @patch("os.path.exists")
     def test_find_docker_compose(self, mock_exists):
@@ -296,9 +316,18 @@ networks:
         # Setup mocks
         mock_find_docker_compose.return_value = None
         mock_should_push.return_value = True
+
+        # Update mock to handle to_relative parameter
         mock_resolve_path.side_effect = (
-            lambda path: f"/workspace/{path}" if path else ""
+            lambda path, to_relative=False: (
+                f"./{''.join(path.split('/')[-1:])}"
+                if to_relative
+                else f"/workspace/{path}"
+            )
+            if path
+            else ""
         )
+
         mock_generate_tags.return_value = ["test-image:v1.0.0", "test-image:latest"]
 
         # Test with GitHub output file

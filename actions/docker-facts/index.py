@@ -113,15 +113,34 @@ def load_event_data() -> Dict:
     return event_data
 
 
-def resolve_path(path: str) -> str:
-    """Resolve a path relative to the GitHub workspace"""
+def resolve_path(path: str, to_relative: bool = False) -> str:
+    """
+    Resolve a path relative to the GitHub workspace.
+
+    Args:
+        path: The path to resolve
+        to_relative: If True, convert absolute paths to workspace-relative paths
+
+    Returns:
+        Resolved path, either absolute or relative to workspace
+    """
     if not path:
         return ""
-    if os.path.isabs(path):
-        return path
+
     workspace = get_github_workspace()
-    # Join with workspace and normalize to handle .. notation
-    return os.path.normpath(os.path.join(workspace, path.lstrip("./")))
+
+    if to_relative:
+        # Convert absolute path to workspace-relative path
+        if path.startswith(workspace):
+            rel_path = os.path.relpath(path, workspace)
+            return "./" + rel_path if not rel_path.startswith(".") else rel_path
+        return path
+    else:
+        # Convert relative path to absolute path
+        if os.path.isabs(path):
+            return path
+        # Join with workspace and normalize to handle .. notation
+        return os.path.normpath(os.path.join(workspace, path.lstrip("./")))
 
 
 def find_docker_compose() -> Optional[str]:
@@ -335,7 +354,7 @@ def main():
     input_context = get_input_context()
     input_dockerfile = get_input_dockerfile()
 
-    # Initialize result with defaults
+    # Initialize result with defaults - initially use absolute paths for processing
     result = {
         "dockerfile": resolve_path(input_dockerfile),
         "context": resolve_path(input_context),
@@ -383,6 +402,10 @@ def main():
     # Generate tags
     tags = generate_tags(get_input_version())
     result["tags"] = ",".join(tags)
+
+    # Convert paths to relative format before output
+    result["dockerfile"] = resolve_path(result["dockerfile"], to_relative=True)
+    result["context"] = resolve_path(result["context"], to_relative=True)
 
     # Log results
     logger.info(f"Dockerfile: {result['dockerfile']}")
