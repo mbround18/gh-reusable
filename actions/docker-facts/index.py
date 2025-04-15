@@ -190,8 +190,16 @@ def find_dockerfile(dockerfile_path: str, context_path: str) -> str:
     return abs_dockerfile
 
 
-def find_docker_compose() -> Optional[str]:
-    """Find docker-compose.yml in the repository"""
+def find_docker_compose(context_path: str = None) -> Optional[str]:
+    """
+    Find docker-compose.yml in the repository
+    
+    Args:
+        context_path: Optional context directory to also search in
+        
+    Returns:
+        Path to the found docker-compose file or None
+    """
     compose_paths = [
         "docker-compose.yml",
         "docker-compose.yaml",
@@ -200,12 +208,24 @@ def find_docker_compose() -> Optional[str]:
     ]
 
     workspace = get_github_workspace()
+    
+    # Search in workspace first for each file
     for path in compose_paths:
-        # For test compatibility, use the exact expected path format
         full_path = os.path.join(workspace, path)
         if os.path.exists(full_path):
-            logger.info(f"Found Docker Compose file: {full_path}")
+            logger.info(f"Found Docker Compose file in workspace: {full_path}")
             return full_path
+    
+    # If not found in workspace and context path is provided and different from workspace, 
+    # search there
+    if context_path and context_path not in [".", "./"]:
+        abs_context = resolve_path(context_path)
+        if abs_context != workspace:
+            for path in compose_paths:
+                full_path = os.path.join(abs_context, path)
+                if os.path.exists(full_path):
+                    logger.info(f"Found Docker Compose file in context: {full_path}")
+                    return full_path
 
     logger.info("No Docker Compose file found")
     return None
@@ -415,12 +435,12 @@ def main():
         "target": get_input_target(),
         "push": should_push_image(),
     }
-
+    
     # First resolve the dockerfile path with our more robust finder
     result["dockerfile"] = find_dockerfile(input_dockerfile, input_context)
 
-    # Find and parse docker-compose file
-    compose_file = find_docker_compose()
+    # Find and parse docker-compose file - now passing the context path
+    compose_file = find_docker_compose(input_context)
     if compose_file:
         compose_data = parse_docker_compose(compose_file, get_input_image())
 
@@ -435,17 +455,13 @@ def main():
                 dockerfile_path = os.path.join(
                     compose_context, compose_data["dockerfile"]
                 )
-                result["dockerfile"] = find_dockerfile(
-                    dockerfile_path, result["context"]
-                )
+                result["dockerfile"] = find_dockerfile(dockerfile_path, result["context"])
             else:
                 # No context in compose, just resolve dockerfile relative to input context
                 dockerfile_path = os.path.join(
                     input_context, compose_data["dockerfile"]
                 )
-                result["dockerfile"] = find_dockerfile(
-                    dockerfile_path, result["context"]
-                )
+                result["dockerfile"] = find_dockerfile(dockerfile_path, result["context"])
         elif compose_data["context"]:
             # Only context specified in compose, resolve it relative to input context
             compose_context = os.path.join(input_context, compose_data["context"])
