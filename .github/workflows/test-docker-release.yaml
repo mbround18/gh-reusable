@@ -30,8 +30,8 @@ jobs:
       - name: Verify Repo is mbround18/gh-reusable
         uses: mbround18/gh-reusable/actions/ensure-repository@v0.0.6
 
-  run_npm_tests:
-    name: Run npm tests for Docker Facts
+  run_tests:
+    name: Run tests for Docker Facts
     runs-on: ubuntu-latest
     needs: ensure_repository
     defaults:
@@ -56,35 +56,26 @@ jobs:
         run: pdm run test
 
   call_docker_release:
+    needs: run_tests
     name: Call Docker Release Workflow
     uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@upgrade-docker-facts
     with:
       image: "mbround18/gh-reusable-testing" # Specify the test image name here
       ghcr: true
-      working-directory: "tests/docker"
+      context: "tests/docker"
     secrets: inherit
 
   call_docker_release_compose:
+    needs: call_docker_release
     strategy:
       matrix:
         target: ["compose", "compose2"]
+        prepend_target: [false, true]
     name: Call Docker Release Workflow (Compose)
     uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@upgrade-docker-facts
     with:
       image: "mbround18/gh-reusable-testing-${{matrix.target}}" # Specify the test image name here
       ghcr: true
-      working-directory: "tests/docker-compose"
-    secrets: inherit
-
-  call_docker_release_compose_with_target:
-    strategy:
-      matrix:
-        target: ["compose", "compose2"]
-    name: Call Docker Release Workflow (Compose)
-    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@upgrade-docker-facts
-    with:
-      image: "mbround18/gh-reusable-testing-${{matrix.target}}" # Specify the test image name here
-      ghcr: true
-      prepend_target: true
-      working-directory: "tests/docker-compose"
+      prepend_target: ${{ matrix.prepend_target }}
+      context: "tests/docker-compose"
     secrets: inherit
