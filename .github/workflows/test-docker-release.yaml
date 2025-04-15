@@ -41,18 +41,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: pdm-project/setup-pdm@v3
         with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: actions/docker-facts/package-lock.json
+          python-version: 3.13
+          cache: true
+          cache-dependency-path: |
+            ./actions/docker-facts/pdm.lock
+            ./actions/docker-facts/pdm.new.lock
 
       - name: Install dependencies
-        run: npm install
+        run: pdm install
 
       - name: Run tests
-        run: npm test
+        run: pdm run test
 
   call_docker_release:
     name: Call Docker Release Workflow

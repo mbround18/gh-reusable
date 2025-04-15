@@ -291,6 +291,10 @@ def generate_tags(version: str, registries: List[str] = None) -> List[str]:
     input_target = get_input_target()
     if input_target and get_input_prepend_target():
         target_prefix = f"{input_target}-"
+    elif get_input_prepend_target() and not input_target:
+        logger.warning(
+            "Target prepending enabled but no target provided. Skipping target prefix."
+        )
 
     # Main version tag
     version_tag = (
@@ -309,7 +313,11 @@ def generate_tags(version: str, registries: List[str] = None) -> List[str]:
     )
 
     if get_input_with_latest() and is_release_version:
-        tags.append(f"{base_img}:latest")
+        # If prepending target, also add it to latest tag
+        if target_prefix:
+            tags.append(f"{base_img}:{target_prefix}latest")
+        else:
+            tags.append(f"{base_img}:latest")
 
     # Generate registry-prefixed tags
     all_tags = []

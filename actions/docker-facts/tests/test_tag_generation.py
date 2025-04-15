@@ -106,11 +106,11 @@ class TestTagGeneration(unittest.TestCase):
         ):
             tags = index.generate_tags("1.0.0")
             self.assertIn("myorg/app:alpine-v1.0.0", tags)
-            self.assertIn("myorg/app:latest", tags)
+            self.assertIn("myorg/app:alpine-latest", tags)
             self.assertIn("docker.io/myorg/app:alpine-v1.0.0", tags)
-            self.assertIn("docker.io/myorg/app:latest", tags)
+            self.assertIn("docker.io/myorg/app:alpine-latest", tags)
             self.assertIn("ghcr.io/myorg/app:alpine-v1.0.0", tags)
-            self.assertIn("ghcr.io/myorg/app:latest", tags)
+            self.assertIn("ghcr.io/myorg/app:alpine-latest", tags)
 
     def test_generate_tags_with_empty_image(self):
         """Test tag generation with empty image name."""
