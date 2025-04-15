@@ -1,16 +1,22 @@
-FROM node:23-slim
+FROM python:3.13-slim
 
 # Set the working directory
 WORKDIR /action
 
-# Copy package.json (and package-lock.json if available)
-COPY package.json package-lock.json* ./
+# Install system dependencies required for building Python packages and installing PDM
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential curl && rm -rf /var/lib/apt/lists/*
 
-# Install production dependencies
-RUN npm install --production
+# Install PDM, the Python dependency manager
+RUN pip install --no-cache-dir pdm
+
+# Copy pyproject.toml and pdm.lock (if available) to install dependencies
+COPY pyproject.toml pdm.lock* ./
+
+# Install production dependencies using PDM
+RUN pdm install --prod
 
 # Copy the rest of the action code
 COPY . .
 
-# Define the entrypoint to run your action script
-ENTRYPOINT ["node", "/action/index.js"]
+# Define the entrypoint to run your action script. Make sure your main file is at /action/index.py.
+ENTRYPOINT ["pdm", "run", "python", "/action/index.py"]
