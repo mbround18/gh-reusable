@@ -252,7 +252,7 @@ describe("getLastTag", () => {
       mockOctokit,
       "owner",
       "repo",
-      "",
+      undefined,
       "",
       mockCore,
     );
@@ -293,5 +293,29 @@ describe("getLastTag", () => {
     await expect(
       getLastTag(mockOctokit, "owner", "repo", "v", "", mockCore),
     ).rejects.toThrow("Failed to fetch last tag information");
+  });
+
+  test("should use empty prefix when explicitly provided", async () => {
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        refs: {
+          nodes: [{ name: "1.0.0" }, { name: "1.2.0" }, { name: "1.1.0" }],
+        },
+      },
+    });
+
+    const result = await getLastTag(
+      mockOctokit,
+      "owner",
+      "repo",
+      "",
+      "",
+      mockCore,
+    );
+
+    expect(result).toEqual({
+      lastTag: "1.2.0",
+      updatedPrefix: "",
+    });
   });
 });

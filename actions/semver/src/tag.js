@@ -69,12 +69,13 @@ async function getLastTag(octokit, owner, repo, prefix, base, core) {
 
     // If no tags found, return default version with prefix
     if (tags.length === 0) {
-      return { lastTag: `${prefix || "v"}0.0.0`, updatedPrefix: prefix || "v" };
+      const defaultPrefix = prefix !== undefined ? prefix : "v";
+      return { lastTag: `${defaultPrefix}0.0.0`, updatedPrefix: defaultPrefix };
     }
 
     // If prefix wasn't provided but all tags start with 'v', use 'v' as prefix
     let updatedPrefix = prefix;
-    if (!prefix && tags.every((tag) => tag.startsWith("v"))) {
+    if (prefix === undefined && tags.every((tag) => tag.startsWith("v"))) {
       updatedPrefix = "v";
     }
 
@@ -85,9 +86,10 @@ async function getLastTag(octokit, owner, repo, prefix, base, core) {
 
     // If no matching tags, return default version with prefix
     if (filteredTags.length === 0) {
+      const defaultPrefix = updatedPrefix !== undefined ? updatedPrefix : "v";
       return {
-        lastTag: `${updatedPrefix || "v"}0.0.0`,
-        updatedPrefix: updatedPrefix || "v",
+        lastTag: `${defaultPrefix}0.0.0`,
+        updatedPrefix: defaultPrefix,
       };
     }
 
@@ -140,7 +142,7 @@ async function getLastTag(octokit, owner, repo, prefix, base, core) {
       }
     }
 
-    return { lastTag, updatedPrefix: updatedPrefix || "" };
+    return { lastTag, updatedPrefix: updatedPrefix !== undefined ? updatedPrefix : "" };
   } catch (error) {
     // Use core.warning if available, otherwise fallback to console.warn
     if (core && typeof core.warning === "function") {
