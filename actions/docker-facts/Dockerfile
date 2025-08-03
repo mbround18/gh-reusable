@@ -1,29 +1,18 @@
 # Build stage
-FROM python:3.13-slim AS builder
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 
 # Set the working directory
 WORKDIR /action
 
-# # Install system dependencies required for building Python packages
-# RUN apt-get update && apt-get install -y --no-install-recommends \
-#     build-essential \
-#     curl \
-#     && rm -rf /var/lib/apt/lists/*
+# Copy dependency files
+COPY pyproject.toml uv.lock* ./
 
-# Install PDM
-RUN pip install --no-cache-dir pdm
-
-# Disable PDM update check
-ENV PDM_CHECK_UPDATE=false
-
-# Copy pyproject.toml and pdm.lock (if available) 
-COPY pyproject.toml pdm.lock* ./
-
-# Install dependencies and project into a local virtual environment
-RUN pdm install --check --prod --no-editable
+# Install dependencies into the virtual environment
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-install-project --no-dev
 
 # Runtime stage
-FROM python:3.13-slim
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 
 # Set the working directory
 WORKDIR /action

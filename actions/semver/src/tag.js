@@ -142,7 +142,10 @@ async function getLastTag(octokit, owner, repo, prefix, base, core) {
       }
     }
 
-    return { lastTag, updatedPrefix: updatedPrefix !== undefined ? updatedPrefix : "" };
+    return {
+      lastTag,
+      updatedPrefix: updatedPrefix !== undefined ? updatedPrefix : "",
+    };
   } catch (error) {
     // Use core.warning if available, otherwise fallback to console.warn
     if (core && typeof core.warning === "function") {

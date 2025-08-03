@@ -34,7 +34,6 @@ The action accomplishes several key tasks:
 
 5. **Final Composite Output:**  
    The key outcome of the process is a composite metadata object that bundles together:
-
    - The **Dockerfile path** and resolved **build context**, including any adjustments made after parsing a Docker Compose file.
    - The **build target** and any additional build arguments, whether specified directly or derived from the compose file.
    - A complete set of **Docker image tags** generated from the version input, and appropriately cascaded for multiple registries.

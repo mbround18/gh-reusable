@@ -1,7 +1,7 @@
-FROM ubuntu:24.04 as base
+FROM ubuntu:24.04 AS base
 
 CMD ["echo", "Hello from the Dockerfile!"]
 
-FROM ubuntu:24.04 as test
+FROM ubuntu:24.04 AS test
 
 CMD ["echo", "Hello from the Dockerfile!"]
