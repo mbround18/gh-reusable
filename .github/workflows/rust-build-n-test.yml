@@ -33,7 +33,7 @@ jobs:
     name: Build & Test
     runs-on: ${{ inputs.runs-on }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup | Rust | ${{ inputs.toolchain }}
         uses: mbround18/gh-reusable/actions/setup-rust@v0.0.6
