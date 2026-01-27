@@ -6,7 +6,7 @@
   "author": "mbround18",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "1.11.1",
+    "@actions/core": "2.0.3",
     "@actions/github": "6.0.1",
     "semver": "7.7.3"
   },
