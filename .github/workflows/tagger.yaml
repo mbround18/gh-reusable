@@ -18,6 +18,13 @@ on:
         required: true
         description: "GitHub token with permissions to push tags"
 
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   tagger:
     runs-on: ubuntu-latest

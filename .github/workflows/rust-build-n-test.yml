@@ -11,7 +11,9 @@ on:
       components:
         required: false
         type: string
-        description: "Comma-separated list of Rust components to install (e.g., rustfmt, clippy)."
+        description:
+          "Comma-separated list of Rust components to install (e.g., rustfmt,
+          clippy)."
         default: "clippy rustfmt"
       target:
         required: false
@@ -27,6 +29,10 @@ on:
 env:
   NAME: "Rust Test"
   CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:

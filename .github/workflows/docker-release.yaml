@@ -36,11 +36,13 @@ on:
       semver_prefix:
         type: string
         default: ""
-        description: "Prefixer for semver, use this if you publish multiple artifacts like example-0.0.0"
+        description: "Prefixer for semver, use this if you publish multiple artifacts
+          like example-0.0.0"
       prepend_target:
         type: boolean
         default: false
-        description: "Prepend the target to the version tag (e.g., target-v0.0.0 instead of v0.0.0)"
+        description: "Prepend the target to the version tag (e.g., target-v0.0.0 instead
+          of v0.0.0)"
       target:
         type: string
         default: ""
@@ -50,7 +52,8 @@ on:
         type: string
         default: "linux/amd64"
         required: false
-        description: "Comma separated list of target platforms (e.g., linux/amd64,linux/arm64)"
+        description: "Comma separated list of target platforms (e.g.,
+          linux/amd64,linux/arm64)"
       download_artifact:
         type: string
         default: ""
@@ -67,15 +70,22 @@ on:
       GHCR_TOKEN:
         required: false
 
-run-name: >
-  Docker Release for ${{ inputs.image }} @
-  ${{ github.event_name == 'pull_request' && format('PR #{}', github.event.pull_request.number) || github.ref_name }}z
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.image }}
+  cancel-in-progress: true
+
+run-name: Docker Release for ${{ inputs.image }}
 
 jobs:
   release:
-    name: >
-      Docker Release for ${{ inputs.image }} @
-      ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}
+    name: >-
+      Docker Release for ${{ inputs.image }} @ ${{ github.event_name ==
+      'pull_request' && format('PR #{0}', github.event.pull_request.number) ||
+      github.ref_name }}
     runs-on: ubuntu-latest
     defaults:
       run:
