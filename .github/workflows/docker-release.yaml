@@ -181,7 +181,7 @@ jobs:
       - name: Comment on PR
         if: ${{ github.event_name == 'pull_request' }}
         continue-on-error: true
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 3a2844b, https://github.com/actions/github-script/releases/latest
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9a2844b, https://github.com/actions/github-script/releases/latest
         with:
           script: |
             const image = "${{ inputs.image }}"
