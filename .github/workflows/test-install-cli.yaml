@@ -27,10 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Verify Repo is mbround18/gh-reusable
-        uses: mbround18/gh-reusable/actions/ensure-repository@v0.0.6
+        uses: mbround18/gh-reusable/actions/ensure-repository@main
 
   test:
-    name: "Test CLI Install | ${{ matrix.config.repository }}@${{ matrix.config.version || 'latest' }}"
+    name: "Test CLI Install | ${{ matrix.config.repository }}@${{
+      matrix.config.version || 'latest' }}"
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -49,7 +50,7 @@ jobs:
     steps:
       # Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
 
       - name: Install CLI
         uses: ./actions/install-cli

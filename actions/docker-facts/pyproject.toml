@@ -6,7 +6,7 @@ authors = [
     {name = "Michael Bruno", email = "michael@mbround18.xyz"},
     {name = "mbround18", email = "michael.bruno1337@gmail.com"},
 ]
-requires-python = "==3.13.*"
+requires-python = "==3.14.*"
 readme = "README.md"
 license = {text = "MIT"}
 
@@ -17,7 +17,7 @@ dependencies = [
 
 [tool.black]
 line-length = 100
-target-version = ["py38"]
+target-version = ["py314"]
 
 [tool.isort]
 profile = "black"
@@ -32,9 +32,7 @@ lint = [
     "isort>=6.0.1",
     "flake8>=7.3.0",
 ]
-
-[tool.uv]
-dev-dependencies = [
+dev = [
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
     "black>=25.1.0",

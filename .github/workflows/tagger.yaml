@@ -18,11 +18,18 @@ on:
         required: true
         description: "GitHub token with permissions to push tags"
 
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   tagger:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
         with:
           token: "${{ secrets.GH_TOKEN }}"
           fetch-depth: 0

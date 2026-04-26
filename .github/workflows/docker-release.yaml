@@ -36,11 +36,13 @@ on:
       semver_prefix:
         type: string
         default: ""
-        description: "Prefixer for semver, use this if you publish multiple artifacts like example-0.0.0"
+        description: "Prefixer for semver, use this if you publish multiple artifacts
+          like example-0.0.0"
       prepend_target:
         type: boolean
         default: false
-        description: "Prepend the target to the version tag (e.g., target-v0.0.0 instead of v0.0.0)"
+        description: "Prepend the target to the version tag (e.g., target-v0.0.0 instead
+          of v0.0.0)"
       target:
         type: string
         default: ""
@@ -50,7 +52,8 @@ on:
         type: string
         default: "linux/amd64"
         required: false
-        description: "Comma separated list of target platforms (e.g., linux/amd64,linux/arm64)"
+        description: "Comma separated list of target platforms (e.g.,
+          linux/amd64,linux/arm64)"
       download_artifact:
         type: string
         default: ""
@@ -67,24 +70,31 @@ on:
       GHCR_TOKEN:
         required: false
 
-run-name: >
-  Docker Release for ${{ inputs.image }} @
-  ${{ github.event_name == 'pull_request' && format('PR #{}', github.event.pull_request.number) || github.ref_name }}z
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.image }}
+  cancel-in-progress: true
+
+run-name: Docker Release for ${{ inputs.image }}
 
 jobs:
   release:
-    name: >
-      Docker Release for ${{ inputs.image }} @
-      ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}
+    name: >-
+      Docker Release for ${{ inputs.image }} @ ${{ github.event_name ==
+      'pull_request' && format('PR #{0}', github.event.pull_request.number) ||
+      github.ref_name }}
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ${{ inputs.context }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
 
       - if: ${{ inputs.download_artifact != '' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@ad191675b41f6a5b46da9a048cb6893812da158b # ad19167, https://github.com/actions/download-artifact/releases/latest
         with:
           name: ${{ inputs.download_artifact }}
           path: ${{ inputs.download_artifact_destination }}
@@ -104,15 +114,15 @@ jobs:
         with:
           prefix: ${{ inputs.semver_prefix }}
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # 4d04d5d, https://github.com/docker/setup-buildx-action/releases/latest
       - name: Log in to DockerHub
-        uses: docker/login-action@v3
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # 4907a6d, https://github.com/docker/login-action/releases/latest
         with:
           username: ${{ inputs.dockerhub_username }}
           password: ${{ secrets.DOCKER_TOKEN }}
       - name: Log in to GitHub Container Registry
         if: ${{ inputs.ghcr }}
-        uses: docker/login-action@v3
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # 4907a6d, https://github.com/docker/login-action/releases/latest
         with:
           registry: ghcr.io
           username: ${{ inputs.ghcr_username }}
@@ -155,7 +165,7 @@ jobs:
 
       - name: Build and Push Docker Image
         id: docker-push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # bcafcac, https://github.com/docker/build-push-action/releases/latest
         with:
           context: ${{ steps.docker-facts.outputs.context }}
           file: ${{ steps.docker-facts.outputs.dockerfile }}
@@ -171,7 +181,7 @@ jobs:
       - name: Comment on PR
         if: ${{ github.event_name == 'pull_request' }}
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 3a2844b, https://github.com/actions/github-script/releases/latest
         with:
           script: |
             const image = "${{ inputs.image }}"
