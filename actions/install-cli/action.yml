@@ -76,7 +76,7 @@ runs:
 
     - name: Cache CLI Binary
       id: cache-cli
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{ steps.dirs.outputs.bin_dir }}
         key: cli-${{ inputs.repository }}-${{ steps.fetch-version.outputs.version }}
