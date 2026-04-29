@@ -4,7 +4,7 @@
   "description": "GraphQL Action using Docker",
   "main": "index.js",
   "dependencies": {
-    "@actions/core": "^1.11.1",
+    "@actions/core": "^3.0.0",
     "graphql": "^16.11.0"
   }
 }
