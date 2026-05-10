@@ -36,12 +36,14 @@ on:
       semver_prefix:
         type: string
         default: ""
-        description: "Prefixer for semver, use this if you publish multiple artifacts
+        description:
+          "Prefixer for semver, use this if you publish multiple artifacts
           like example-0.0.0"
       prepend_target:
         type: boolean
         default: false
-        description: "Prepend the target to the version tag (e.g., target-v0.0.0 instead
+        description:
+          "Prepend the target to the version tag (e.g., target-v0.0.0 instead
           of v0.0.0)"
       target:
         type: string

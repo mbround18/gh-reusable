@@ -11,6 +11,16 @@ Welcome to the **GH Reusable** repository! This repository contains a collection
 
 ## Getting Started
 
+### Developing TypeScript Actions
+
+This repository now includes a root `pnpm` workspace bootstrap for TypeScript action migration.
+
+- Install workspace dependencies: `pnpm install`
+- Shared TypeScript baseline: `tsconfig.base.json`
+- Shared Vite baseline helper: `vite.config.base.mts`
+- Shared Dagger pipeline primitives: `packages/dagger-pipelines`
+- GitHub wrapper for Dagger execution: `.github/workflows/dagger.yaml` via `dagger/dagger-for-github@v8`
+
 ### Using Reusable Actions
 
 To use any of the actions provided:

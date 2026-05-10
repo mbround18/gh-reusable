@@ -5,8 +5,6 @@ install:
 	@find . -name package.json \
 		-not -path "*/node_modules/*" \
 		-execdir sh -c 'echo "📦 Installing in $$(pwd)"; npm install' \;
-	@echo "🔍 Installing python dependencies..."
-	@uv sync -U
 
 build:
 	@find . -name Dockerfile \
@@ -23,18 +21,12 @@ lint:
 	@npx -y prettier --write .
 	@cargo fmt
 	@cargo clippy --all-targets --all-features -- -D warnings
-	@echo "🔍 Running ruff format for Python projects..."
-	@find . -name pyproject.toml \
-		-execdir sh -c 'echo "🧹 Running ruff format in $$(pwd)"; uv run ruff format .' \;
 
 test: install lint
 	@echo "🧪 Running tests in packages with test scripts..."
 	@find . -name package.json \
 		-not -path "*/node_modules/*" \
 		-execdir sh -c 'if grep -q "\"test\":" package.json; then echo "🧪 Running tests in $$(pwd)"; npm test; fi' \;
-	@echo "🧪 Running tests in Python packages with uv test scripts..."
-	@find . -name pyproject.toml \
-		-execdir sh -c 'if grep -q "pytest" pyproject.toml; then echo "🧪 Running uv tests in $$(pwd)"; uv run pytest; fi' \;
 
 readme:
 	@cd actions/github-catalog && docker build -t actions/github-catalog .

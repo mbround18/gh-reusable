@@ -246,6 +246,8 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+!actions/graphql/dist/
+!actions/graphql/dist/**
 downloads/
 eggs/
 .eggs/

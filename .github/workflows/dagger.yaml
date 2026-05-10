@@ -1,0 +1,54 @@
+name: Dagger Pipelines
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # 48b55a0, https://github.com/actions/setup-node/releases/latest
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Run Dagger CI
+        uses: dagger/dagger-for-github@v8
+        with:
+          version: latest
+          verb: run
+          args: pnpm --filter @gh-reusable/dagger-pipelines run dagger:ci
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+  build-and-push:
+    if: github.event_name == 'push'
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # 48b55a0, https://github.com/actions/setup-node/releases/latest
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Run Dagger buildAndPush
+        uses: dagger/dagger-for-github@v8
+        env:
+          IMAGE_ADDRESS: ghcr.io/${{ github.repository }}:dagger-${{ github.sha }}
+          REGISTRY_ADDRESS: ghcr.io
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD_ENV: GHCR_TOKEN
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          version: latest
+          verb: run
+          args: pnpm --filter @gh-reusable/dagger-pipelines run dagger:build-and-push
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
