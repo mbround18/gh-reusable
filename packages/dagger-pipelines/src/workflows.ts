@@ -755,13 +755,11 @@ export async function runWorkflow(
   workflowId: WorkflowId,
   environment: WorkflowEnvironment = process.env
 ): Promise<CiResult | BuildAndPushResult> {
-  const definition = WORKFLOW_DEFINITIONS[workflowId];
-
-  if (definition.kind === 'ci') {
-    return ci(client, toCiConfig(definition.config));
+  if (workflowId === 'docker-release') {
+    return dockerReleaseWorkflow(client, environment);
   }
 
-  return buildAndPush(client, toBuildAndPushConfig(definition.config), environment);
+  return ci(client, toCiConfig(getCiWorkflow(workflowId)));
 }
 
 export async function dockerReleaseWorkflow(
@@ -784,6 +782,9 @@ export async function dockerReleaseWorkflow(
     client,
     toBuildAndPushConfig({
       ...workflowConfig,
+      source: {
+        path: environment.GITHUB_WORKSPACE ?? '.'
+      },
       docker: dockerConfig,
       publish: {
         ...publish,

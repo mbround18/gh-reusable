@@ -1,4 +1,7 @@
 import { type BuildArg, type Client, type Container, type Directory } from '@dagger.io/dagger';
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import {
@@ -279,23 +282,166 @@ function withPublishAuth(
 
   const authEntries = Array.isArray(publish.auth) ? publish.auth : [publish.auth];
   return authEntries.reduce((current, auth, index) => {
-    const password = environment[auth.passwordEnv];
-    if (!password) {
-      throw new Error(`Missing registry password from env var: ${auth.passwordEnv}`);
-    }
+    const resolved = resolveRegistryAuth(auth, environment);
 
-    const secretName = `${auth.username}-${auth.address}-registry-auth-${index}`.replace(
+    const secretName = `${resolved.username}-${auth.address}-registry-auth-${index}`.replace(
       /[^a-zA-Z0-9_.-]/g,
       '-'
     );
 
     return current.withRegistryAuth(
       auth.address,
-      auth.username,
-      client.setSecret(secretName, password)
+      resolved.username,
+      client.setSecret(secretName, resolved.password)
     );
   }, container
   );
+}
+
+interface ResolvedRegistryAuth {
+  readonly username: string;
+  readonly password: string;
+}
+
+interface DockerConfigFile {
+  readonly auths?: Readonly<Record<string, { readonly auth?: string }>>;
+  readonly credsStore?: string;
+  readonly credHelpers?: Readonly<Record<string, string>>;
+}
+
+function resolveRegistryAuth(
+  auth: RegistryAuthConfig,
+  environment: Readonly<Record<string, string | undefined>>
+): ResolvedRegistryAuth {
+  const passwordFromEnv = environment[auth.passwordEnv];
+  if (passwordFromEnv) {
+    return {
+      username: auth.username,
+      password: passwordFromEnv
+    };
+  }
+
+  const dockerConfigAuth = readDockerConfigAuth(auth.address, environment);
+  if (dockerConfigAuth) {
+    return dockerConfigAuth;
+  }
+
+  throw new Error(
+    `Missing registry credentials for ${auth.address}. Provide ${auth.passwordEnv} or login via Docker CLI.`
+  );
+}
+
+function readDockerConfigAuth(
+  registryAddress: string,
+  environment: Readonly<Record<string, string | undefined>>
+): ResolvedRegistryAuth | undefined {
+  const configPath = resolveDockerConfigPath(environment);
+  if (!existsSync(configPath)) {
+    return undefined;
+  }
+
+  const configRaw = readFileSync(configPath, 'utf8');
+  const config = JSON.parse(configRaw) as DockerConfigFile;
+  const auths = config.auths ?? {};
+  const candidateKeys = dockerAuthKeys(registryAddress);
+
+  for (const candidateKey of candidateKeys) {
+    const encoded = auths[candidateKey]?.auth;
+    if (!encoded) {
+      continue;
+    }
+
+    const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+    const separator = decoded.indexOf(':');
+    if (separator <= 0) {
+      continue;
+    }
+
+    return {
+      username: decoded.slice(0, separator),
+      password: decoded.slice(separator + 1)
+    };
+  }
+
+  for (const candidateKey of candidateKeys) {
+    const helper = config.credHelpers?.[candidateKey];
+    if (!helper) {
+      continue;
+    }
+
+    const credentials = readDockerCredentialHelper(helper, candidateKey);
+    if (credentials) {
+      return credentials;
+    }
+  }
+
+  if (config.credsStore) {
+    for (const candidateKey of candidateKeys) {
+      const credentials = readDockerCredentialHelper(config.credsStore, candidateKey);
+      if (credentials) {
+        return credentials;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function readDockerCredentialHelper(
+  helperSuffix: string,
+  serverAddress: string
+): ResolvedRegistryAuth | undefined {
+  const helperBinary = `docker-credential-${helperSuffix}`;
+  const command = spawnSync(helperBinary, ['get'], {
+    input: `${serverAddress}\n`,
+    encoding: 'utf8'
+  });
+  if (command.status !== 0) {
+    return undefined;
+  }
+
+  const output = command.stdout.trim();
+  if (output.length === 0) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(output) as { Username?: string; Secret?: string };
+    if (!parsed.Username || !parsed.Secret) {
+      return undefined;
+    }
+
+    return {
+      username: parsed.Username,
+      password: parsed.Secret
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveDockerConfigPath(environment: Readonly<Record<string, string | undefined>>): string {
+  const dockerConfig = environment.DOCKER_CONFIG;
+  if (dockerConfig && dockerConfig.length > 0) {
+    return dockerConfig.endsWith('.json')
+      ? path.resolve(dockerConfig)
+      : path.resolve(dockerConfig, 'config.json');
+  }
+
+  return path.join(os.homedir(), '.docker', 'config.json');
+}
+
+function dockerAuthKeys(registryAddress: string): readonly string[] {
+  if (registryAddress === 'docker.io' || registryAddress === 'index.docker.io') {
+    return ['https://index.docker.io/v1/', 'index.docker.io/v1/', 'docker.io'];
+  }
+
+  return [
+    registryAddress,
+    `https://${registryAddress}`,
+    `${registryAddress}/v1/`,
+    `https://${registryAddress}/v1/`
+  ];
 }
 
 function toDockerBuildArgs(args: Readonly<Record<string, string>>): BuildArg[] | undefined {

@@ -101,13 +101,6 @@ jobs:
         with:
           name: ${{ inputs.download_artifact }}
           path: ${{ inputs.download_artifact_destination }}
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # 48b55a0, https://github.com/actions/setup-node/releases/latest
-        with:
-          node-version: "24"
-      - uses: pnpm/action-setup@91ab88e2619ed1f46221f0ba42d1492c02baf788 # 91ab88e (https://github.com/pnpm/action-setup/releases/tag/v6.0.6)
-        with:
-          version: 10.15.1
-      - run: pnpm install --frozen-lockfile
 
       - name: Resolve Docker release metadata
         id: resolve
@@ -166,20 +159,23 @@ jobs:
           GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          DOCKER_RELEASE_IMAGE: ${{ steps.resolve.outputs.publish_image }}
-          DOCKER_RELEASE_TAGS: ${{ steps.resolve.outputs.tags }}
-          DOCKER_RELEASE_SEMVER_PREFIX: ${{ inputs.semver_prefix }}
-          DOCKER_RELEASE_SEMVER_INCREMENT: ${{ steps.resolve.outputs.increment }}
-          DOCKER_RELEASE_REGISTRIES: ${{ steps.resolve.outputs.registries }}
-          DOCKER_RELEASE_DOCKERFILE: ${{ inputs.dockerfile }}
-          DOCKER_RELEASE_CONTEXT: ${{ inputs.context }}
-          DOCKER_RELEASE_CANARY_LABEL: ${{ inputs.canary_label }}
-          DOCKER_RELEASE_TARGET: ${{ inputs.target }}
-          DOCKER_RELEASE_PREPEND_TARGET: ${{ inputs.prepend_target }}
-          DOCKER_RELEASE_DOCKERHUB_USERNAME: ${{ inputs.dockerhub_username }}
-          DOCKER_RELEASE_GHCR_USERNAME: ${{ inputs.ghcr_username }}
         with:
           version: latest
-          verb: run
-          args: pnpm --filter @gh-reusable/dagger-pipelines run dagger:workflow --id docker-release
+          module: github.com/mbround18/gh-reusable/dagger-module@dagger/io
+          call: >-
+            docker-release
+            --source=.
+            --image=${{ steps.resolve.outputs.publish_image }}
+            --context=${{ inputs.context }}
+            --dockerfile=${{ inputs.dockerfile }}
+            --target=${{ inputs.target }}
+            --platforms=${{ inputs.platforms }}
+            --tags-csv=${{ steps.resolve.outputs.tags }}
+            --registries-csv=${{ steps.resolve.outputs.registries }}
+            --semver-prefix=${{ inputs.semver_prefix }}
+            --semver-increment=${{ steps.resolve.outputs.increment }}
+            --prepend-target=${{ inputs.prepend_target }}
+            --canary-label=${{ inputs.canary_label }}
+            --dockerhub-username=${{ inputs.dockerhub_username }}
+            --ghcr-username=${{ inputs.ghcr_username }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
