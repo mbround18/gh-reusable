@@ -95,6 +95,10 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
         with:
           fetch-depth: 0
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
 
       - if: ${{ inputs.download_artifact != '' }}
         uses: actions/download-artifact@ad191675b41f6a5b46da9a048cb6893812da158b # ad19167, https://github.com/actions/download-artifact/releases/latest
@@ -160,8 +164,8 @@ jobs:
           DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
         with:
-          version: latest
-          module: github.com/mbround18/gh-reusable/dagger-module@dagger/io
+          version: v0.20.8
+          module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
           call: >-
             docker-release
             --source=.
