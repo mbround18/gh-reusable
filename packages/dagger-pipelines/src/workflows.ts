@@ -10,8 +10,10 @@ import {
   type CiResult,
   type CommandArgs,
   type CommandDefinition,
+  type DockerBuildConfig,
   type PackageManager,
   type PublishConfig,
+  type RegistryAuthConfig,
   type SourceConfig
 } from './index.js';
 import { resolveDockerReleasePublishAddress } from './docker-release-semver.js';
@@ -771,14 +773,20 @@ export async function dockerReleaseWorkflow(
     workflowConfig.publish.address,
     environment
   );
+  const dockerConfig = resolveDockerReleaseDockerConfig(resolvedPublishAddress, environment);
+  const publish = resolveDockerReleasePublishConfig(
+    workflowConfig.publish,
+    dockerConfig.registries ?? [],
+    environment
+  );
 
   return buildAndPush(
     client,
     toBuildAndPushConfig({
       ...workflowConfig,
-      docker: resolveDockerReleaseDockerConfig(resolvedPublishAddress, environment),
+      docker: dockerConfig,
       publish: {
-        ...workflowConfig.publish,
+        ...publish,
         address: resolvedPublishAddress
       }
     }),
@@ -890,7 +898,7 @@ function toBuildAndPushConfig(config: WorkflowBuildAndPushConfig): BuildAndPushC
 function resolveDockerReleaseDockerConfig(
   publishAddress: string,
   environment: WorkflowEnvironment
-): BuildAndPushConfig['docker'] {
+): DockerBuildConfig {
   const [image, version] = splitAddressTag(publishAddress);
   const registries = (environment.DOCKER_RELEASE_REGISTRIES ?? environment.INPUT_REGISTRIES ?? '')
     .split(',')
@@ -912,6 +920,60 @@ function resolveDockerReleaseDockerConfig(
     ),
     workspacePath: environment.GITHUB_WORKSPACE
   };
+}
+
+function resolveDockerReleasePublishConfig(
+  publish: PublishConfig,
+  registries: readonly string[],
+  environment: WorkflowEnvironment
+): PublishConfig {
+  const auths: RegistryAuthConfig[] = [];
+  const dockerHubUsername =
+    environment.DOCKER_RELEASE_DOCKERHUB_USERNAME ??
+    environment.INPUT_DOCKERHUB_USERNAME ??
+    firstAuthUsername(publish.auth) ??
+    'mbround18';
+  auths.push({
+    address: 'docker.io',
+    username: dockerHubUsername,
+    passwordEnv: 'DOCKER_TOKEN'
+  });
+
+  if (registries.includes('ghcr.io')) {
+    auths.push({
+      address: 'ghcr.io',
+      username:
+        environment.DOCKER_RELEASE_GHCR_USERNAME ??
+        environment.INPUT_GHCR_USERNAME ??
+        environment.GITHUB_ACTOR ??
+        'github-actions[bot]',
+      passwordEnv: 'GHCR_TOKEN'
+    });
+  }
+
+  return {
+    ...publish,
+    auth: auths
+  };
+}
+
+function firstAuthUsername(
+  auth: PublishConfig['auth']
+): string | undefined {
+  if (!auth) {
+    return undefined;
+  }
+  if (Array.isArray(auth)) {
+    return auth[0]?.username;
+  }
+  if (isRegistryAuthConfig(auth)) {
+    return auth.username;
+  }
+  return undefined;
+}
+
+function isRegistryAuthConfig(auth: PublishConfig['auth']): auth is RegistryAuthConfig {
+  return Boolean(auth) && !Array.isArray(auth);
 }
 
 function splitAddressTag(address: string): readonly [string, string] {

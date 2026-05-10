@@ -34,7 +34,7 @@ jobs:
           token: "${{ secrets.GH_TOKEN }}"
           fetch-depth: 0
 
-      - uses: mbround18/gh-reusable/actions/semver@main
+      - uses: mbround18/gh-reusable/actions/semver@dagger/io
         id: semver
         with:
           prefix: ${{ inputs.prefix }}

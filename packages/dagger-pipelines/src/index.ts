@@ -62,7 +62,7 @@ export interface RegistryAuthConfig {
 
 export interface PublishConfig {
   readonly address: string;
-  readonly auth?: RegistryAuthConfig;
+  readonly auth?: RegistryAuthConfig | readonly RegistryAuthConfig[];
 }
 
 export interface DockerBuildConfig extends DockerParityInputs {
@@ -277,15 +277,24 @@ function withPublishAuth(
     return container;
   }
 
-  const password = environment[publish.auth.passwordEnv];
-  if (!password) {
-    throw new Error(`Missing registry password from env var: ${publish.auth.passwordEnv}`);
-  }
+  const authEntries = Array.isArray(publish.auth) ? publish.auth : [publish.auth];
+  return authEntries.reduce((current, auth, index) => {
+    const password = environment[auth.passwordEnv];
+    if (!password) {
+      throw new Error(`Missing registry password from env var: ${auth.passwordEnv}`);
+    }
 
-  return container.withRegistryAuth(
-    publish.auth.address,
-    publish.auth.username,
-    client.setSecret(`${publish.auth.username}-registry-auth`, password)
+    const secretName = `${auth.username}-${auth.address}-registry-auth-${index}`.replace(
+      /[^a-zA-Z0-9_.-]/g,
+      '-'
+    );
+
+    return current.withRegistryAuth(
+      auth.address,
+      auth.username,
+      client.setSecret(secretName, password)
+    );
+  }, container
   );
 }
 

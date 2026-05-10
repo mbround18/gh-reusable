@@ -22,45 +22,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ensure_repository:
-    name: Ensure Repository
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify Repo is mbround18/gh-reusable
-        uses: mbround18/gh-reusable/actions/ensure-repository@main
-
   test:
-    name: "Test CLI Install | ${{ matrix.config.repository }}@${{
-      matrix.config.version || 'latest' }}"
+    name: "Test CLI Install (Dagger)"
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        config:
-          - repository: "schollz/croc"
-            version: "v10.0.12"
-            asset: "croc_%VERSION%_Linux-64bit.tar.gz"
-            test-command: "croc --version"
-          - repository: "astral-sh/uv"
-            asset: "uv-x86_64-unknown-linux-gnu.tar.gz"
-            test-command: uv --version
-          - repository: jqlang/jq
-            asset: jq-linux-amd64
-            override-name: "jq"
-            test-command: jq --version
     steps:
-      # Checkout the repository
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
-
-      - name: Install CLI
-        uses: ./actions/install-cli
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # 48b55a0, https://github.com/actions/setup-node/releases/latest
         with:
-          repository: ${{ matrix.config.repository }}
-          version: ${{ matrix.config.version }}
-          asset: ${{ matrix.config.asset }}
-          override-name: ${{ matrix.config.override-name }}
-
-      # Verify Croc CLI Installation
-      - name: Verify CLI
-        run: |
-          ${{ matrix.config.test-command }}
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Run Dagger workflow parity
+        uses: dagger/dagger-for-github@v8
+        with:
+          version: latest
+          verb: run
+          args: pnpm --filter @gh-reusable/dagger-pipelines run dagger:workflow --id test-install-cli
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

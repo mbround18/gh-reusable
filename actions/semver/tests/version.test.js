@@ -77,7 +77,7 @@ describe("buildNewVersion", () => {
 
   test("should handle PR with no increment", () => {
     const result = buildNewVersion("v1.2.3", "v", null, true, "abc123456789");
-    expect(result).toBe("v1.2.3-abc1234");
+    expect(result).toBe("v1.2.3-pr.abc1234");
   });
 
   test("should handle PR with major label increment", () => {
@@ -88,7 +88,7 @@ describe("buildNewVersion", () => {
       true,
       "abc123456789",
     );
-    expect(result).toBe("v2.0.0-abc1234");
+    expect(result).toBe("v2.0.0-pr.abc1234");
   });
 
   test("should handle PR with minor label increment", () => {
@@ -99,7 +99,7 @@ describe("buildNewVersion", () => {
       true,
       "abc123456789",
     );
-    expect(result).toBe("v1.3.0-abc1234");
+    expect(result).toBe("v1.3.0-pr.abc1234");
   });
 
   test("should handle PR with patch label increment", () => {
@@ -110,7 +110,7 @@ describe("buildNewVersion", () => {
       true,
       "abc123456789",
     );
-    expect(result).toBe("v1.2.4-abc1234");
+    expect(result).toBe("v1.2.4-pr.abc1234");
   });
 
   test("should handle tags with complex prefixes", () => {
@@ -195,5 +195,13 @@ describe("buildNewVersion", () => {
     expect(() => {
       buildNewVersion("v1.2.3", "v", "invalid", false, "abc123456789");
     }).toThrow("Failed to increment version");
+  });
+
+  test("should throw error for invalid tag ref semver", () => {
+    process.env.GITHUB_REF = "refs/tags/release-latest";
+
+    expect(() => {
+      buildNewVersion("v1.2.3", "v", "patch", false, "abc123456789");
+    }).toThrow('Tag "release-latest" is not a valid semantic version');
   });
 });

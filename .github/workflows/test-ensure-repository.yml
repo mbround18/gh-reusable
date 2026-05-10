@@ -30,11 +30,19 @@ on:
 
 jobs:
   test_ensure_repository:
-    name: Test Ensure Repository
+    name: Test Ensure Repository (Dagger)
     runs-on: ${{ inputs.runs-on || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
-
-      - uses: ./actions/ensure-repository
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # 48b55a0, https://github.com/actions/setup-node/releases/latest
         with:
-          repository: mbround18/gh-reusable
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Run Dagger workflow parity
+        uses: dagger/dagger-for-github@v8
+        with:
+          version: latest
+          verb: run
+          args: pnpm --filter @gh-reusable/dagger-pipelines run dagger:workflow --id test-ensure-repository
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

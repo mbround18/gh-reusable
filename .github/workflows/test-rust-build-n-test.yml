@@ -29,14 +29,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ensure_repository:
-    name: Ensure Repository
+  call_build_and_test_workflow:
+    name: Rust Build and Test Workflow (Dagger)
     runs-on: ubuntu-latest
     steps:
-      - name: Verify Repo is mbround18/gh-reusable
-        uses: mbround18/gh-reusable/actions/ensure-repository@main
-  call_build_and_test_workflow:
-    name: Call Rust Build and Test Workflow
-    uses: ./.github/workflows/rust-build-n-test.yml
-    with:
-      runs-on: ubuntu-latest
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # 48b55a0, https://github.com/actions/setup-node/releases/latest
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Run Dagger workflow parity
+        uses: dagger/dagger-for-github@v8
+        with:
+          version: latest
+          verb: run
+          args: pnpm --filter @gh-reusable/dagger-pipelines run dagger:workflow --id test-rust-build-n-test
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
