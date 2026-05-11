@@ -103,37 +103,33 @@ jobs:
           sarif_file: .audit-reports/gitleaks.sarif
           category: audit-gitleaks
 
-      - name: Build audit summary
+      - name: Materialize audit report
         id: audit_summary
         if: ${{ always() && (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')) }}
-        shell: bash
+        uses: actions/github-script@v7
         env:
           DAGGER_STDOUT: ${{ steps.dagger_audit.outputs.stdout }}
-          DAGGER_OUTCOME: ${{ steps.dagger_audit.outcome }}
-        run: |
-          set -euo pipefail
-          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          markdown_file="$(mktemp)"
-          {
-            echo "## Audit status"
-            echo ""
-            echo "| Field | Value |"
-            echo "| --- | --- |"
-            echo "| Outcome | \`${DAGGER_OUTCOME}\` |"
-            echo "| Alerts enabled | \`${{ inputs.create_alerts }}\` |"
-            echo "| Semgrep config | \`${{ inputs.semgrep_config }}\` |"
-            echo "| Include gitleaks | \`${{ inputs.include_gitleaks }}\` |"
-            echo "| Workflow run | [#${GITHUB_RUN_NUMBER}](${run_url}) |"
-            echo ""
-            echo "${DAGGER_STDOUT:-_No Dagger summary output produced._}"
-          } > "$markdown_file"
+        with:
+          script: |
+            const fs = require('node:fs')
+            const report = JSON.parse(process.env.DAGGER_STDOUT || '{}')
+            const payload = report.report || report
+            const markdown = report.reportMarkdown || report.markdown || '_No Dagger summary output produced._'
+            fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
+            fs.writeFileSync('report.md', markdown)
+            if ((payload.errors || report.errors || []).length > 0) {
+              core.setFailed('Pipeline report contains errors')
+            }
+            core.setOutput('markdown', markdown)
 
-          cat "$markdown_file" >> "$GITHUB_STEP_SUMMARY"
-          {
-            echo "markdown<<EOF"
-            cat "$markdown_file"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+      - name: Upload audit report artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-report
+          path: |
+            report.json
+            report.md
 
       - name: Update sticky PR audit comment
         if: ${{ always() && github.event_name == 'pull_request' }}

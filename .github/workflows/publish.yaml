@@ -89,6 +89,10 @@ on:
         required: false
       HELM_PASSWORD:
         required: false
+      S3_ACCESS_KEY:
+        required: false
+      S3_SECRET_KEY:
+        required: false
 
 permissions:
   contents: read
@@ -113,9 +117,24 @@ jobs:
           engine_image="registry.dagger.io/engine:v0.20.8"
           docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
       - name: Publish npm package in Dagger
+        id: publish_npm
         uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
         env:
           DAGGER_NO_NAG: "1"
+          DAGGER_VERSION: v0.20.8
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_REGION: ${{ vars.S3_REGION }}
         with:
           version: v0.20.8
           module: ./packages/dagger-module
@@ -127,6 +146,29 @@ jobs:
             --tag=${{ inputs.tag }}
             --version=${{ inputs.version }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+      - name: Materialize npm report
+        if: ${{ always() }}
+        uses: actions/github-script@v7
+        env:
+          REPORT_JSON: ${{ steps.publish_npm.outputs.stdout }}
+        with:
+          script: |
+            const fs = require('node:fs')
+            const report = JSON.parse(process.env.REPORT_JSON || '{}')
+            const payload = report.report || report
+            fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
+            fs.writeFileSync('report.md', report.reportMarkdown || report.markdown || '')
+            if ((payload.errors || report.errors || []).length > 0) {
+              core.setFailed('Pipeline report contains errors')
+            }
+      - name: Upload npm report artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-publish-report
+          path: |
+            report.json
+            report.md
 
   publish_pnpm:
     if: >-
@@ -140,9 +182,24 @@ jobs:
           engine_image="registry.dagger.io/engine:v0.20.8"
           docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
       - name: Publish pnpm package in Dagger
+        id: publish_pnpm
         uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
         env:
           DAGGER_NO_NAG: "1"
+          DAGGER_VERSION: v0.20.8
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_REGION: ${{ vars.S3_REGION }}
         with:
           version: v0.20.8
           module: ./packages/dagger-module
@@ -154,6 +211,29 @@ jobs:
             --tag=${{ inputs.tag }}
             --version=${{ inputs.version }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+      - name: Materialize pnpm report
+        if: ${{ always() }}
+        uses: actions/github-script@v7
+        env:
+          REPORT_JSON: ${{ steps.publish_pnpm.outputs.stdout }}
+        with:
+          script: |
+            const fs = require('node:fs')
+            const report = JSON.parse(process.env.REPORT_JSON || '{}')
+            const payload = report.report || report
+            fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
+            fs.writeFileSync('report.md', report.reportMarkdown || report.markdown || '')
+            if ((payload.errors || report.errors || []).length > 0) {
+              core.setFailed('Pipeline report contains errors')
+            }
+      - name: Upload pnpm report artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pnpm-publish-report
+          path: |
+            report.json
+            report.md
 
   publish_yarn:
     if: >-
@@ -167,9 +247,24 @@ jobs:
           engine_image="registry.dagger.io/engine:v0.20.8"
           docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
       - name: Publish yarn package in Dagger
+        id: publish_yarn
         uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
         env:
           DAGGER_NO_NAG: "1"
+          DAGGER_VERSION: v0.20.8
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_REGION: ${{ vars.S3_REGION }}
         with:
           version: v0.20.8
           module: ./packages/dagger-module
@@ -181,6 +276,29 @@ jobs:
             --tag=${{ inputs.tag }}
             --version=${{ inputs.version }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+      - name: Materialize yarn report
+        if: ${{ always() }}
+        uses: actions/github-script@v7
+        env:
+          REPORT_JSON: ${{ steps.publish_yarn.outputs.stdout }}
+        with:
+          script: |
+            const fs = require('node:fs')
+            const report = JSON.parse(process.env.REPORT_JSON || '{}')
+            const payload = report.report || report
+            fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
+            fs.writeFileSync('report.md', report.reportMarkdown || report.markdown || '')
+            if ((payload.errors || report.errors || []).length > 0) {
+              core.setFailed('Pipeline report contains errors')
+            }
+      - name: Upload yarn report artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: yarn-publish-report
+          path: |
+            report.json
+            report.md
 
   publish_rust:
     if: >-
@@ -194,9 +312,24 @@ jobs:
           engine_image="registry.dagger.io/engine:v0.20.8"
           docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
       - name: Publish Rust crate in Dagger
+        id: publish_rust
         uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
         env:
           DAGGER_NO_NAG: "1"
+          DAGGER_VERSION: v0.20.8
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_REGION: ${{ vars.S3_REGION }}
         with:
           version: v0.20.8
           module: ./packages/dagger-module
@@ -206,6 +339,29 @@ jobs:
             --token=${{ secrets.CARGO_REGISTRY_TOKEN }}
             --version=${{ inputs.version }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+      - name: Materialize rust report
+        if: ${{ always() }}
+        uses: actions/github-script@v7
+        env:
+          REPORT_JSON: ${{ steps.publish_rust.outputs.stdout }}
+        with:
+          script: |
+            const fs = require('node:fs')
+            const report = JSON.parse(process.env.REPORT_JSON || '{}')
+            const payload = report.report || report
+            fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
+            fs.writeFileSync('report.md', report.reportMarkdown || report.markdown || '')
+            if ((payload.errors || report.errors || []).length > 0) {
+              core.setFailed('Pipeline report contains errors')
+            }
+      - name: Upload rust report artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-publish-report
+          path: |
+            report.json
+            report.md
 
   publish_helm:
     if: >-
@@ -219,9 +375,24 @@ jobs:
           engine_image="registry.dagger.io/engine:v0.20.8"
           docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
       - name: Publish Helm chart in Dagger
+        id: publish_helm
         uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
         env:
           DAGGER_NO_NAG: "1"
+          DAGGER_VERSION: v0.20.8
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_REGION: ${{ vars.S3_REGION }}
         with:
           version: v0.20.8
           module: ./packages/dagger-module
@@ -234,3 +405,26 @@ jobs:
             --password=${{ secrets.HELM_PASSWORD }}
             --version=${{ inputs.version }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+      - name: Materialize helm report
+        if: ${{ always() }}
+        uses: actions/github-script@v7
+        env:
+          REPORT_JSON: ${{ steps.publish_helm.outputs.stdout }}
+        with:
+          script: |
+            const fs = require('node:fs')
+            const report = JSON.parse(process.env.REPORT_JSON || '{}')
+            const payload = report.report || report
+            fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
+            fs.writeFileSync('report.md', report.reportMarkdown || report.markdown || '')
+            if ((payload.errors || report.errors || []).length > 0) {
+              core.setFailed('Pipeline report contains errors')
+            }
+      - name: Upload helm report artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-publish-report
+          path: |
+            report.json
+            report.md

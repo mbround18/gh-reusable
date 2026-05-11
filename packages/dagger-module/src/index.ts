@@ -1,5 +1,12 @@
 import { dag, Container, Directory, Platform, object, func } from "@dagger.io/dagger"
 import * as semver from "semver"
+import {
+  type PipelineReport,
+  PipelineReporter,
+  shellQuote,
+  summarizeText,
+} from "./reporting"
+import { PipelineCache } from "./cache"
 
 type DockerReleaseDecision = "publish" | "skip" | "failed"
 type NodePackageManager = "npm" | "pnpm" | "yarn"
@@ -112,57 +119,100 @@ export class GhReusablePipelines {
     semgrepConfig: string = "auto",
     includeGitleaks: boolean = true
   ): Promise<string> {
-    const semgrepContainer = dag
-      .container()
-      .from("returntocorp/semgrep:1.81.0")
-      .withMountedDirectory("/src", source)
-      .withWorkdir("/src")
-      .withEnvVariable("SEMGREP_CONFIG", semgrepConfig)
-      .withExec([
+    const reporter = this.createReporter("audit", {
+      sourceDir: ".",
+      registryUrls: [],
+      credentials: {}
+    })
+
+    const semgrepStep = reporter.startStep("semgrep scan", {
+      containerImage: "returntocorp/semgrep:1.81.0",
+      command: `semgrep scan --config ${semgrepConfig} --json --output /tmp/semgrep.json /src`
+    })
+    const semgrepResult = await this.runCapturedStep(
+      dag
+        .container()
+        .from("returntocorp/semgrep:1.81.0")
+        .withMountedDirectory("/src", source)
+        .withWorkdir("/src")
+        .withEnvVariable("SEMGREP_CONFIG", semgrepConfig),
+      "semgrep scan",
+      [
         "sh",
         "-lc",
         [
           "set -eu",
-          "semgrep scan --config \"$SEMGREP_CONFIG\" --json --output /tmp/semgrep.json /src || true",
+          "semgrep scan --config \"$SEMGREP_CONFIG\" --json --output /tmp/semgrep.json /src",
           "if [ ! -s /tmp/semgrep.json ]; then printf '{\"results\":[]}\\n' > /tmp/semgrep.json; fi"
         ].join("\n")
-      ])
-
-    const semgrepJson = await semgrepContainer.file("/tmp/semgrep.json").contents()
+      ]
+    )
+    const semgrepJson = await semgrepResult.container.file("/tmp/semgrep.json").contents()
     const semgrepFindings = this.countFromObjectArrayField(semgrepJson, "results")
+    reporter.endStep(semgrepStep, {
+      success: semgrepResult.exitCode === 0,
+      stdout: semgrepResult.stdout,
+      stderr: semgrepResult.stderr,
+      stdoutSummary: summarizeText(semgrepResult.stdout),
+      stderrSummary: summarizeText(semgrepResult.stderr),
+      exitCode: semgrepResult.exitCode
+    })
+    if (semgrepResult.exitCode !== 0) {
+      reporter.recordError("semgrep scan", semgrepResult.stderr || semgrepResult.stdout, "Fix Semgrep execution errors before relying on the audit results")
+    }
 
     let gitleaksFindings = 0
     if (includeGitleaks) {
-      const gitleaksContainer = dag
-        .container()
-        .from("zricethezav/gitleaks:v8.24.2")
-        .withMountedDirectory("/src", source)
-        .withWorkdir("/src")
-        .withExec([
-          "detect",
-          "--source=/src",
-          "--report-format=json",
-          "--report-path=/tmp/gitleaks.json",
-          "--redact",
-          "--exit-code=0"
-        ])
-
-      const gitleaksJson = await gitleaksContainer.file("/tmp/gitleaks.json").contents()
+      const gitleaksStep = reporter.startStep("gitleaks detect", {
+        containerImage: "zricethezav/gitleaks:v8.24.2",
+        command: "gitleaks detect --source=/src --report-format=json --report-path=/tmp/gitleaks.json --redact --exit-code=0"
+      })
+      const gitleaksResult = await this.runCapturedStep(
+        dag
+          .container()
+          .from("zricethezav/gitleaks:v8.24.2")
+          .withMountedDirectory("/src", source)
+          .withWorkdir("/src"),
+        "gitleaks detect",
+        [
+          "sh",
+          "-lc",
+          [
+            "set -eu",
+            "gitleaks detect --source=/src --report-format=json --report-path=/tmp/gitleaks.json --redact --exit-code=0",
+            "if [ ! -s /tmp/gitleaks.json ]; then printf '[]\\n' > /tmp/gitleaks.json; fi"
+          ].join("\n")
+        ]
+      )
+      const gitleaksJson = await gitleaksResult.container.file("/tmp/gitleaks.json").contents()
       gitleaksFindings = this.countFromArray(gitleaksJson)
+      reporter.endStep(gitleaksStep, {
+        success: gitleaksResult.exitCode === 0,
+        stdout: gitleaksResult.stdout,
+        stderr: gitleaksResult.stderr,
+        stdoutSummary: summarizeText(gitleaksResult.stdout),
+        stderrSummary: summarizeText(gitleaksResult.stderr),
+        exitCode: gitleaksResult.exitCode
+      })
+      if (gitleaksResult.exitCode !== 0) {
+        reporter.recordError("gitleaks detect", gitleaksResult.stderr || gitleaksResult.stdout, "Fix Gitleaks execution errors before relying on the audit results")
+      }
     }
 
     const totalFindings = semgrepFindings + gitleaksFindings
-    return [
-      "### Audit Summary",
-      "",
-      "| Tool | Findings |",
-      "| --- | ---: |",
-      `| Semgrep (${semgrepConfig}) | ${semgrepFindings} |`,
-      `| Gitleaks | ${includeGitleaks ? gitleaksFindings : "disabled"} |`,
-      `| **Total** | **${totalFindings}** |`,
-      "",
-      "Use the workflow input `create_alerts=true` to upload SARIF findings as GitHub Security alerts."
-    ].join("\n")
+    reporter.setOutput("scanFindings", {
+      semgrep: semgrepFindings,
+      gitleaks: includeGitleaks ? gitleaksFindings : 0,
+      total: totalFindings
+    })
+
+    const report = reporter.finalize()
+    return JSON.stringify({
+      markdown: report.markdown,
+      report,
+      reportJson: JSON.stringify(report),
+      reportMarkdown: report.markdown
+    })
   }
 
   @func()
@@ -227,26 +277,118 @@ export class GhReusablePipelines {
     if (!token) {
       throw new Error("Missing required crates.io token")
     }
+    const reporter = this.createReporter("publish-rust-crate", {
+      sourceDir: ".",
+      version,
+      registryUrls: [registry],
+      credentials: { CARGO_REGISTRY_TOKEN: true }
+    })
     const manifest = await this.readRequiredText(source, "Cargo.toml")
     const crate = this.parseCargoManifest(manifest)
     const resolvedVersion = this.withVersioning(crate.version, version, "Cargo.toml")
-    const container = this.withRustEnv(source).withExec(["cargo", "check"]).withExec(["cargo", "test"])
+    reporter.setOutput("publishedVersion", resolvedVersion)
+    reporter.setOutput("registryUrls", [registry])
+    reporter.setOutput("packageMetadata", { name: crate.name, manifest: "Cargo.toml" })
 
-    const packaged = container.withExec(["cargo", "package"])
-    const published = packaged
+    const cache = await PipelineCache.create({
+      pipelineName: "publish-rust-crate",
+      source,
+      sourcePatterns: ["**/*"],
+      lockfilePatterns: ["Cargo.lock"],
+      mounts: [{ path: "/src/target", archiveName: "src/target" }]
+    })
+    reporter.setOutput("cacheBackend", cache.backendName)
+    reporter.setOutput("cacheKey", cache.key)
+
+    const checkStep = reporter.startStep("cargo check", { containerImage: "rust:1.89-bookworm", command: "cargo check" })
+    let rustContainer = this.withRustEnv(source)
+    const restoredCache = await cache.restore(rustContainer)
+    this.recordPipelineWarnings(reporter, restoredCache.warnings)
+    rustContainer = restoredCache.container
+    const checkResult = await this.runCapturedStep(rustContainer, "cargo check", ["cargo", "check"])
+    reporter.endStep(checkStep, {
+      success: checkResult.exitCode === 0,
+      stdout: checkResult.stdout,
+      stderr: checkResult.stderr,
+      stdoutSummary: summarizeText(checkResult.stdout),
+      stderrSummary: summarizeText(checkResult.stderr),
+      exitCode: checkResult.exitCode
+    })
+    if (checkResult.exitCode !== 0) {
+      reporter.recordError("cargo check", checkResult.stderr || checkResult.stdout, "Fix Rust compile errors before publishing")
+      return this.publishResult({ target: "rust-crate", name: crate.name, version: resolvedVersion, registry, url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}` }, reporter, { notes: "cargo check failed" })
+    }
+
+    const testStep = reporter.startStep("cargo test", { containerImage: "rust:1.89-bookworm", command: "cargo test" })
+    const testResult = await this.runCapturedStep(checkResult.container, "cargo test", ["cargo", "test"])
+    reporter.endStep(testStep, {
+      success: testResult.exitCode === 0,
+      stdout: testResult.stdout,
+      stderr: testResult.stderr,
+      stdoutSummary: summarizeText(testResult.stdout),
+      stderrSummary: summarizeText(testResult.stderr),
+      exitCode: testResult.exitCode
+    })
+    if (testResult.exitCode !== 0) {
+      reporter.recordError("cargo test", testResult.stderr || testResult.stdout, "Fix failing tests before publishing")
+      return this.publishResult({ target: "rust-crate", name: crate.name, version: resolvedVersion, registry, url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}` }, reporter, { notes: "cargo test failed" })
+    }
+
+    const packageStep = reporter.startStep("cargo package", { containerImage: "rust:1.89-bookworm", command: "cargo package" })
+    const packageResult = await this.runCapturedStep(testResult.container, "cargo package", ["cargo", "package"])
+    reporter.endStep(packageStep, {
+      success: packageResult.exitCode === 0,
+      stdout: packageResult.stdout,
+      stderr: packageResult.stderr,
+      stdoutSummary: summarizeText(packageResult.stdout),
+      stderrSummary: summarizeText(packageResult.stderr),
+      exitCode: packageResult.exitCode
+    })
+    if (packageResult.exitCode !== 0) {
+      reporter.recordError("cargo package", packageResult.stderr || packageResult.stdout, "Fix Cargo packaging metadata before publishing")
+      return this.publishResult({ target: "rust-crate", name: crate.name, version: resolvedVersion, registry, url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}` }, reporter, { notes: "cargo package failed" })
+    }
+
+    const publishStep = reporter.startStep("cargo publish", {
+      containerImage: "rust:1.89-bookworm",
+      command: `cargo publish${registry !== "crates.io" ? ` --registry ${registry}` : ""}`
+    })
+    const authenticated = packageResult.container
       .withSecretVariable("CARGO_REGISTRY_TOKEN", dag.setSecret("cargo-registry-token", token))
-      .withExec(["sh", "-lc", `cargo publish --token "$CARGO_REGISTRY_TOKEN"${registry !== "crates.io" ? ` --registry ${registry}` : ""}`])
+    const publishResult = await this.runCapturedStep(authenticated, "cargo publish", [
+      "sh",
+      "-lc",
+      `cargo publish --token "$CARGO_REGISTRY_TOKEN"${registry !== "crates.io" ? ` --registry ${registry}` : ""}`
+    ])
+    reporter.endStep(publishStep, {
+      success: publishResult.exitCode === 0,
+      stdout: publishResult.stdout,
+      stderr: publishResult.stderr,
+      stdoutSummary: summarizeText(publishResult.stdout),
+      stderrSummary: summarizeText(publishResult.stderr),
+      exitCode: publishResult.exitCode
+    })
+    if (publishResult.exitCode !== 0) {
+      reporter.recordError("cargo publish", publishResult.stderr || publishResult.stdout, "Check crates.io credentials and package metadata")
+      return this.publishResult({ target: "rust-crate", name: crate.name, version: resolvedVersion, registry, url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}` }, reporter, { notes: "cargo publish failed" })
+    }
 
-    await published.stdout()
+    this.recordPipelineWarnings(reporter, (await cache.save(publishResult.container, true)).warnings)
 
-    return JSON.stringify({
-      target: "rust-crate",
-      name: crate.name,
-      version: resolvedVersion,
-      registry,
-      url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}`,
-      notes: "cargo check/test/package/publish completed"
-    } satisfies PublishResult)
+    return this.publishResult(
+      {
+        target: "rust-crate",
+        name: crate.name,
+        version: resolvedVersion,
+        registry,
+        url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}`,
+        notes: "cargo check/test/package/publish completed"
+      },
+      reporter,
+      {
+        artifactPath: `/target/package/${crate.name}-${resolvedVersion}.crate`
+      }
+    )
   }
 
   @func()
@@ -268,40 +410,103 @@ export class GhReusablePipelines {
     const normalizedRegistry = registry.startsWith("oci://") ? registry : `oci://${registry}`
     const chartRef = `${normalizedRegistry.replace(/\/$/, "")}/${chartMeta.name}`
     const registryHost = this.ociRegistryHost(normalizedRegistry)
-    const container = this.withHelmEnv(chartSource)
-      .withExec(["helm", "lint", "."])
-      .withExec(["sh", "-lc", "mkdir -p /tmp/chart-out"])
-      .withExec(["helm", "package", ".", "--destination", "/tmp/chart-out"])
+    const reporter = this.createReporter("publish-helm-chart", {
+      sourceDir: chart,
+      version: resolvedVersion,
+      registryUrls: [normalizedRegistry],
+      credentials: { HELM_USERNAME: true, HELM_PASSWORD: true }
+    })
+    reporter.setOutput("publishedVersion", resolvedVersion)
+    reporter.setOutput("registryUrls", [normalizedRegistry])
+    reporter.setOutput("packageMetadata", { name: chartMeta.name, chart: "Chart.yaml" })
 
+    const cache = await PipelineCache.create({
+      pipelineName: "publish-helm-chart",
+      source: chartSource,
+      sourcePatterns: ["**/*"],
+      lockfilePatterns: ["Chart.yaml", "templates/**/*"],
+      mounts: [{ path: "/tmp/chart-out", archiveName: "tmp/chart-out" }]
+    })
+    reporter.setOutput("cacheBackend", cache.backendName)
+    reporter.setOutput("cacheKey", cache.key)
+
+    const lintStep = reporter.startStep("helm lint", { containerImage: "alpine/helm:3.16.4", command: "helm lint ." })
+    let helmContainer = this.withHelmEnv(chartSource)
+    const restoredCache = await cache.restore(helmContainer)
+    this.recordPipelineWarnings(reporter, restoredCache.warnings)
+    helmContainer = restoredCache.container
+    const lintResult = await this.runCapturedStep(helmContainer, "helm lint", ["helm", "lint", "."])
+    reporter.endStep(lintStep, {
+      success: lintResult.exitCode === 0,
+      stdout: lintResult.stdout,
+      stderr: lintResult.stderr,
+      stdoutSummary: summarizeText(lintResult.stdout),
+      stderrSummary: summarizeText(lintResult.stderr),
+      exitCode: lintResult.exitCode
+    })
+    if (lintResult.exitCode !== 0) {
+      reporter.recordError("helm lint", lintResult.stderr || lintResult.stdout, "Fix chart validation errors before publishing")
+      return this.publishResult({ target: "helm-chart", name: chartMeta.name, version: resolvedVersion, registry: normalizedRegistry, url: `${chartRef}:${resolvedVersion}` }, reporter)
+    }
+
+    const packageStep = reporter.startStep("helm package", { containerImage: "alpine/helm:3.16.4", command: "helm package . --destination /tmp/chart-out" })
+    const packageResult = await this.runCapturedStep(lintResult.container, "helm package", ["sh", "-lc", "mkdir -p /tmp/chart-out && helm package . --destination /tmp/chart-out"])
+    reporter.endStep(packageStep, {
+      success: packageResult.exitCode === 0,
+      stdout: packageResult.stdout,
+      stderr: packageResult.stderr,
+      stdoutSummary: summarizeText(packageResult.stdout),
+      stderrSummary: summarizeText(packageResult.stderr),
+      exitCode: packageResult.exitCode
+    })
+    if (packageResult.exitCode !== 0) {
+      reporter.recordError("helm package", packageResult.stderr || packageResult.stdout, "Fix chart packaging errors before publishing")
+      return this.publishResult({ target: "helm-chart", name: chartMeta.name, version: resolvedVersion, registry: normalizedRegistry, url: `${chartRef}:${resolvedVersion}` }, reporter)
+    }
+
+    const pushStep = reporter.startStep("helm push", { containerImage: "alpine/helm:3.16.4", command: `helm push /tmp/chart-out/${chartMeta.name}-${resolvedVersion}.tgz ${normalizedRegistry}` })
+    const authenticated = packageResult.container
+      .withSecretVariable("HELM_USERNAME", dag.setSecret("helm-username", username))
+      .withSecretVariable("HELM_PASSWORD", dag.setSecret("helm-password", password))
     const script = [
       "set -euo pipefail",
       `package_file="/tmp/chart-out/${chartMeta.name}-${resolvedVersion}.tgz"`,
       `digest="sha256:$(sha256sum "$package_file" | awk '{print $1}')"` ,
-      `if [ -n "$HELM_USERNAME" ] && [ -n "$HELM_PASSWORD" ]; then`,
-      `  helm registry login "${registryHost}" --username "$HELM_USERNAME" --password "$HELM_PASSWORD"`,
-      "fi",
+      `helm registry login "${registryHost}" --username "$HELM_USERNAME" --password "$HELM_PASSWORD"`,
       `helm push "$package_file" "${normalizedRegistry}"`,
       'printf "%s" "$digest"'
     ].join("\n")
+    const pushResult = await this.runCapturedStep(authenticated, "helm push", ["sh", "-lc", script])
+    reporter.endStep(pushStep, {
+      success: pushResult.exitCode === 0,
+      stdout: pushResult.stdout,
+      stderr: pushResult.stderr,
+      stdoutSummary: summarizeText(pushResult.stdout),
+      stderrSummary: summarizeText(pushResult.stderr),
+      exitCode: pushResult.exitCode
+    })
+    if (pushResult.exitCode !== 0) {
+      reporter.recordError("helm push", pushResult.stderr || pushResult.stdout, "Check registry credentials and OCI registry address")
+      return this.publishResult({ target: "helm-chart", name: chartMeta.name, version: resolvedVersion, registry: normalizedRegistry, url: `${chartRef}:${resolvedVersion}` }, reporter)
+    }
 
-    const authenticated = password
-      ? container
-          .withSecretVariable("HELM_USERNAME", dag.setSecret("helm-username", username))
-          .withSecretVariable("HELM_PASSWORD", dag.setSecret("helm-password", password))
-      : container
+    this.recordPipelineWarnings(reporter, (await cache.save(pushResult.container, true)).warnings)
 
-    const digest = (await authenticated.withExec(["sh", "-lc", script]).stdout()).trim()
-
-    return JSON.stringify({
-      target: "helm-chart",
-      name: chartMeta.name,
-      version: resolvedVersion,
-      registry,
-      url: `${chartRef}:${resolvedVersion}`,
-      digest,
-      artifactPath: `/tmp/chart-out/${chartMeta.name}-${resolvedVersion}.tgz`,
-      notes: "helm lint/package/push completed"
-    } satisfies PublishResult)
+    return this.publishResult(
+      {
+        target: "helm-chart",
+        name: chartMeta.name,
+        version: resolvedVersion,
+        registry: normalizedRegistry,
+        url: `${chartRef}:${resolvedVersion}`,
+        notes: "helm lint/package/push completed"
+      },
+      reporter,
+      {
+        digest: pushResult.stdout.trim(),
+        artifactPath: `/tmp/chart-out/${chartMeta.name}-${resolvedVersion}.tgz`
+      }
+    )
   }
 
   private async publishNodePackage(
@@ -317,38 +522,121 @@ export class GhReusablePipelines {
     if (!options.token) {
       throw new Error(`Missing required token for ${options.manager} publish`)
     }
+    const reporter = this.createReporter(`publish-${options.manager}`, {
+      sourceDir: ".",
+      version: options.version,
+      registryUrls: [options.registry],
+      credentials: { NPM_TOKEN: true }
+    })
     const packageJson = await this.readRequiredText(source, "package.json")
     const manifest = this.parsePackageJson(packageJson)
     const resolvedVersion = this.withVersioning(manifest.version, options.version, "package.json")
-    const container = this.withNodeEnv(source, options.manager)
-      .withExec(this.nodeInstallCommand(options.manager))
-      .withExec(this.nodeBuildCommand(options.manager))
-      .withExec(this.nodeTestCommand(options.manager))
+    reporter.setOutput("publishedVersion", resolvedVersion)
+    reporter.setOutput("registryUrls", [options.registry])
+    reporter.setOutput("packageMetadata", { name: manifest.name, manifest: "package.json" })
 
-    const taggedContainer = options.token
-      ? this.withAuthSecrets(container, {
-          NPM_TOKEN: options.token
-        })
-      : container
+    const cache = await PipelineCache.create({
+      pipelineName: `publish-${options.manager}`,
+      source,
+      sourcePatterns: ["**/*"],
+      lockfilePatterns: options.manager === "npm" ? ["package-lock.json", "npm-shrinkwrap.json"] : options.manager === "pnpm" ? ["pnpm-lock.yaml"] : ["yarn.lock"],
+      mounts: [
+        { path: "/src/node_modules", archiveName: "src/node_modules" },
+        { path: "/src/dist", archiveName: "src/dist" },
+        { path: "/src/build", archiveName: "src/build" }
+      ]
+    })
+    reporter.setOutput("cacheBackend", cache.backendName)
+    reporter.setOutput("cacheKey", cache.key)
 
+    const installStep = reporter.startStep(`${options.manager} install`, { containerImage: "node:24-bookworm", command: options.manager === "npm" ? "npm ci" : options.manager === "pnpm" ? "pnpm install --frozen-lockfile" : "yarn install --frozen-lockfile" })
+    let nodeContainer = this.withNodeEnv(source, options.manager)
+    const restoredCache = await cache.restore(nodeContainer)
+    this.recordPipelineWarnings(reporter, restoredCache.warnings)
+    nodeContainer = restoredCache.container
+    const installResult = await this.runCapturedStep(nodeContainer, `${options.manager} install`, this.nodeInstallCommand(options.manager))
+    reporter.endStep(installStep, {
+      success: installResult.exitCode === 0,
+      stdout: installResult.stdout,
+      stderr: installResult.stderr,
+      stdoutSummary: summarizeText(installResult.stdout),
+      stderrSummary: summarizeText(installResult.stderr),
+      exitCode: installResult.exitCode
+    })
+    if (installResult.exitCode !== 0) {
+      reporter.recordError(`${options.manager} install`, installResult.stderr || installResult.stdout, "Fix dependency installation before publishing")
+      return this.publishResult({ target: options.manager, name: manifest.name, version: resolvedVersion, registry: options.registry, url: `https://www.npmjs.com/package/${encodeURIComponent(manifest.name)}/v/${resolvedVersion}` }, reporter, { packageManager: options.manager })
+    }
+
+    const buildStep = reporter.startStep(`${options.manager} build`, { containerImage: "node:24-bookworm", command: `${options.manager} run build` })
+    const buildResult = await this.runCapturedStep(installResult.container, `${options.manager} build`, this.nodeBuildCommand(options.manager))
+    reporter.endStep(buildStep, {
+      success: buildResult.exitCode === 0,
+      stdout: buildResult.stdout,
+      stderr: buildResult.stderr,
+      stdoutSummary: summarizeText(buildResult.stdout),
+      stderrSummary: summarizeText(buildResult.stderr),
+      exitCode: buildResult.exitCode
+    })
+    if (buildResult.exitCode !== 0) {
+      reporter.recordError(`${options.manager} build`, buildResult.stderr || buildResult.stdout, "Fix build failures before publishing")
+      return this.publishResult({ target: options.manager, name: manifest.name, version: resolvedVersion, registry: options.registry, url: `https://www.npmjs.com/package/${encodeURIComponent(manifest.name)}/v/${resolvedVersion}` }, reporter, { packageManager: options.manager })
+    }
+
+    const testStep = reporter.startStep(`${options.manager} test`, { containerImage: "node:24-bookworm", command: `${options.manager} test` })
+    const testResult = await this.runCapturedStep(buildResult.container, `${options.manager} test`, this.nodeTestCommand(options.manager))
+    reporter.endStep(testStep, {
+      success: testResult.exitCode === 0,
+      stdout: testResult.stdout,
+      stderr: testResult.stderr,
+      stdoutSummary: summarizeText(testResult.stdout),
+      stderrSummary: summarizeText(testResult.stderr),
+      exitCode: testResult.exitCode
+    })
+    if (testResult.exitCode !== 0) {
+      reporter.recordError(`${options.manager} test`, testResult.stderr || testResult.stdout, "Fix failing tests before publishing")
+      return this.publishResult({ target: options.manager, name: manifest.name, version: resolvedVersion, registry: options.registry, url: `https://www.npmjs.com/package/${encodeURIComponent(manifest.name)}/v/${resolvedVersion}` }, reporter, { packageManager: options.manager })
+    }
+
+    const publishStep = reporter.startStep(`${options.manager} publish`, { containerImage: "node:24-bookworm", command: `npm publish --registry ${options.registry}${options.tag ? ` --tag ${options.tag}` : ""}` })
+    const taggedContainer = this.withAuthSecrets(testResult.container, {
+      NPM_TOKEN: options.token
+    })
     const publishScript = [
       "set -euo pipefail",
-      `registry="${options.registry}"`,
+      `registry=${shellQuote(options.registry)}`,
       `printf '//%s/:_authToken=%s\\n' "$(node -e 'const u = new URL(process.argv[1]); process.stdout.write(u.host + (u.pathname === "/" ? "" : u.pathname.replace(/\\/$/, "")))' "$registry")" "$NPM_TOKEN" > .npmrc`,
       `npm publish --registry "$registry"${options.tag ? ` --tag ${options.tag}` : ""}`
     ].join("\n")
+    const publishResult = await this.runCapturedStep(taggedContainer, `${options.manager} publish`, ["sh", "-lc", publishScript])
+    reporter.endStep(publishStep, {
+      success: publishResult.exitCode === 0,
+      stdout: publishResult.stdout,
+      stderr: publishResult.stderr,
+      stdoutSummary: summarizeText(publishResult.stdout),
+      stderrSummary: summarizeText(publishResult.stderr),
+      exitCode: publishResult.exitCode
+    })
+    if (publishResult.exitCode !== 0) {
+      reporter.recordError(`${options.manager} publish`, publishResult.stderr || publishResult.stdout, "Check registry credentials and package access")
+      return this.publishResult({ target: options.manager, name: manifest.name, version: resolvedVersion, registry: options.registry, url: `https://www.npmjs.com/package/${encodeURIComponent(manifest.name)}/v/${resolvedVersion}` }, reporter, { packageManager: options.manager })
+    }
 
-    await taggedContainer.withExec(["sh", "-lc", publishScript]).stdout()
+    this.recordPipelineWarnings(reporter, (await cache.save(publishResult.container, true)).warnings)
 
-    return JSON.stringify({
-      target: options.manager,
-      name: manifest.name,
-      version: resolvedVersion,
-      registry: options.registry,
-      url: `https://www.npmjs.com/package/${encodeURIComponent(manifest.name)}/v/${resolvedVersion}`,
-      packageManager: options.manager,
-      notes: "deps/build/test/publish completed"
-    } satisfies PublishResult)
+    return this.publishResult(
+      {
+        target: options.manager,
+        name: manifest.name,
+        version: resolvedVersion,
+        registry: options.registry,
+        url: `https://www.npmjs.com/package/${encodeURIComponent(manifest.name)}/v/${resolvedVersion}`,
+        packageManager: options.manager,
+        notes: "deps/build/test/publish completed"
+      },
+      reporter,
+      { packageManager: options.manager }
+    )
   }
 
   private withNodeEnv(source: Directory, manager: NodePackageManager): Container {
@@ -378,6 +666,81 @@ export class GhReusablePipelines {
       current = current.withSecretVariable(key, dag.setSecret(key.toLowerCase(), value))
     }
     return current
+  }
+
+  private recordPipelineWarnings(reporter: PipelineReporter, warnings: readonly string[]): void {
+    for (const warning of warnings) {
+      reporter.recordWarning(warning)
+    }
+  }
+
+  private publishResult(
+    base: PublishResult,
+    reporter: PipelineReporter,
+    extra: Partial<PublishResult> = {}
+  ): string {
+    const report = reporter.finalize()
+    return JSON.stringify({
+      ...base,
+      ...extra,
+      markdown: report.markdown,
+      report,
+      reportJson: JSON.stringify(report),
+      reportMarkdown: report.markdown
+    })
+  }
+
+  private createReporter(pipelineName: string, inputs: {
+    sourceDir: string
+    version?: string
+    registryUrls?: readonly string[]
+    credentials?: Readonly<Record<string, boolean>>
+  }): PipelineReporter {
+    return new PipelineReporter({
+      pipelineName,
+      sourceDir: inputs.sourceDir,
+      version: inputs.version,
+      registryUrls: inputs.registryUrls,
+      credentials: inputs.credentials,
+      environment: process.env
+    })
+  }
+
+  private async runCapturedStep(
+    container: Container,
+    name: string,
+    command: readonly [string, ...string[]]
+  ): Promise<{
+    container: Container
+    stdout: string
+    stderr: string
+    exitCode: number
+  }> {
+    const stepDir = `/tmp/dagger-report-${this.slugify(name)}`
+    const script = [
+      "set -euo pipefail",
+      `rm -rf ${shellQuote(stepDir)}`,
+      `mkdir -p ${shellQuote(stepDir)}`,
+      `started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"`,
+      `started_ms="$(date +%s%3N)"`,
+      "set +e",
+      `{ ${command.map(shellQuote).join(" ")}; } >${shellQuote(`${stepDir}/stdout`)} 2>${shellQuote(`${stepDir}/stderr`)}`,
+      `exit_code=$?`,
+      `ended_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"`,
+      `ended_ms="$(date +%s%3N)"`,
+      `printf '%s' "$exit_code" >${shellQuote(`${stepDir}/exit_code`)}`,
+      `printf '%s' "$started_at" >${shellQuote(`${stepDir}/started_at`)}`,
+      `printf '%s' "$ended_at" >${shellQuote(`${stepDir}/ended_at`)}`,
+      `printf '%s' "$started_ms" >${shellQuote(`${stepDir}/started_ms`)}`,
+      `printf '%s' "$ended_ms" >${shellQuote(`${stepDir}/ended_ms`)}`,
+      "exit 0"
+    ].join("\n")
+
+    const executed = await container.withExec(["sh", "-lc", script])
+    const stdout = await executed.file(`${stepDir}/stdout`).contents()
+    const stderr = await executed.file(`${stepDir}/stderr`).contents()
+    const exitCode = Number.parseInt(await executed.file(`${stepDir}/exit_code`).contents(), 10)
+    return { container: executed, stdout, stderr, exitCode }
   }
 
   private withVersioning(manifestVersion: string, requestedVersion: string, manifestName: string): string {
@@ -476,6 +839,10 @@ export class GhReusablePipelines {
       throw new Error(`Chart.yaml must define ${key}`)
     }
     return match[1].trim()
+  }
+
+  private slugify(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "step"
   }
 
   private ociRegistryHost(registry: string): string {

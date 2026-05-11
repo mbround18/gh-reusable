@@ -55,6 +55,8 @@ test('audit workflow runs module audit and supports SARIF alerts + PR history', 
   const sarifStep = steps.find((step) => step.name === 'Generate SARIF reports for alerts');
   const semgrepUpload = steps.find((step) => step.name === 'Upload Semgrep SARIF');
   const gitleaksUpload = steps.find((step) => step.name === 'Upload Gitleaks SARIF');
+  const reportStep = steps.find((step) => step.name === 'Materialize audit report');
+  const reportUpload = steps.find((step) => step.name === 'Upload audit report artifact');
   const stickyComment = steps.find((step) => step.name === 'Update sticky PR audit comment');
   const historyComment = steps.find((step) => step.name === 'Add PR audit history comment');
   const releaseNotes = steps.find((step) => step.name === 'Update tag release notes with audit summary');
@@ -67,6 +69,8 @@ test('audit workflow runs module audit and supports SARIF alerts + PR history', 
   expect(sarifStep?.if).toContain('inputs.create_alerts');
   expect(semgrepUpload?.uses).toContain('github/codeql-action/upload-sarif@');
   expect(gitleaksUpload?.uses).toContain('github/codeql-action/upload-sarif@');
+  expect(reportStep?.uses).toContain('actions/github-script@');
+  expect(reportUpload?.uses).toContain('actions/upload-artifact@');
   expect(stickyComment?.uses).toContain('actions/github-script@');
   expect(historyComment?.uses).toContain('actions/github-script@');
   expect(releaseNotes?.if).toContain('inputs.track_release_summary');

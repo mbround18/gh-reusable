@@ -32,6 +32,8 @@ function getDockerReleaseSteps(): WorkflowStep[] {
 test('docker release workflow has rich summary and PR/release reporting steps', () => {
   const steps = getDockerReleaseSteps();
   const daggerStep = steps.find((step) => step.id === 'dagger_release');
+  const reportStep = steps.find((step) => step.name === 'Materialize docker release report');
+  const reportUpload = steps.find((step) => step.name === 'Upload docker release report artifact');
   const stickyCommentStep = steps.find((step) => step.name === 'Update sticky PR status comment');
   const historyStep = steps.find((step) => step.name === 'Add PR run history comment');
   const releaseNotesStep = steps.find((step) => step.name === 'Update tag release notes');
@@ -42,6 +44,8 @@ test('docker release workflow has rich summary and PR/release reporting steps', 
   expect(daggerStep?.with?.call).toContain('--pr-labels-csv=');
   expect(daggerStep?.with?.call).toContain('--docker-token=');
   expect(daggerStep?.with?.call).toContain('--ghcr-token=');
+  expect(reportStep?.uses).toContain('actions/github-script@');
+  expect(reportUpload?.uses).toContain('actions/upload-artifact@');
   expect(stickyCommentStep?.uses).toContain('actions/github-script@');
   expect(stickyCommentStep?.env?.SUMMARY_JSON).toContain('steps.dagger_release.outputs.stdout');
   expect(historyStep?.uses).toContain('actions/github-script@');
