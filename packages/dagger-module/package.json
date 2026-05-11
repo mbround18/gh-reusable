@@ -24,7 +24,7 @@
     "typescript": "^5.5.4"
   },
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run tests"
   },
   "packageManager": "pnpm@10.15.1"
 }
