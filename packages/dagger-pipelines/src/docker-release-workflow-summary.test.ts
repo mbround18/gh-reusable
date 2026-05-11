@@ -14,6 +14,7 @@ type WorkflowStep = {
   id?: string;
   if?: string;
   uses?: string;
+  with?: Record<string, string>;
   env?: Record<string, string>;
 };
 
@@ -37,6 +38,8 @@ test('docker release workflow has rich summary and PR/release reporting steps', 
   const failureStep = steps.find((step) => step.name === 'Fail workflow on docker release error');
 
   expect(daggerStep?.uses).toContain('dagger/dagger-for-github@');
+  expect(daggerStep?.with?.call).toContain('--event-name=');
+  expect(daggerStep?.with?.call).toContain('--pr-labels-csv=');
   expect(stickyCommentStep?.uses).toContain('actions/github-script@');
   expect(stickyCommentStep?.env?.SUMMARY_JSON).toContain('steps.dagger_release.outputs.stdout');
   expect(historyStep?.uses).toContain('actions/github-script@');

@@ -195,6 +195,15 @@ jobs:
             --canary-label=${{ inputs.canary_label }}
             --dockerhub-username=${{ inputs.dockerhub_username }}
             --ghcr-username=${{ inputs.ghcr_username }}
+            --event-name=${{ github.event_name }}
+            --ref=${{ github.ref }}
+            --ref-name=${{ github.ref_name }}
+            --head-ref=${{ github.head_ref }}
+            --default-branch=${{ github.event.repository.default_branch }}
+            --sha=${{ github.sha }}
+            --run-url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            --run-number=${{ github.run_number }}
+            --pr-labels-csv=${{ github.event_name == 'pull_request' && join(github.event.pull_request.labels.*.name, ',') || '' }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
 
       - name: Update sticky PR status comment

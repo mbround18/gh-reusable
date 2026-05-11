@@ -1,5 +1,4 @@
 import { dag, Directory, Platform, object, func } from "@dagger.io/dagger"
-import { readFileSync } from "node:fs"
 import * as semver from "semver"
 
 type DockerReleaseDecision = "publish" | "skip" | "failed"
@@ -163,18 +162,21 @@ export class GhReusablePipelines {
     canaryLabel: string = "canary",
     dockerhubUsername: string = "mbround18",
     ghcrUsername: string = "mbround18",
-    forcePush: boolean = false
+    forcePush: boolean = false,
+    eventName: string = "",
+    ref: string = "",
+    refName: string = "",
+    headRef: string = "",
+    defaultBranch: string = "main",
+    sha: string = "",
+    runUrl: string = "",
+    runNumber: string = "",
+    prLabelsCsv: string = ""
   ): Promise<string> {
-    const eventName = process.env.GITHUB_EVENT_NAME ?? ""
-    const defaultBranch = process.env.GITHUB_DEFAULT_BRANCH ?? "main"
-    const ref = process.env.GITHUB_REF ?? ""
-    const refName = process.env.GITHUB_REF_NAME ?? ""
-    const headRef = process.env.GITHUB_HEAD_REF ?? ""
     const branchName = headRef || refName
-    const sha = (process.env.GITHUB_SHA ?? "0000000").slice(0, 7)
-    const hasPullRequestPayload = this.hasPullRequestPayload()
-    const isPullRequestContext = eventName === "pull_request" || ref.startsWith("refs/pull/") || hasPullRequestPayload
-    const hasCanaryLabel = isPullRequestContext ? this.prHasLabel(canaryLabel) : false
+    const shortSha = (sha || "0000000").slice(0, 7)
+    const isPullRequestContext = eventName === "pull_request" || ref.startsWith("refs/pull/")
+    const hasCanaryLabel = isPullRequestContext ? this.labelsContain(prLabelsCsv, canaryLabel) : false
 
     const shouldPublish = forcePush || eventName === "push" || (isPullRequestContext && hasCanaryLabel)
 
@@ -187,13 +189,13 @@ export class GhReusablePipelines {
     if (refIsTag && refName) {
       tagSet.add(refName)
     } else if (eventName === "pull_request") {
-      tagSet.add(`${releaseTag}-pr.${sha}`)
+      tagSet.add(`${releaseTag}-pr.${shortSha}`)
     } else if (branchName === defaultBranch) {
       tagSet.add(releaseTag)
       tagSet.add("latest")
     } else {
       const branchSuffix = this.sanitizeTagPart(branchName || "branch")
-      tagSet.add(`${releaseTag}-${branchSuffix}.${sha}`)
+      tagSet.add(`${releaseTag}-${branchSuffix}.${shortSha}`)
     }
 
     const tags = [...tagSet]
@@ -263,8 +265,8 @@ export class GhReusablePipelines {
         forcePush,
         canaryLabel,
         hasCanaryLabel,
-        runUrl: this.workflowRunUrl(),
-        runNumber: process.env.GITHUB_RUN_NUMBER ?? ""
+        runUrl,
+        runNumber
       })
       return JSON.stringify(summary)
     }
@@ -293,8 +295,8 @@ export class GhReusablePipelines {
       forcePush,
       canaryLabel,
       hasCanaryLabel,
-      runUrl: this.workflowRunUrl(),
-      runNumber: process.env.GITHUB_RUN_NUMBER ?? ""
+      runUrl,
+      runNumber
     })
 
     return JSON.stringify(summary)
@@ -373,39 +375,8 @@ export class GhReusablePipelines {
     return parsed.length
   }
 
-  private prHasLabel(label: string): boolean {
-    const eventPath = process.env.GITHUB_EVENT_PATH
-    if (!eventPath) {
-      return false
-    }
-
-    const payloadRaw = readFileSync(eventPath, "utf8")
-    const payload = JSON.parse(payloadRaw) as {
-      pull_request?: { labels?: Array<{ name?: string }> }
-    }
-    const labels = payload.pull_request?.labels ?? []
-    return labels.some((entry) => entry.name === label)
-  }
-
-  private hasPullRequestPayload(): boolean {
-    const eventPath = process.env.GITHUB_EVENT_PATH
-    if (!eventPath) {
-      return false
-    }
-
-    const payloadRaw = readFileSync(eventPath, "utf8")
-    const payload = JSON.parse(payloadRaw) as { pull_request?: unknown }
-    return payload.pull_request !== undefined
-  }
-
-  private workflowRunUrl(): string {
-    const serverUrl = process.env.GITHUB_SERVER_URL ?? "https://github.com"
-    const repository = process.env.GITHUB_REPOSITORY ?? ""
-    const runId = process.env.GITHUB_RUN_ID ?? ""
-    if (!repository || !runId) {
-      return ""
-    }
-    return `${serverUrl}/${repository}/actions/runs/${runId}`
+  private labelsContain(labelsCsv: string, label: string): boolean {
+    return this.csv(labelsCsv).some((entry) => entry === label)
   }
 
   private renderDockerReleaseSummary(
