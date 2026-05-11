@@ -1,0 +1,67 @@
+name: Dagger Pipelines
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+      - name: Run Dagger CI
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
+        with:
+          version: v0.20.8
+          module: ./packages/dagger-module
+          call: ci --source=.
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+  build-and-push:
+    if: github.event_name == 'push'
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+      - name: Resolve Docker release tags
+        id: tags
+        run: |
+          tags="$(git tag --list | paste -sd ',' - || true)"
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+      - name: Run Dagger docker-release workflow
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
+          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+        with:
+          version: v0.20.8
+          module: ./packages/dagger-module
+          call: >-
+            docker-release
+            --source=.
+            --image=mbround18/gh-reusable
+            --context=.
+            --dockerfile=./Dockerfile
+            --platforms=linux/amd64
+            --tags-csv=${{ steps.tags.outputs.tags }}
+            --registries-csv=docker.io
+            --semver-increment=patch
+            --dockerhub-username=mbround18
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

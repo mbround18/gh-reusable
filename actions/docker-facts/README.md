@@ -1,6 +1,6 @@
 # Docker Facts Action
 
-This action extracts Dockerfile paths, context directories, and build arguments from docker-compose.yml files or uses provided fallback values. It also generates appropriate Docker tags based on branch, version, and registries.
+This action is implemented in TypeScript and extracts Dockerfile paths, context directories, and build arguments from docker-compose files or fallback inputs. It also generates Docker tags based on branch, version, target, and registries.
 
 ## Features
 
@@ -92,7 +92,7 @@ The action will automatically extract:
 1. `dockerfile` = `./app/Dockerfile.prod`
 2. `context` = `./app`
 3. `target` = `production`
-4. Build args will be available as `BUILD_ARG_VERSION` and `BUILD_ARG_DEBUG` environment variables
+4. Build args are parsed by the action and used for Docker metadata resolution
 
 ## Push Rules
 

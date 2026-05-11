@@ -19,7 +19,7 @@ jobs:
         uses: mbround18/gh-reusable/actions/semver@v0.0.5
         with:
           base: "" # Optional: specify base version or leave empty to use the last tag
-          increment: "patch" # Optional: specify increment (major, minor, patch)
+          increment: "" # Optional: specify increment (major, minor, patch); empty infers from labels
           major-label: "major" # Optional: specify label to identify a major increment
           minor-label: "minor" # Optional: specify label to identify a minor increment
           patch-label: "patch" # Optional: specify label to identify a patch increment
@@ -33,7 +33,7 @@ jobs:
 | Name          | Description                                                             | Required | Default |
 | ------------- | ----------------------------------------------------------------------- | -------- | ------- |
 | `base`        | Base version to start from. If not provided, the last tag will be used. | No       | `""`    |
-| `increment`   | Increment value (major, minor, patch).                                  | No       | `patch` |
+| `increment`   | Increment value (major, minor, patch). Empty infers from labels.        | No       | `""` |
 | `major-label` | Label to identify a major increment.                                    | No       | `major` |
 | `minor-label` | Label to identify a minor increment.                                    | No       | `minor` |
 | `patch-label` | Label to identify a patch increment.                                    | No       | `patch` |
@@ -46,7 +46,16 @@ If the `base` input is not provided, the action will look up the last tag in the
 
 ### Incrementing the base or last tag
 
-The action will increment the base or last tag by the specified increment value. If the `increment` input is not provided, the action will use the labels of the last commit or PR to determine the increment value. The increment value can be `major`, `minor`, or `patch`.
+The action increments by `major`, `minor`, or `patch`.
+
+When `increment` is empty, inference order is:
+1. PR labels (for `pull_request` events)
+2. Labels on the associated PR for the pushed commit (for `push` events)
+3. Branch-name heuristics:
+   - `major`: `major`, `breaking`, `breaking-change`
+   - `minor`: `feat`, `feature`, `minor`, `release/*`
+   - `patch`: `fix`, `patch`, `hotfix`, `bugfix`, `chore`, `docs`, `refactor`, `test`, `ci`, `perf`
+4. Default fallback: `patch`
 
 ## Project Structure
 

@@ -28,6 +28,13 @@ function buildNewVersion(lastTag, prefix, increment, isPR, sha, core = null) {
   const ref = process.env.GITHUB_REF || "";
   if (ref.startsWith("refs/tags/")) {
     const tagName = ref.replace("refs/tags/", "");
+    const tagVersionPart =
+      prefix && tagName.startsWith(prefix)
+        ? tagName.substring(prefix.length)
+        : tagName;
+    if (!semver.valid(tagVersionPart)) {
+      throw new Error(`Tag "${tagName}" is not a valid semantic version`);
+    }
     if (core)
       core.info(`Running on tag: ${tagName}, returning exactly this tag`);
     return tagName;
@@ -44,45 +51,36 @@ function buildNewVersion(lastTag, prefix, increment, isPR, sha, core = null) {
     throw new Error(`Invalid semver: ${versionPart}`);
   }
 
+  const validIncrements = ["major", "minor", "patch"];
+  if (increment && !validIncrements.includes(increment)) {
+    throw new Error(
+      `Failed to increment version: ${versionPart}. Invalid increment type: ${increment}`,
+    );
+  }
+
   // If this is a PR, create a prerelease version with the commit SHA
   if (isPR) {
     // Extract the short SHA (first 7 characters)
     const shortSha = sha.substring(0, 7);
 
-    // Handle major, minor, patch labels for PRs too
-    let nextVersion;
-    if (increment === "major") {
-      nextVersion = semver.inc(parsed, "major");
-    } else if (increment === "minor") {
-      nextVersion = semver.inc(parsed, "minor");
-    } else if (increment === "patch") {
-      nextVersion = semver.inc(parsed, "patch");
-    } else {
-      // If no increment type specified for PR, just use current version
-      nextVersion = `${parsed.major}.${parsed.minor}.${parsed.patch}`;
-    }
+    const nextVersion = increment
+      ? semver.inc(parsed, increment)
+      : `${parsed.major}.${parsed.minor}.${parsed.patch}`;
 
-    return `${prefix}${nextVersion}-${shortSha}`;
+    return `${prefix}${nextVersion}-pr.${shortSha}`;
   }
 
   // For regular (non-PR) builds, increment the version
   let newVersion;
 
   // Validate increment type
-  const validIncrements = ["major", "minor", "patch"];
   if (!validIncrements.includes(increment)) {
     throw new Error(
       `Failed to increment version: ${versionPart}. Invalid increment type: ${increment}`,
     );
   }
 
-  if (increment === "major") {
-    newVersion = semver.inc(parsed, "major");
-  } else if (increment === "minor") {
-    newVersion = semver.inc(parsed, "minor");
-  } else if (increment === "patch") {
-    newVersion = semver.inc(parsed, "patch");
-  }
+  newVersion = semver.inc(parsed, increment);
 
   if (!newVersion) {
     throw new Error(`Failed to increment version: ${versionPart}`);

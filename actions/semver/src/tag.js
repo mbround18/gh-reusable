@@ -79,13 +79,43 @@ async function getLastTag(octokit, owner, repo, prefix, base, core) {
       updatedPrefix = "v";
     }
 
-    // Filter tags by prefix
-    const filteredTags = updatedPrefix
-      ? tags.filter((tag) => tag.startsWith(updatedPrefix))
-      : tags;
+    const buildCandidateSet = (candidatePrefix) =>
+      tags
+        .filter((tag) =>
+          candidatePrefix ? tag.startsWith(candidatePrefix) : true,
+        )
+        .map((tag) => {
+          const versionPart = candidatePrefix
+            ? tag.substring(candidatePrefix.length)
+            : tag;
+          const parsedVersion = semver.valid(versionPart);
+          if (!parsedVersion) {
+            return null;
+          }
 
-    // If no matching tags, return default version with prefix
-    if (filteredTags.length === 0) {
+          return {
+            tag,
+            version: parsedVersion,
+          };
+        })
+        .filter(Boolean);
+
+    const prefixCandidates = new Set([updatedPrefix || ""]);
+    if (updatedPrefix && !updatedPrefix.endsWith("-")) {
+      prefixCandidates.add(`${updatedPrefix}-`);
+    }
+
+    let selectedPrefix = updatedPrefix || "";
+    let semverTags = [];
+    for (const candidatePrefix of prefixCandidates) {
+      const candidateTags = buildCandidateSet(candidatePrefix);
+      if (candidateTags.length > semverTags.length) {
+        semverTags = candidateTags;
+        selectedPrefix = candidatePrefix;
+      }
+    }
+
+    if (semverTags.length === 0) {
       const defaultPrefix = updatedPrefix !== undefined ? updatedPrefix : "v";
       return {
         lastTag: `${defaultPrefix}0.0.0`,
@@ -93,54 +123,10 @@ async function getLastTag(octokit, owner, repo, prefix, base, core) {
       };
     }
 
-    // Sort tags by semver version, properly handling prefixes
-    const sortedTags = [...filteredTags].sort((a, b) => {
-      // Extract the semver part after the prefix
-      const aVersion = a.startsWith(updatedPrefix)
-        ? a.substring(updatedPrefix.length)
-        : a;
-      const bVersion = b.startsWith(updatedPrefix)
-        ? b.substring(updatedPrefix.length)
-        : b;
-
-      // Fix for tags with dashes: make sure we parse version numbers correctly
-      const aParts = aVersion.split("-");
-      const bParts = bVersion.split("-");
-
-      // Get clean semver for comparison, focusing on the numeric part
-      const aSemver = semver.valid(semver.coerce(aParts[0])) || "0.0.0";
-      const bSemver = semver.valid(semver.coerce(bParts[0])) || "0.0.0";
-
-      // Compare versions (reversed for descending order)
-      const versionCompare = semver.compare(bSemver, aSemver);
-
-      // If versions are same but one has a prerelease tag, prioritize the one without
-      if (versionCompare === 0) {
-        const aIsPrerelease = aParts.length > 1;
-        const bIsPrerelease = bParts.length > 1;
-
-        if (aIsPrerelease && !bIsPrerelease) return 1;
-        if (!aIsPrerelease && bIsPrerelease) return -1;
-      }
-
-      return versionCompare;
-    });
-
-    // The last tag is the highest version (first after sorting)
-    const lastTag = sortedTags[0];
+    semverTags.sort((a, b) => semver.rcompare(a.version, b.version));
+    const lastTag = semverTags[0].tag;
+    updatedPrefix = selectedPrefix;
     core.info(`Last tag: ${lastTag}`);
-
-    // If used a dash as part of prefix, make sure it's included
-    if (
-      updatedPrefix &&
-      !updatedPrefix.endsWith("-") &&
-      lastTag.includes("-")
-    ) {
-      const actualPrefix = lastTag.substring(0, lastTag.lastIndexOf("-") + 1);
-      if (actualPrefix.startsWith(updatedPrefix)) {
-        updatedPrefix = actualPrefix;
-      }
-    }
 
     return {
       lastTag,

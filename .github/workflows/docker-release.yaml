@@ -36,12 +36,14 @@ on:
       semver_prefix:
         type: string
         default: ""
-        description: "Prefixer for semver, use this if you publish multiple artifacts
+        description:
+          "Prefixer for semver, use this if you publish multiple artifacts
           like example-0.0.0"
       prepend_target:
         type: boolean
         default: false
-        description: "Prepend the target to the version tag (e.g., target-v0.0.0 instead
+        description:
+          "Prepend the target to the version tag (e.g., target-v0.0.0 instead
           of v0.0.0)"
       target:
         type: string
@@ -64,15 +66,22 @@ on:
         default: ""
         description: "When downloading an artifact this helps it extract to a specific dir"
         required: false
+      track_release_summary:
+        type: boolean
+        default: false
+        description: "When true on tag refs, create or update GitHub release notes with Docker publish details."
     secrets:
       DOCKER_TOKEN:
         required: true
       GHCR_TOKEN:
         required: false
+      DAGGER_CLOUD_TOKEN:
+        required: false
 
 permissions:
-  contents: read
+  contents: write
   packages: write
+  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.image }}
@@ -87,125 +96,252 @@ jobs:
       'pull_request' && format('PR #{0}', github.event.pull_request.number) ||
       github.ref_name }}
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ${{ inputs.context }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+        with:
+          fetch-depth: 0
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
 
       - if: ${{ inputs.download_artifact != '' }}
         uses: actions/download-artifact@ad191675b41f6a5b46da9a048cb6893812da158b # ad19167, https://github.com/actions/download-artifact/releases/latest
         with:
           name: ${{ inputs.download_artifact }}
           path: ${{ inputs.download_artifact_destination }}
-      - run: |
-          echo "Running Docker Release Workflow"
-          echo "Image: ${{ inputs.image }}"
-          echo "Working Directory: ${{ inputs.context }}"
-          echo "Dockerfile: ${{ inputs.dockerfile }}"
 
-      - uses: mbround18/gh-reusable/actions/install-cli@main
-        with:
-          repository: "mikefarah/yq"
-          asset: "yq_linux_amd64"
-          override-name: "yq"
-      - id: semver
-        uses: mbround18/gh-reusable/actions/semver@main
-        with:
-          prefix: ${{ inputs.semver_prefix }}
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # 4d04d5d, https://github.com/docker/setup-buildx-action/releases/latest
-      - name: Log in to DockerHub
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # 4907a6d, https://github.com/docker/login-action/releases/latest
-        with:
-          username: ${{ inputs.dockerhub_username }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-      - name: Log in to GitHub Container Registry
-        if: ${{ inputs.ghcr }}
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # 4907a6d, https://github.com/docker/login-action/releases/latest
-        with:
-          registry: ghcr.io
-          username: ${{ inputs.ghcr_username }}
-          password: ${{ secrets.GHCR_TOKEN }}
-      - name: Images List
-        id: registries
+      - name: Resolve Docker release metadata
+        id: resolve
+        shell: bash
         run: |
-          IMAGES=("docker.io")
-          if [ "${{ inputs.ghcr }}" == "true" ]; then
-          IMAGES+=("ghcr.io")
+          set -euo pipefail
+
+          image_input="${{ inputs.image }}"
+          if [[ "$image_input" == *.*/* ]] || [[ "$image_input" == localhost/* ]]; then
+            publish_image="$image_input"
+          else
+            publish_image="docker.io/$image_input"
           fi
-          IMAGES_STR=$(IFS=,; echo "${IMAGES[*]}")
-          echo "list=$IMAGES_STR" >> $GITHUB_OUTPUT
 
-      - name: Docker Facts
-        id: docker-facts
-        uses: mbround18/gh-reusable/actions/docker-facts@main
+          registries="docker.io"
+          if [[ "${{ inputs.ghcr }}" == "true" ]]; then
+            registries="${registries},ghcr.io"
+          fi
+
+          increment="patch"
+          branch_name="${GITHUB_REF_NAME:-}"
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            branch_name="${GITHUB_HEAD_REF:-$branch_name}"
+            labels="$(jq -r '.pull_request.labels[].name? // empty' "$GITHUB_EVENT_PATH" || true)"
+            if echo "$labels" | grep -Eiq '(^|[-_ /])(major|breaking|breaking-change)($|[-_ /])'; then
+              increment="major"
+            elif echo "$labels" | grep -Eiq '(^|[-_ /])(minor|feature|feat)($|[-_ /])'; then
+              increment="minor"
+            elif echo "$labels" | grep -Eiq '(^|[-_ /])(patch|fix|hotfix)($|[-_ /])'; then
+              increment="patch"
+            fi
+          fi
+
+          if [[ "$increment" == "patch" ]]; then
+            if [[ "$branch_name" =~ (^|/)(major|breaking|breaking-change)($|/) ]]; then
+              increment="major"
+            elif [[ "$branch_name" =~ (^|/)(minor|feature|feat|release)($|/) ]]; then
+              increment="minor"
+            elif [[ "$branch_name" =~ (^|/)(patch|fix|hotfix|bugfix)($|/) ]]; then
+              increment="patch"
+            fi
+          fi
+
+          tags_csv="$(git tag --list | paste -sd ',' - || true)"
+
+          {
+            echo "publish_image=$publish_image"
+            echo "registries=$registries"
+            echo "increment=$increment"
+            echo "tags=$tags_csv"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Docker release in Dagger
+        id: dagger_release
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
+          DAGGER_VERSION: v0.20.8
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_SHA: ${{ github.sha }}
         with:
-          image: ${{ inputs.image }}
-          version: ${{ steps.semver.outputs.new_version }}
-          registries: ${{ steps.registries.outputs.list }}
-          dockerfile: ${{ inputs.dockerfile }}
-          context: ${{ inputs.context }}
-          canary_label: ${{ inputs.canary_label }}
-          prepend_target: ${{ inputs.prepend_target }}
-          target: ${{ inputs.target }}
+          version: v0.20.8
+          module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
+          call: >-
+            docker-release
+            --source=.
+            --image=${{ steps.resolve.outputs.publish_image }}
+            --context=${{ inputs.context }}
+            --dockerfile=${{ inputs.dockerfile }}
+            --target=${{ inputs.target }}
+            --platforms=${{ inputs.platforms }}
+            --tags-csv=${{ steps.resolve.outputs.tags }}
+            --registries-csv=${{ steps.resolve.outputs.registries }}
+            --semver-prefix=${{ inputs.semver_prefix }}
+            --semver-increment=${{ steps.resolve.outputs.increment }}
+            --prepend-target=${{ inputs.prepend_target }}
+            --canary-label=${{ inputs.canary_label }}
+            --dockerhub-username=${{ inputs.dockerhub_username }}
+            --ghcr-username=${{ inputs.ghcr_username }}
+            --docker-token=${{ secrets.DOCKER_TOKEN }}
+            --ghcr-token=${{ secrets.GHCR_TOKEN }}
+            --event-name=${{ github.event_name }}
+            --ref=${{ github.ref }}
+            --ref-name=${{ github.ref_name }}
+            --head-ref=${{ github.head_ref }}
+            --default-branch=${{ github.event.repository.default_branch }}
+            --sha=${{ github.sha }}
+            --run-url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            --run-number=${{ github.run_number }}
+            --pr-labels-csv=${{ github.event_name == 'pull_request' && join(github.event.pull_request.labels.*.name, ',') || '' }}
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
 
-      - name: Log some facts
-        run: |
-          echo "Image: ${{ inputs.image }}"
-          echo "Version: ${{ steps.semver.outputs.new_version }}"
-          echo "Registries: ${{ steps.registries.outputs.list }}"
-          echo "Dockerfile: ${{ inputs.dockerfile }}"
-          echo "Context: ${{ inputs.context }}"
-          echo "Canary Label: ${{ inputs.canary_label }}"
-          echo "Docker Facts Output (tags): ${{ steps.docker-facts.outputs.tags }}"
-          echo "Docker Facts Output (context): ${{ steps.docker-facts.outputs.context }}"
-          echo "Docker Facts Output (dockerfile): ${{ steps.docker-facts.outputs.dockerfile }}"
-          echo "Docker Facts Output (push): ${{ steps.docker-facts.outputs.push }}"
-
-      - name: Build and Push Docker Image
-        id: docker-push
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # bcafcac, https://github.com/docker/build-push-action/releases/latest
-        with:
-          context: ${{ steps.docker-facts.outputs.context }}
-          file: ${{ steps.docker-facts.outputs.dockerfile }}
-          push: ${{ steps.docker-facts.outputs.push }}
-          tags: ${{ steps.docker-facts.outputs.tags }}
-          platforms: ${{ inputs.platforms }}
-          cache-from: |
-            type=gha,mode=max
-          cache-to: |
-            type=gha,mode=max
-          target: ${{ inputs.target }}
-
-      - name: Comment on PR
-        if: ${{ github.event_name == 'pull_request' }}
-        continue-on-error: true
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 3a2844b, https://github.com/actions/github-script/releases/latest
+      - name: Update sticky PR status comment
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        env:
+          SUMMARY_JSON: ${{ steps.dagger_release.outputs.stdout }}
         with:
           script: |
-            const image = "${{ inputs.image }}"
-            const version = "${{ steps.semver.outputs.new_version }}"
-            const pr_number = context.payload.pull_request.number
-            const pr_url = context.payload.pull_request.html_url
-            const pr_title = context.payload.pull_request.title
-            const pipeline_url = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
+            const summary = JSON.parse(process.env.SUMMARY_JSON || '{}')
+            const marker = '<!-- gh-reusable:docker-release:status -->'
+            const body = `${marker}\n## Docker release status\n\n${summary.markdown || '_No summary produced._'}`
+            const issue_number = context.payload.pull_request.number
+            const { owner, repo } = context.repo
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            })
+            const existing = comments.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker)
+            )
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              })
+            }
 
-            const tags = "${{ steps.docker-facts.outputs.tags }}".split(',')
-
-            let message = `Docker image \`${image}\` has been built with the following tags:\n\n`
-            tags.forEach(tag => {
-              message += `- \`${tag}\`\n`
+      - name: Add PR run history comment
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        env:
+          SUMMARY_JSON: ${{ steps.dagger_release.outputs.stdout }}
+        with:
+          script: |
+            const summary = JSON.parse(process.env.SUMMARY_JSON || '{}')
+            const issue_number = context.payload.pull_request.number
+            const { owner, repo } = context.repo
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`
+            const body = [
+              '<!-- gh-reusable:docker-release:history -->',
+              `Docker release run [#${context.runNumber}](${runUrl}) finished with decision \`${summary.decision || 'unknown'}\`.`,
+            ].join('\n')
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body,
             })
 
-            message += `\nPR Title: ${pr_title}\n`
-            message += `PR URL: ${pr_url}\n`
-            message += `Pipeline URL: ${pipeline_url}`
+      - name: Materialize docker release report
+        if: ${{ always() }}
+        uses: actions/github-script@v7
+        env:
+          SUMMARY_JSON: ${{ steps.dagger_release.outputs.stdout }}
+        with:
+          script: |
+            const fs = require('node:fs')
+            const summary = JSON.parse(process.env.SUMMARY_JSON || '{}')
+            fs.writeFileSync('report.json', JSON.stringify(summary, null, 2))
+            fs.writeFileSync('report.md', summary.markdown || '')
 
-            github.rest.issues.createComment({
-              issue_number: pr_number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: message
+      - name: Upload docker release report artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-release-report
+          path: |
+            report.json
+            report.md
+
+      - name: Update tag release notes
+        if: ${{ always() && startsWith(github.ref, 'refs/tags/') && inputs.track_release_summary }}
+        uses: actions/github-script@v7
+        env:
+          SUMMARY_JSON: ${{ steps.dagger_release.outputs.stdout }}
+        with:
+          script: |
+            const summary = JSON.parse(process.env.SUMMARY_JSON || '{}')
+            const { owner, repo } = context.repo
+            const tag = context.ref.replace('refs/tags/', '')
+            const markerStart = '<!-- gh-reusable:docker-release:summary:start -->'
+            const markerEnd = '<!-- gh-reusable:docker-release:summary:end -->'
+            if (summary.decision === 'failed') {
+              core.warning(summary.reason || 'Docker release failed')
+              return
+            }
+            const summaryBlock = `${markerStart}\n## Docker publish summary\n\n${summary.markdown || '_No summary produced._'}\n${markerEnd}`
+
+            let release
+            try {
+              const fetched = await github.rest.repos.getReleaseByTag({ owner, repo, tag })
+              release = fetched.data
+            } catch (error) {
+              if (error.status !== 404) throw error
+              const created = await github.rest.repos.createRelease({
+                owner,
+                repo,
+                tag_name: tag,
+                name: tag,
+                body: summaryBlock,
+              })
+              release = created.data
+            }
+
+            const existingBody = release.body || ''
+            const sectionPattern = new RegExp(`${markerStart}[\\s\\S]*${markerEnd}`)
+            const newBody = sectionPattern.test(existingBody)
+              ? existingBody.replace(sectionPattern, summaryBlock)
+              : `${existingBody}\n\n${summaryBlock}`.trim()
+
+            await github.rest.repos.updateRelease({
+              owner,
+              repo,
+              release_id: release.id,
+              body: newBody,
             })
-            console.log("Comment posted successfully!")
+
+      - name: Fail workflow on docker release error
+        if: ${{ always() }}
+        uses: actions/github-script@v7
+        env:
+          SUMMARY_JSON: ${{ steps.dagger_release.outputs.stdout }}
+        with:
+          script: |
+            const summary = JSON.parse(process.env.SUMMARY_JSON || '{}')
+            if (summary.decision === 'failed') {
+              core.setFailed(summary.reason || 'Docker release failed')
+            }

@@ -1,0 +1,19 @@
+{
+  "name": "@gh-reusable/docker-facts-action",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Docker facts action implemented in TypeScript.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

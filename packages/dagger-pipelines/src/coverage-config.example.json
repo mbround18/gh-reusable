@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "actionIds": [
+    "graphql",
+    "docker-build",
+    "github-catalog",
+    "setup-rust",
+    "install-cli",
+    "ensure-repository",
+    "semver",
+    "docker-facts"
+  ],
+  "workflowFiles": [
+    "docker-release.yaml",
+    "rust-build-n-test.yml",
+    "tagger.yaml",
+    "test-docker-release.yaml",
+    "test-ensure-repository.yml",
+    "test-graphql-action.yaml",
+    "test-install-cli.yaml",
+    "test-rust-build-n-test.yml",
+    "test-semver.yaml",
+    "test-setup-rust.yaml",
+    "update-readme.yml"
+  ],
+  "commandPresetIds": [
+    "pnpm-install-frozen-lockfile",
+    "pnpm-workspace-typecheck",
+    "pnpm-workspace-test",
+    "pnpm-workspace-build",
+    "npm-ci",
+    "npm-run-typecheck",
+    "npm-test",
+    "npm-run-build",
+    "cargo-fetch-locked",
+    "cargo-fmt-check",
+    "cargo-clippy",
+    "cargo-test-verbose",
+    "cargo-build-verbose",
+    "cargo-build-release-verbose",
+    "docker-buildx-build",
+    "docker-buildx-build-push",
+    "gh-release-create",
+    "shell-verify-repository"
+  ]
+}

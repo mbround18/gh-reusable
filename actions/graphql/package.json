@@ -1,8 +1,13 @@
 {
-  "name": "graphql-action",
+  "name": "@gh-reusable/graphql-action",
   "version": "1.0.0",
+  "private": true,
   "description": "GraphQL Action using Docker",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
   "dependencies": {
     "@actions/core": "^1.11.1",
     "graphql": "^16.11.0"
