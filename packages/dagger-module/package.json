@@ -23,5 +23,8 @@
     "tar": "^7.5.15",
     "typescript": "^5.5.4"
   },
+  "scripts": {
+    "test": "vitest run"
+  },
   "packageManager": "pnpm@10.15.1"
 }

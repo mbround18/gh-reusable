@@ -6,7 +6,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 import * as tar from "tar"
 
-export type CacheBackend = "s3" | "github"
+import { computeCacheKey, detectBackend, type CacheBackend } from "./cache-utils"
 
 export interface CacheMount {
   readonly path: string
@@ -49,23 +49,18 @@ export class PipelineCache {
 
   static async create(inputs: CacheInputs): Promise<PipelineCache> {
     const environment = inputs.environment ?? process.env
-    const backend: CacheBackend = environment.S3_ENDPOINT?.trim() ? "s3" : "github"
+    const backend = detectBackend(environment)
     const lockfileHash = await hashMatchedFiles(inputs.source, inputs.lockfilePatterns)
     const sourceHash = await hashMatchedFiles(inputs.source, inputs.sourcePatterns)
     const commit = environment.GITHUB_SHA ?? "unknown-commit"
     const engine = environment.DAGGER_VERSION ?? environment.DAGGER_ENGINE_VERSION ?? "unknown-engine"
-    const cacheHash = createHash("sha256")
-      .update(inputs.pipelineName)
-      .update("\0")
-      .update(lockfileHash)
-      .update("\0")
-      .update(sourceHash)
-      .update("\0")
-      .update(commit)
-      .update("\0")
-      .update(engine)
-      .digest("hex")
-    const cacheKey = `${inputs.pipelineName}/${cacheHash}.tar.gz`
+    const cacheKey = computeCacheKey({
+      pipelineName: inputs.pipelineName,
+      lockfileHash,
+      sourceHash,
+      gitCommit: commit,
+      daggerEngineVersion: engine
+    })
     const restoreKeys = [`${inputs.pipelineName}/`]
     return new PipelineCache(inputs, backend, cacheKey, restoreKeys)
   }
