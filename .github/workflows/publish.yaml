@@ -1,0 +1,236 @@
+name: Publish Workflows
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Publish target
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - npm
+          - pnpm
+          - yarn
+          - rust
+          - helm
+      source:
+        description: Source directory
+        required: false
+        type: string
+        default: "."
+      chart:
+        description: Helm chart directory
+        required: false
+        type: string
+        default: "."
+      registry:
+        description: Registry or OCI registry
+        required: false
+        type: string
+        default: "https://registry.npmjs.org"
+      helm_registry:
+        description: Helm OCI registry
+        required: false
+        type: string
+        default: "oci://registry-1.docker.io/helm-charts"
+      tag:
+        description: Optional npm dist-tag or release tag
+        required: false
+        type: string
+        default: ""
+      version:
+        description: Version override
+        required: false
+        type: string
+        default: ""
+  workflow_call:
+    inputs:
+      target:
+        required: false
+        type: string
+        default: all
+      source:
+        required: false
+        type: string
+        default: "."
+      chart:
+        required: false
+        type: string
+        default: "."
+      registry:
+        required: false
+        type: string
+        default: "https://registry.npmjs.org"
+      helm_registry:
+        required: false
+        type: string
+        default: "oci://registry-1.docker.io/helm-charts"
+      tag:
+        required: false
+        type: string
+        default: ""
+      version:
+        required: false
+        type: string
+        default: ""
+    secrets:
+      DAGGER_CLOUD_TOKEN:
+        required: false
+      NPM_TOKEN:
+        required: false
+      CARGO_REGISTRY_TOKEN:
+        required: false
+      HELM_USERNAME:
+        required: false
+      HELM_PASSWORD:
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish_npm:
+    if: >-
+      ${{ (github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'npm')
+      && (hashFiles(format('{0}/package-lock.json', inputs.source || '.')) != ''
+      || (hashFiles(format('{0}/pnpm-lock.yaml', inputs.source || '.')) == ''
+      && hashFiles(format('{0}/yarn.lock', inputs.source || '.')) == '')) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+      - name: Publish npm package in Dagger
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
+        with:
+          version: v0.20.8
+          module: ./packages/dagger-module
+          call: >-
+            publish-npm
+            --source=${{ inputs.source || '.' }}
+            --registry=${{ inputs.registry || 'https://registry.npmjs.org' }}
+            --token=${{ secrets.NPM_TOKEN }}
+            --tag=${{ inputs.tag }}
+            --version=${{ inputs.version }}
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+  publish_pnpm:
+    if: >-
+      ${{ (github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'pnpm')
+      && hashFiles(format('{0}/pnpm-lock.yaml', inputs.source || '.')) != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+      - name: Publish pnpm package in Dagger
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
+        with:
+          version: v0.20.8
+          module: ./packages/dagger-module
+          call: >-
+            publish-pnpm
+            --source=${{ inputs.source || '.' }}
+            --registry=${{ inputs.registry || 'https://registry.npmjs.org' }}
+            --token=${{ secrets.NPM_TOKEN }}
+            --tag=${{ inputs.tag }}
+            --version=${{ inputs.version }}
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+  publish_yarn:
+    if: >-
+      ${{ (github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'yarn')
+      && hashFiles(format('{0}/yarn.lock', inputs.source || '.')) != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+      - name: Publish yarn package in Dagger
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
+        with:
+          version: v0.20.8
+          module: ./packages/dagger-module
+          call: >-
+            publish-yarn
+            --source=${{ inputs.source || '.' }}
+            --registry=${{ inputs.registry || 'https://registry.npmjs.org' }}
+            --token=${{ secrets.NPM_TOKEN }}
+            --tag=${{ inputs.tag }}
+            --version=${{ inputs.version }}
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+  publish_rust:
+    if: >-
+      ${{ (github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'rust')
+      && hashFiles(format('{0}/Cargo.toml', inputs.source || '.')) != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+      - name: Publish Rust crate in Dagger
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
+        with:
+          version: v0.20.8
+          module: ./packages/dagger-module
+          call: >-
+            publish-rust-crate
+            --source=${{ inputs.source || '.' }}
+            --token=${{ secrets.CARGO_REGISTRY_TOKEN }}
+            --version=${{ inputs.version }}
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+  publish_helm:
+    if: >-
+      ${{ (github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'helm')
+      && hashFiles(format('{0}/Chart.yaml', inputs.chart || '.')) != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+      - name: Publish Helm chart in Dagger
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
+        with:
+          version: v0.20.8
+          module: ./packages/dagger-module
+          call: >-
+            publish-helm-chart
+            --source=${{ inputs.source || '.' }}
+            --chart=${{ inputs.chart || '.' }}
+            --registry=${{ inputs.helm_registry || 'oci://registry-1.docker.io/helm-charts' }}
+            --username=${{ secrets.HELM_USERNAME }}
+            --password=${{ secrets.HELM_PASSWORD }}
+            --version=${{ inputs.version }}
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
