@@ -40,6 +40,8 @@ test('docker release workflow has rich summary and PR/release reporting steps', 
   expect(daggerStep?.uses).toContain('dagger/dagger-for-github@');
   expect(daggerStep?.with?.call).toContain('--event-name=');
   expect(daggerStep?.with?.call).toContain('--pr-labels-csv=');
+  expect(daggerStep?.with?.call).toContain('--docker-token=');
+  expect(daggerStep?.with?.call).toContain('--ghcr-token=');
   expect(stickyCommentStep?.uses).toContain('actions/github-script@');
   expect(stickyCommentStep?.env?.SUMMARY_JSON).toContain('steps.dagger_release.outputs.stdout');
   expect(historyStep?.uses).toContain('actions/github-script@');

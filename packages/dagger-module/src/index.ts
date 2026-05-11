@@ -500,6 +500,8 @@ export class GhReusablePipelines {
     dockerhubUsername: string = "mbround18",
     ghcrUsername: string = "mbround18",
     forcePush: boolean = false,
+    dockerToken: string = "",
+    ghcrToken: string = "",
     eventName: string = "",
     ref: string = "",
     refName: string = "",
@@ -552,21 +554,21 @@ export class GhReusablePipelines {
     const variants = built.slice(1)
 
     let publishContainer = baseContainer
-    const dockerToken = process.env.DOCKER_TOKEN?.trim()
-    const ghcrToken = process.env.GHCR_TOKEN?.trim()
+    const resolvedDockerToken = dockerToken.trim() || process.env.DOCKER_TOKEN?.trim() || ""
+    const resolvedGhcrToken = ghcrToken.trim() || process.env.GHCR_TOKEN?.trim() || ""
 
-    if (registries.includes("docker.io") && dockerToken) {
+    if (registries.includes("docker.io") && resolvedDockerToken) {
       publishContainer = publishContainer.withRegistryAuth(
         "docker.io",
         dockerhubUsername,
-        dag.setSecret("docker-token", dockerToken)
+        dag.setSecret("docker-token", resolvedDockerToken)
       )
     }
-    if (registries.includes("ghcr.io") && ghcrToken) {
+    if (registries.includes("ghcr.io") && resolvedGhcrToken) {
       publishContainer = publishContainer.withRegistryAuth(
         "ghcr.io",
         ghcrUsername,
-        dag.setSecret("ghcr-token", ghcrToken)
+        dag.setSecret("ghcr-token", resolvedGhcrToken)
       )
     }
 
@@ -585,8 +587,8 @@ export class GhReusablePipelines {
       target: target || "(none)",
       platforms: platformsList.join(","),
       registries: registries.join(","),
-      dockerAuth: Boolean(dockerToken),
-      ghcrAuth: Boolean(ghcrToken),
+      dockerAuth: Boolean(resolvedDockerToken),
+      ghcrAuth: Boolean(resolvedGhcrToken),
       plannedAddresses,
       publishedRefs: [],
       markdown: ""

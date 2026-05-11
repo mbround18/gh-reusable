@@ -174,8 +174,6 @@ jobs:
           GITHUB_REF: ${{ github.ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_SHA: ${{ github.sha }}
-          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
         with:
           version: v0.20.8
           module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
@@ -195,6 +193,8 @@ jobs:
             --canary-label=${{ inputs.canary_label }}
             --dockerhub-username=${{ inputs.dockerhub_username }}
             --ghcr-username=${{ inputs.ghcr_username }}
+            --docker-token=${{ secrets.DOCKER_TOKEN }}
+            --ghcr-token=${{ secrets.GHCR_TOKEN }}
             --event-name=${{ github.event_name }}
             --ref=${{ github.ref }}
             --ref-name=${{ github.ref_name }}
