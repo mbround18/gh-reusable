@@ -2,6 +2,27 @@ import { dag, Directory, Platform, object, func } from "@dagger.io/dagger"
 import { readFileSync } from "node:fs"
 import * as semver from "semver"
 
+type DockerReleaseDecision = "publish" | "skip" | "failed"
+
+interface DockerReleaseSummary {
+  decision: DockerReleaseDecision
+  outcome: string
+  image: string
+  versionTag: string
+  releaseTag: string
+  context: string
+  dockerfile: string
+  target: string
+  platforms: string
+  registries: string
+  dockerAuth: boolean
+  ghcrAuth: boolean
+  reason?: string
+  plannedAddresses: string[]
+  publishedRefs: string[]
+  markdown: string
+}
+
 @object()
 export class GhReusablePipelines {
   @func()
@@ -156,23 +177,6 @@ export class GhReusablePipelines {
     const hasCanaryLabel = isPullRequestContext ? this.prHasLabel(canaryLabel) : false
 
     const shouldPublish = forcePush || eventName === "push" || (isPullRequestContext && hasCanaryLabel)
-    const header = [
-      `decision=${shouldPublish ? "publish" : "skip"}`,
-      `event=${eventName || "(unset)"}`,
-      `ref=${ref || "(unset)"}`,
-      `branch=${branchName || "(unset)"}`,
-      `isPullRequestContext=${isPullRequestContext}`,
-      `forcePush=${forcePush}`,
-      `canaryLabel=${canaryLabel}`,
-      `prHasCanaryLabel=${hasCanaryLabel}`
-    ]
-    if (!shouldPublish) {
-      return [
-        ...header,
-        "reason=publish requires push event, forcePush=true, or pull_request with canary label",
-        "hint=for local publish set GITHUB_EVENT_NAME=push or pass --force-push=true"
-      ].join("\n")
-    }
 
     const increment = this.normalizeIncrement(semverIncrement)
     const versionTag = this.resolveVersionTag(tagsCsv, semverPrefix, increment)
@@ -231,34 +235,69 @@ export class GhReusablePipelines {
       tags.map((tag) => `${registry}/${imagePath}:${tag}`)
     )
 
-    const published: string[] = []
-    for (const registry of registries) {
-      for (const tag of tags) {
-        const address = `${registry}/${imagePath}:${tag}`
-        const ref = await publishContainer.publish(address, {
-          platformVariants: variants.length > 0 ? variants : undefined
-        })
-        published.push(ref)
-      }
+    const summary: DockerReleaseSummary = {
+      decision: shouldPublish ? "publish" : "skip",
+      outcome: "success",
+      image,
+      versionTag,
+      releaseTag,
+      context,
+      dockerfile,
+      target: target || "(none)",
+      platforms: platformsList.join(","),
+      registries: registries.join(","),
+      dockerAuth: Boolean(dockerToken),
+      ghcrAuth: Boolean(ghcrToken),
+      plannedAddresses,
+      publishedRefs: [],
+      markdown: ""
     }
 
-    return [
-      ...header,
-      `increment=${increment}`,
-      `versionTag=${versionTag}`,
-      `releaseTag=${releaseTag}`,
-      `context=${context}`,
-      `dockerfile=${dockerfile}`,
-      `target=${target || "(none)"}`,
-      `platforms=${platformsList.join(",")}`,
-      `registries=${registries.join(",")}`,
-      `dockerAuth=${Boolean(dockerToken)}`,
-      `ghcrAuth=${Boolean(ghcrToken)}`,
-      "plannedAddresses:",
-      ...plannedAddresses.map((address) => `- ${address}`),
-      "publishedRefs:",
-      ...published.map((publishedRef) => `- ${publishedRef}`)
-    ].join("\n")
+    if (!shouldPublish) {
+      summary.reason = "publish requires push event, forcePush=true, or pull_request with canary label"
+      summary.markdown = this.renderDockerReleaseSummary(summary, {
+        eventName,
+        ref,
+        branchName,
+        isPullRequestContext,
+        forcePush,
+        canaryLabel,
+        hasCanaryLabel,
+        runUrl: this.workflowRunUrl(),
+        runNumber: process.env.GITHUB_RUN_NUMBER ?? ""
+      })
+      return JSON.stringify(summary)
+    }
+
+    try {
+      for (const registry of registries) {
+        for (const tag of tags) {
+          const address = `${registry}/${imagePath}:${tag}`
+          const ref = await publishContainer.publish(address, {
+            platformVariants: variants.length > 0 ? variants : undefined
+          })
+          summary.publishedRefs.push(ref)
+        }
+      }
+    } catch (error) {
+      summary.decision = "failed"
+      summary.outcome = "failure"
+      summary.reason = error instanceof Error ? error.message : "Docker release failed"
+    }
+
+    summary.markdown = this.renderDockerReleaseSummary(summary, {
+      eventName,
+      ref,
+      branchName,
+      isPullRequestContext,
+      forcePush,
+      canaryLabel,
+      hasCanaryLabel,
+      runUrl: this.workflowRunUrl(),
+      runNumber: process.env.GITHUB_RUN_NUMBER ?? ""
+    })
+
+    return JSON.stringify(summary)
   }
 
   private csv(value: string): string[] {
@@ -357,5 +396,64 @@ export class GhReusablePipelines {
     const payloadRaw = readFileSync(eventPath, "utf8")
     const payload = JSON.parse(payloadRaw) as { pull_request?: unknown }
     return payload.pull_request !== undefined
+  }
+
+  private workflowRunUrl(): string {
+    const serverUrl = process.env.GITHUB_SERVER_URL ?? "https://github.com"
+    const repository = process.env.GITHUB_REPOSITORY ?? ""
+    const runId = process.env.GITHUB_RUN_ID ?? ""
+    if (!repository || !runId) {
+      return ""
+    }
+    return `${serverUrl}/${repository}/actions/runs/${runId}`
+  }
+
+  private renderDockerReleaseSummary(
+    summary: DockerReleaseSummary,
+    context: {
+      eventName: string
+      ref: string
+      branchName: string
+      isPullRequestContext: boolean
+      forcePush: boolean
+      canaryLabel: string
+      hasCanaryLabel: boolean
+      runUrl: string
+      runNumber: string
+    }
+  ): string {
+    const plannedAddresses = summary.plannedAddresses.length > 0 ? summary.plannedAddresses.join("\n") : "- (none)"
+    const publishedRefs = summary.publishedRefs.length > 0 ? summary.publishedRefs.join("\n") : "- (none)"
+    const reason = summary.reason ?? ""
+
+    const lines = [
+      "### Docker release status",
+      "",
+      "| Field | Value |",
+      "| --- | --- |",
+      `| Decision | \`${summary.decision}\` |`,
+      `| Dagger step outcome | \`${summary.outcome}\` |`,
+      `| Image | \`${summary.image}\` |`,
+      `| Version tag | \`${summary.versionTag || "n/a"}\` |`,
+      `| Release tag | \`${summary.releaseTag || "n/a"}\` |`,
+      `| Registries | \`${summary.registries || "n/a"}\` |`,
+      `| Platforms | \`${summary.platforms || "n/a"}\` |`,
+      `| Workflow run | [#${context.runNumber || "n/a"}](${context.runUrl || "#"}) |`,
+      `| Context | \`${context.eventName || "(unset)"}\` / \`${context.ref || "(unset)"}\` / \`${context.branchName || "(unset)"}\` |`,
+      `| Pull request context | \`${context.isPullRequestContext}\` |`,
+      `| Force push | \`${context.forcePush}\` |`,
+      `| Canary label | \`${context.canaryLabel}\` |`,
+      `| Canary present | \`${context.hasCanaryLabel}\` |`,
+      `| Docker auth | \`${summary.dockerAuth}\` |`,
+      `| GHCR auth | \`${summary.ghcrAuth}\` |`
+    ]
+
+    if (reason) {
+      lines.push(`| Reason | \`${reason}\` |`)
+    }
+
+    lines.push("", "**Planned addresses**", plannedAddresses, "", "**Published refs**", publishedRefs)
+
+    return lines.join("\n")
   }
 }

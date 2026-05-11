@@ -31,17 +31,19 @@ function getDockerReleaseSteps(): WorkflowStep[] {
 test('docker release workflow has rich summary and PR/release reporting steps', () => {
   const steps = getDockerReleaseSteps();
   const daggerStep = steps.find((step) => step.id === 'dagger_release');
-  const summaryStep = steps.find((step) => step.id === 'release_summary');
   const stickyCommentStep = steps.find((step) => step.name === 'Update sticky PR status comment');
   const historyStep = steps.find((step) => step.name === 'Add PR run history comment');
   const releaseNotesStep = steps.find((step) => step.name === 'Update tag release notes');
+  const failureStep = steps.find((step) => step.name === 'Fail workflow on docker release error');
 
   expect(daggerStep?.uses).toContain('dagger/dagger-for-github@');
-  expect(summaryStep?.if).toContain("github.event_name == 'pull_request'");
-  expect(summaryStep?.if).toContain("startsWith(github.ref, 'refs/tags/')");
   expect(stickyCommentStep?.uses).toContain('actions/github-script@');
+  expect(stickyCommentStep?.env?.SUMMARY_JSON).toContain('steps.dagger_release.outputs.stdout');
   expect(historyStep?.uses).toContain('actions/github-script@');
+  expect(historyStep?.env?.SUMMARY_JSON).toContain('steps.dagger_release.outputs.stdout');
   expect(releaseNotesStep?.if).toContain('inputs.track_release_summary');
+  expect(releaseNotesStep?.env?.SUMMARY_JSON).toContain('steps.dagger_release.outputs.stdout');
+  expect(failureStep?.uses).toContain('actions/github-script@');
 });
 
 test('docker release workflow declares optional release summary input', () => {
