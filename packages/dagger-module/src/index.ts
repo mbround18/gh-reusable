@@ -1,7 +1,9 @@
-import { dag, Directory, Platform, object, func } from "@dagger.io/dagger"
+import { dag, Container, Directory, Platform, object, func } from "@dagger.io/dagger"
 import * as semver from "semver"
 
 type DockerReleaseDecision = "publish" | "skip" | "failed"
+type NodePackageManager = "npm" | "pnpm" | "yarn"
+type PublishTarget = "npm" | "pnpm" | "yarn" | "rust-crate" | "helm-chart"
 
 interface DockerReleaseSummary {
   decision: DockerReleaseDecision
@@ -20,6 +22,23 @@ interface DockerReleaseSummary {
   plannedAddresses: string[]
   publishedRefs: string[]
   markdown: string
+}
+
+interface PublishResult {
+  target: PublishTarget
+  name: string
+  version: string
+  registry: string
+  url: string
+  digest?: string
+  packageManager?: NodePackageManager
+  artifactPath?: string
+  notes?: string
+}
+
+interface NamedVersion {
+  name: string
+  version: string
 }
 
 @object()
@@ -144,6 +163,324 @@ export class GhReusablePipelines {
       "",
       "Use the workflow input `create_alerts=true` to upload SARIF findings as GitHub Security alerts."
     ].join("\n")
+  }
+
+  @func()
+  async publishNpm(
+    source: Directory,
+    registry: string = "https://registry.npmjs.org",
+    token: string = "",
+    tag: string = "",
+    version: string = ""
+  ): Promise<string> {
+    const manager = await this.detectNodePackageManager(source)
+    return this.publishNodePackage(source, {
+      manager,
+      registry,
+      token,
+      tag,
+      version
+    })
+  }
+
+  @func()
+  async publishPnpm(
+    source: Directory,
+    registry: string = "https://registry.npmjs.org",
+    token: string = "",
+    tag: string = "",
+    version: string = ""
+  ): Promise<string> {
+    return this.publishNodePackage(source, {
+      manager: "pnpm",
+      registry,
+      token,
+      tag,
+      version
+    })
+  }
+
+  @func()
+  async publishYarn(
+    source: Directory,
+    registry: string = "https://registry.npmjs.org",
+    token: string = "",
+    tag: string = "",
+    version: string = ""
+  ): Promise<string> {
+    return this.publishNodePackage(source, {
+      manager: "yarn",
+      registry,
+      token,
+      tag,
+      version
+    })
+  }
+
+  @func()
+  async publishRustCrate(
+    source: Directory,
+    token: string = "",
+    version: string = "",
+    registry: string = "crates.io"
+  ): Promise<string> {
+    if (!token) {
+      throw new Error("Missing required crates.io token")
+    }
+    const manifest = await this.readRequiredText(source, "Cargo.toml")
+    const crate = this.parseCargoManifest(manifest)
+    const resolvedVersion = this.withVersioning(crate.version, version, "Cargo.toml")
+    const container = this.withRustEnv(source).withExec(["cargo", "check"]).withExec(["cargo", "test"])
+
+    const packaged = container.withExec(["cargo", "package"])
+    const published = packaged
+      .withSecretVariable("CARGO_REGISTRY_TOKEN", dag.setSecret("cargo-registry-token", token))
+      .withExec(["sh", "-lc", `cargo publish --token "$CARGO_REGISTRY_TOKEN"${registry !== "crates.io" ? ` --registry ${registry}` : ""}`])
+
+    await published.stdout()
+
+    return JSON.stringify({
+      target: "rust-crate",
+      name: crate.name,
+      version: resolvedVersion,
+      registry,
+      url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}`,
+      notes: "cargo check/test/package/publish completed"
+    } satisfies PublishResult)
+  }
+
+  @func()
+  async publishHelmChart(
+    source: Directory,
+    chart: string = ".",
+    registry: string = "oci://registry-1.docker.io/helm-charts",
+    username: string = "",
+    password: string = "",
+    version: string = ""
+  ): Promise<string> {
+    if (!username || !password) {
+      throw new Error("Missing required Helm registry credentials")
+    }
+    const chartSource = source.directory(chart)
+    const chartYaml = await this.readRequiredText(chartSource, "Chart.yaml")
+    const chartMeta = this.parseChartYaml(chartYaml)
+    const resolvedVersion = this.withVersioning(chartMeta.version, version, "Chart.yaml")
+    const normalizedRegistry = registry.startsWith("oci://") ? registry : `oci://${registry}`
+    const chartRef = `${normalizedRegistry.replace(/\/$/, "")}/${chartMeta.name}`
+    const registryHost = this.ociRegistryHost(normalizedRegistry)
+    const container = this.withHelmEnv(chartSource)
+      .withExec(["helm", "lint", "."])
+      .withExec(["sh", "-lc", "mkdir -p /tmp/chart-out"])
+      .withExec(["helm", "package", ".", "--destination", "/tmp/chart-out"])
+
+    const script = [
+      "set -euo pipefail",
+      `package_file="/tmp/chart-out/${chartMeta.name}-${resolvedVersion}.tgz"`,
+      `digest="sha256:$(sha256sum "$package_file" | awk '{print $1}')"` ,
+      `if [ -n "$HELM_USERNAME" ] && [ -n "$HELM_PASSWORD" ]; then`,
+      `  helm registry login "${registryHost}" --username "$HELM_USERNAME" --password "$HELM_PASSWORD"`,
+      "fi",
+      `helm push "$package_file" "${normalizedRegistry}"`,
+      'printf "%s" "$digest"'
+    ].join("\n")
+
+    const authenticated = password
+      ? container
+          .withSecretVariable("HELM_USERNAME", dag.setSecret("helm-username", username))
+          .withSecretVariable("HELM_PASSWORD", dag.setSecret("helm-password", password))
+      : container
+
+    const digest = (await authenticated.withExec(["sh", "-lc", script]).stdout()).trim()
+
+    return JSON.stringify({
+      target: "helm-chart",
+      name: chartMeta.name,
+      version: resolvedVersion,
+      registry,
+      url: `${chartRef}:${resolvedVersion}`,
+      digest,
+      artifactPath: `/tmp/chart-out/${chartMeta.name}-${resolvedVersion}.tgz`,
+      notes: "helm lint/package/push completed"
+    } satisfies PublishResult)
+  }
+
+  private async publishNodePackage(
+    source: Directory,
+    options: {
+      manager: NodePackageManager
+      registry: string
+      token: string
+      tag: string
+      version: string
+    }
+  ): Promise<string> {
+    if (!options.token) {
+      throw new Error(`Missing required token for ${options.manager} publish`)
+    }
+    const packageJson = await this.readRequiredText(source, "package.json")
+    const manifest = this.parsePackageJson(packageJson)
+    const resolvedVersion = this.withVersioning(manifest.version, options.version, "package.json")
+    const container = this.withNodeEnv(source, options.manager)
+      .withExec(this.nodeInstallCommand(options.manager))
+      .withExec(this.nodeBuildCommand(options.manager))
+      .withExec(this.nodeTestCommand(options.manager))
+
+    const taggedContainer = options.token
+      ? this.withAuthSecrets(container, {
+          NPM_TOKEN: options.token
+        })
+      : container
+
+    const publishScript = [
+      "set -euo pipefail",
+      `registry="${options.registry}"`,
+      `printf '//%s/:_authToken=%s\\n' "$(node -e 'const u = new URL(process.argv[1]); process.stdout.write(u.host + (u.pathname === "/" ? "" : u.pathname.replace(/\\/$/, "")))' "$registry")" "$NPM_TOKEN" > .npmrc`,
+      `npm publish --registry "$registry"${options.tag ? ` --tag ${options.tag}` : ""}`
+    ].join("\n")
+
+    await taggedContainer.withExec(["sh", "-lc", publishScript]).stdout()
+
+    return JSON.stringify({
+      target: options.manager,
+      name: manifest.name,
+      version: resolvedVersion,
+      registry: options.registry,
+      url: `https://www.npmjs.com/package/${encodeURIComponent(manifest.name)}/v/${resolvedVersion}`,
+      packageManager: options.manager,
+      notes: "deps/build/test/publish completed"
+    } satisfies PublishResult)
+  }
+
+  private withNodeEnv(source: Directory, manager: NodePackageManager): Container {
+    return dag
+      .container()
+      .from("node:24-bookworm")
+      .withMountedDirectory("/src", source)
+      .withWorkdir("/src")
+      .withExec(["corepack", "enable"])
+      .withEnvVariable("PACKAGE_MANAGER", manager)
+  }
+
+  private withRustEnv(source: Directory): Container {
+    return dag.container().from("rust:1.89-bookworm").withMountedDirectory("/src", source).withWorkdir("/src")
+  }
+
+  private withHelmEnv(source: Directory): Container {
+    return dag.container().from("alpine/helm:3.16.4").withMountedDirectory("/src", source).withWorkdir("/src")
+  }
+
+  private withAuthSecrets(container: Container, secrets: Record<string, string>): Container {
+    let current = container
+    for (const [key, value] of Object.entries(secrets)) {
+      if (!value) {
+        throw new Error(`Missing required secret for ${key}`)
+      }
+      current = current.withSecretVariable(key, dag.setSecret(key.toLowerCase(), value))
+    }
+    return current
+  }
+
+  private withVersioning(manifestVersion: string, requestedVersion: string, manifestName: string): string {
+    if (requestedVersion && requestedVersion !== manifestVersion) {
+      throw new Error(`Version mismatch for ${manifestName}: expected ${manifestVersion}, got ${requestedVersion}`)
+    }
+    return manifestVersion
+  }
+
+  private async detectNodePackageManager(source: Directory): Promise<NodePackageManager> {
+    if (await this.readOptionalText(source, "pnpm-lock.yaml")) {
+      return "pnpm"
+    }
+    if (await this.readOptionalText(source, "yarn.lock")) {
+      return "yarn"
+    }
+    return "npm"
+  }
+
+  private nodeInstallCommand(manager: NodePackageManager): readonly [string, ...string[]] {
+    if (manager === "pnpm") {
+      return ["pnpm", "install", "--frozen-lockfile"]
+    }
+    if (manager === "yarn") {
+      return ["sh", "-lc", "yarn install --frozen-lockfile"]
+    }
+    return ["npm", "ci"]
+  }
+
+  private nodeBuildCommand(manager: NodePackageManager): readonly [string, ...string[]] {
+    if (manager === "yarn") {
+      return ["yarn", "run", "build"]
+    }
+    return [manager, "run", "build"]
+  }
+
+  private nodeTestCommand(manager: NodePackageManager): readonly [string, ...string[]] {
+    if (manager === "yarn") {
+      return ["yarn", "test"]
+    }
+    return [manager, "test"]
+  }
+
+  private async readRequiredText(source: Directory, path: string): Promise<string> {
+    return source.file(path).contents()
+  }
+
+  private async readOptionalText(source: Directory, path: string): Promise<string> {
+    try {
+      return await source.file(path).contents()
+    } catch {
+      return ""
+    }
+  }
+
+  private parsePackageJson(raw: string): NamedVersion {
+    const parsed = JSON.parse(raw) as { name?: string; version?: string }
+    if (!parsed.name || !parsed.version) {
+      throw new Error("package.json must define name and version")
+    }
+    return { name: parsed.name, version: parsed.version }
+  }
+
+  private parseCargoManifest(raw: string): NamedVersion {
+    const packageSection = this.tomlPackageSection(raw)
+    const name = this.tomlField(packageSection, "name")
+    const version = this.tomlField(packageSection, "version")
+    return { name, version }
+  }
+
+  private parseChartYaml(raw: string): NamedVersion {
+    const name = this.yamlField(raw, "name")
+    const version = this.yamlField(raw, "version")
+    return { name, version }
+  }
+
+  private tomlPackageSection(raw: string): string {
+    const match = raw.match(/^\[package\][\s\S]*?(?=^\[|$)/m)
+    if (!match) {
+      throw new Error("Cargo.toml must contain a [package] section")
+    }
+    return match[0]
+  }
+
+  private tomlField(section: string, key: string): string {
+    const match = section.match(new RegExp(`^${key}\\s*=\\s*["']([^"']+)["']`, "m"))
+    if (!match?.[1]) {
+      throw new Error(`Cargo.toml must define package.${key}`)
+    }
+    return match[1]
+  }
+
+  private yamlField(raw: string, key: string): string {
+    const match = raw.match(new RegExp(`^${key}:\\s*(.+)$`, "m"))
+    if (!match?.[1]) {
+      throw new Error(`Chart.yaml must define ${key}`)
+    }
+    return match[1].trim()
+  }
+
+  private ociRegistryHost(registry: string): string {
+    const normalized = registry.startsWith("oci://") ? registry : `oci://${registry}`
+    return new URL(normalized).host
   }
 
   @func()

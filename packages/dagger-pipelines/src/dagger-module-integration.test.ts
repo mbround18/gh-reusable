@@ -43,7 +43,19 @@ test('dagger module exports the object class required by the runtime', () => {
 
 test('dagger module exposes expected integration entrypoints', () => {
   const exportedFunctions = getExportedModuleFunctionNames(readModuleSource());
-  expect(exportedFunctions).toEqual(expect.arrayContaining(['audit', 'ci', 'dockerRelease', 'rustBuildAndTest']));
+  expect(exportedFunctions).toEqual(
+    expect.arrayContaining([
+      'audit',
+      'ci',
+      'dockerRelease',
+      'publishHelmChart',
+      'publishNpm',
+      'publishPnpm',
+      'publishRustCrate',
+      'publishYarn',
+      'rustBuildAndTest'
+    ])
+  );
 });
 
 test('all dagger-for-github workflow integrations use module+call and no wrapper args', () => {
