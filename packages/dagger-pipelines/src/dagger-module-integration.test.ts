@@ -43,7 +43,7 @@ test('dagger module exports the object class required by the runtime', () => {
 
 test('dagger module exposes expected integration entrypoints', () => {
   const exportedFunctions = getExportedModuleFunctionNames(readModuleSource());
-  expect(exportedFunctions).toEqual(expect.arrayContaining(['ci', 'dockerRelease', 'rustBuildAndTest']));
+  expect(exportedFunctions).toEqual(expect.arrayContaining(['audit', 'ci', 'dockerRelease', 'rustBuildAndTest']));
 });
 
 test('all dagger-for-github workflow integrations use module+call and no wrapper args', () => {
@@ -72,10 +72,12 @@ test('all dagger-for-github workflow integrations use module+call and no wrapper
         const call = typeof callValue === 'string' ? callValue.trim() : '';
         const moduleRef = typeof moduleValue === 'string' ? moduleValue.trim() : '';
         const functionName = call.split(/\s+/)[0] ?? '';
+        const envSection = (step.env ?? {}) as Record<string, unknown>;
 
         inspectedSteps.push(`${workflowFile}:${jobName}`);
         expect(moduleRef, `${workflowFile}:${jobName} must set with.module`).not.toBe('');
         expect(call, `${workflowFile}:${jobName} must set with.call`).not.toBe('');
+        expect(envSection.DAGGER_NO_NAG, `${workflowFile}:${jobName} must set env.DAGGER_NO_NAG=1`).toBe('1');
         expect(withSection.verb, `${workflowFile}:${jobName} must not use with.verb`).toBeUndefined();
         expect(withSection.args, `${workflowFile}:${jobName} must not use with.args`).toBeUndefined();
         expect(

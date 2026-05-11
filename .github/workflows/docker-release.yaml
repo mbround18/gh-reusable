@@ -66,6 +66,10 @@ on:
         default: ""
         description: "When downloading an artifact this helps it extract to a specific dir"
         required: false
+      track_release_summary:
+        type: boolean
+        default: false
+        description: "When true on tag refs, create or update GitHub release notes with Docker publish details."
     secrets:
       DOCKER_TOKEN:
         required: true
@@ -75,8 +79,9 @@ on:
         required: false
 
 permissions:
-  contents: read
+  contents: write
   packages: write
+  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.image }}
@@ -158,8 +163,10 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Run Docker release in Dagger
+        id: dagger_release
         uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
         env:
+          DAGGER_NO_NAG: "1"
           GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
@@ -183,3 +190,180 @@ jobs:
             --dockerhub-username=${{ inputs.dockerhub_username }}
             --ghcr-username=${{ inputs.ghcr_username }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+      - name: Build release summary
+        id: release_summary
+        if: ${{ always() && (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')) }}
+        shell: bash
+        env:
+          DAGGER_STDOUT: ${{ steps.dagger_release.outputs.stdout }}
+          DAGGER_OUTCOME: ${{ steps.dagger_release.outcome }}
+          RESOLVED_IMAGE: ${{ steps.resolve.outputs.publish_image }}
+        run: |
+          set -euo pipefail
+          tmpout="$(mktemp)"
+          printf '%s\n' "${DAGGER_STDOUT:-}" > "$tmpout"
+
+          read_line() {
+            key="$1"
+            awk -F= -v key="$key" '$1 == key {print substr($0, length(key) + 2)}' "$tmpout" | tail -1
+          }
+
+          decision="$(read_line decision)"
+          if [[ -z "$decision" ]]; then
+            if [[ "${DAGGER_OUTCOME}" == "success" ]]; then
+              decision="publish"
+            else
+              decision="failed"
+            fi
+          fi
+
+          release_tag="$(read_line releaseTag)"
+          version_tag="$(read_line versionTag)"
+          registries="$(read_line registries)"
+          platforms="$(read_line platforms)"
+          reason="$(read_line reason)"
+
+          planned_addresses="$(awk '/^plannedAddresses:/{flag=1;next}/^publishedRefs:/{flag=0}flag' "$tmpout" || true)"
+          published_refs="$(awk '/^publishedRefs:/{flag=1;next}flag' "$tmpout" || true)"
+          if [[ -z "$planned_addresses" ]]; then
+            planned_addresses="- (none)"
+          fi
+          if [[ -z "$published_refs" ]]; then
+            published_refs="- (none)"
+          fi
+
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          markdown_file="$(mktemp)"
+          {
+            echo "### Docker release status"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Decision | \`$decision\` |"
+            echo "| Dagger step outcome | \`${DAGGER_OUTCOME}\` |"
+            echo "| Image | \`${RESOLVED_IMAGE}\` |"
+            echo "| Version tag | \`${version_tag:-n/a}\` |"
+            echo "| Release tag | \`${release_tag:-n/a}\` |"
+            echo "| Registries | \`${registries:-n/a}\` |"
+            echo "| Platforms | \`${platforms:-n/a}\` |"
+            echo "| Workflow run | [#${GITHUB_RUN_NUMBER}](${run_url}) |"
+            if [[ -n "$reason" ]]; then
+              echo "| Reason | \`$reason\` |"
+            fi
+            echo ""
+            echo "**Planned addresses**"
+            echo "$planned_addresses"
+            echo ""
+            echo "**Published refs**"
+            echo "$published_refs"
+          } > "$markdown_file"
+
+          cat "$markdown_file" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "markdown<<EOF"
+            cat "$markdown_file"
+            echo "EOF"
+            echo "decision=$decision"
+            echo "release_tag=$release_tag"
+            echo "version_tag=$version_tag"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update sticky PR status comment
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        env:
+          SUMMARY_MARKDOWN: ${{ steps.release_summary.outputs.markdown }}
+        with:
+          script: |
+            const marker = '<!-- gh-reusable:docker-release:status -->'
+            const body = `${marker}\n## Docker release status\n\n${process.env.SUMMARY_MARKDOWN || '_No summary produced._'}`
+            const issue_number = context.payload.pull_request.number
+            const { owner, repo } = context.repo
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            })
+            const existing = comments.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker)
+            )
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              })
+            }
+
+      - name: Add PR run history comment
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        env:
+          DECISION: ${{ steps.release_summary.outputs.decision }}
+        with:
+          script: |
+            const issue_number = context.payload.pull_request.number
+            const { owner, repo } = context.repo
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`
+            const body = [
+              '<!-- gh-reusable:docker-release:history -->',
+              `Docker release run [#${context.runNumber}](${runUrl}) finished with decision \`${process.env.DECISION || 'unknown'}\`.`,
+            ].join('\n')
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body,
+            })
+
+      - name: Update tag release notes
+        if: ${{ always() && startsWith(github.ref, 'refs/tags/') && inputs.track_release_summary }}
+        uses: actions/github-script@v7
+        env:
+          SUMMARY_MARKDOWN: ${{ steps.release_summary.outputs.markdown }}
+        with:
+          script: |
+            const { owner, repo } = context.repo
+            const tag = context.ref.replace('refs/tags/', '')
+            const markerStart = '<!-- gh-reusable:docker-release:summary:start -->'
+            const markerEnd = '<!-- gh-reusable:docker-release:summary:end -->'
+            const summaryBlock = `${markerStart}\n## Docker publish summary\n\n${process.env.SUMMARY_MARKDOWN || '_No summary produced._'}\n${markerEnd}`
+
+            let release
+            try {
+              const fetched = await github.rest.repos.getReleaseByTag({ owner, repo, tag })
+              release = fetched.data
+            } catch (error) {
+              if (error.status !== 404) throw error
+              const created = await github.rest.repos.createRelease({
+                owner,
+                repo,
+                tag_name: tag,
+                name: tag,
+                body: summaryBlock,
+              })
+              release = created.data
+            }
+
+            const existingBody = release.body || ''
+            const sectionPattern = new RegExp(`${markerStart}[\\s\\S]*${markerEnd}`)
+            const newBody = sectionPattern.test(existingBody)
+              ? existingBody.replace(sectionPattern, summaryBlock)
+              : `${existingBody}\n\n${summaryBlock}`.trim()
+
+            await github.rest.repos.updateRelease({
+              owner,
+              repo,
+              release_id: release.id,
+              body: newBody,
+            })

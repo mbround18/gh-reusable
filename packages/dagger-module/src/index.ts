@@ -68,6 +68,65 @@ export class GhReusablePipelines {
   }
 
   @func()
+  async audit(
+    source: Directory,
+    semgrepConfig: string = "auto",
+    includeGitleaks: boolean = true
+  ): Promise<string> {
+    const semgrepContainer = dag
+      .container()
+      .from("returntocorp/semgrep:1.81.0")
+      .withMountedDirectory("/src", source)
+      .withWorkdir("/src")
+      .withEnvVariable("SEMGREP_CONFIG", semgrepConfig)
+      .withExec([
+        "sh",
+        "-lc",
+        [
+          "set -eu",
+          "semgrep scan --config \"$SEMGREP_CONFIG\" --json --output /tmp/semgrep.json /src || true",
+          "if [ ! -s /tmp/semgrep.json ]; then printf '{\"results\":[]}\\n' > /tmp/semgrep.json; fi"
+        ].join("\n")
+      ])
+
+    const semgrepJson = await semgrepContainer.file("/tmp/semgrep.json").contents()
+    const semgrepFindings = this.countFromObjectArrayField(semgrepJson, "results")
+
+    let gitleaksFindings = 0
+    if (includeGitleaks) {
+      const gitleaksContainer = dag
+        .container()
+        .from("zricethezav/gitleaks:v8.24.2")
+        .withMountedDirectory("/src", source)
+        .withWorkdir("/src")
+        .withExec([
+          "detect",
+          "--source=/src",
+          "--report-format=json",
+          "--report-path=/tmp/gitleaks.json",
+          "--redact",
+          "--exit-code=0"
+        ])
+
+      const gitleaksJson = await gitleaksContainer.file("/tmp/gitleaks.json").contents()
+      gitleaksFindings = this.countFromArray(gitleaksJson)
+    }
+
+    const totalFindings = semgrepFindings + gitleaksFindings
+    return [
+      "### Audit Summary",
+      "",
+      "| Tool | Findings |",
+      "| --- | ---: |",
+      `| Semgrep (${semgrepConfig}) | ${semgrepFindings} |`,
+      `| Gitleaks | ${includeGitleaks ? gitleaksFindings : "disabled"} |`,
+      `| **Total** | **${totalFindings}** |`,
+      "",
+      "Use the workflow input `create_alerts=true` to upload SARIF findings as GitHub Security alerts."
+    ].join("\n")
+  }
+
+  @func()
   async dockerRelease(
     source: Directory,
     image: string,
@@ -92,11 +151,27 @@ export class GhReusablePipelines {
     const headRef = process.env.GITHUB_HEAD_REF ?? ""
     const branchName = headRef || refName
     const sha = (process.env.GITHUB_SHA ?? "0000000").slice(0, 7)
+    const hasPullRequestPayload = this.hasPullRequestPayload()
+    const isPullRequestContext = eventName === "pull_request" || ref.startsWith("refs/pull/") || hasPullRequestPayload
+    const hasCanaryLabel = isPullRequestContext ? this.prHasLabel(canaryLabel) : false
 
-    const shouldPublish =
-      forcePush || eventName === "push" || (eventName === "pull_request" && this.prHasLabel(canaryLabel))
+    const shouldPublish = forcePush || eventName === "push" || (isPullRequestContext && hasCanaryLabel)
+    const header = [
+      `decision=${shouldPublish ? "publish" : "skip"}`,
+      `event=${eventName || "(unset)"}`,
+      `ref=${ref || "(unset)"}`,
+      `branch=${branchName || "(unset)"}`,
+      `isPullRequestContext=${isPullRequestContext}`,
+      `forcePush=${forcePush}`,
+      `canaryLabel=${canaryLabel}`,
+      `prHasCanaryLabel=${hasCanaryLabel}`
+    ]
     if (!shouldPublish) {
-      return `Skipping publish for event=${eventName}.`
+      return [
+        ...header,
+        "reason=publish requires push event, forcePush=true, or pull_request with canary label",
+        "hint=for local publish set GITHUB_EVENT_NAME=push or pass --force-push=true"
+      ].join("\n")
     }
 
     const increment = this.normalizeIncrement(semverIncrement)
@@ -152,6 +227,10 @@ export class GhReusablePipelines {
       )
     }
 
+    const plannedAddresses = registries.flatMap((registry) =>
+      tags.map((tag) => `${registry}/${imagePath}:${tag}`)
+    )
+
     const published: string[] = []
     for (const registry of registries) {
       for (const tag of tags) {
@@ -163,7 +242,23 @@ export class GhReusablePipelines {
       }
     }
 
-    return published.join("\n")
+    return [
+      ...header,
+      `increment=${increment}`,
+      `versionTag=${versionTag}`,
+      `releaseTag=${releaseTag}`,
+      `context=${context}`,
+      `dockerfile=${dockerfile}`,
+      `target=${target || "(none)"}`,
+      `platforms=${platformsList.join(",")}`,
+      `registries=${registries.join(",")}`,
+      `dockerAuth=${Boolean(dockerToken)}`,
+      `ghcrAuth=${Boolean(ghcrToken)}`,
+      "plannedAddresses:",
+      ...plannedAddresses.map((address) => `- ${address}`),
+      "publishedRefs:",
+      ...published.map((publishedRef) => `- ${publishedRef}`)
+    ].join("\n")
   }
 
   private csv(value: string): string[] {
@@ -222,6 +317,23 @@ export class GhReusablePipelines {
     return cleaned || "branch"
   }
 
+  private countFromObjectArrayField(rawJson: string, field: string): number {
+    const parsed = JSON.parse(rawJson) as Record<string, unknown>
+    const value = parsed[field]
+    if (!Array.isArray(value)) {
+      throw new Error(`Expected JSON field "${field}" to be an array.`)
+    }
+    return value.length
+  }
+
+  private countFromArray(rawJson: string): number {
+    const parsed = JSON.parse(rawJson) as unknown
+    if (!Array.isArray(parsed)) {
+      throw new Error("Expected JSON payload to be an array.")
+    }
+    return parsed.length
+  }
+
   private prHasLabel(label: string): boolean {
     const eventPath = process.env.GITHUB_EVENT_PATH
     if (!eventPath) {
@@ -234,5 +346,16 @@ export class GhReusablePipelines {
     }
     const labels = payload.pull_request?.labels ?? []
     return labels.some((entry) => entry.name === label)
+  }
+
+  private hasPullRequestPayload(): boolean {
+    const eventPath = process.env.GITHUB_EVENT_PATH
+    if (!eventPath) {
+      return false
+    }
+
+    const payloadRaw = readFileSync(eventPath, "utf8")
+    const payload = JSON.parse(payloadRaw) as { pull_request?: unknown }
+    return payload.pull_request !== undefined
   }
 }

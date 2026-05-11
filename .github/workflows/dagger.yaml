@@ -21,6 +21,8 @@ jobs:
           docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
       - name: Run Dagger CI
         uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
         with:
           version: v0.20.8
           module: ./packages/dagger-module
@@ -45,6 +47,7 @@ jobs:
       - name: Run Dagger docker-release workflow
         uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
         env:
+          DAGGER_NO_NAG: "1"
           GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
         with:
