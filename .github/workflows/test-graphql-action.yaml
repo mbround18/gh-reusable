@@ -37,6 +37,6 @@ jobs:
           module: ./packages/dagger-module
           call: >-
             graphql-query
-            --query="query { viewer { login } }"
+            --query=query{viewer{login}}
             --token=${{ secrets.GITHUB_TOKEN }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
