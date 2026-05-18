@@ -20,4 +20,4 @@ outputs:
     description: "The JSON response from the GraphQL API"
 runs:
   using: node24
-  main: dist/index.js
+  main: index.mjs
