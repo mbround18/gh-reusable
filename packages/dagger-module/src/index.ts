@@ -143,6 +143,7 @@ export class GhReusablePipelines {
     toolchain: string = "stable",
     components: string = "clippy,rustfmt",
     target: string = "",
+    name: string = "",
   ): Promise<string> {
     const targetList = this.splitCsv(target);
     let container = await this.buildRustContainer(
@@ -152,6 +153,10 @@ export class GhReusablePipelines {
       target,
       "",
     );
+    const resolvedName = name.trim();
+    if (resolvedName) {
+      container = container.withEnvVariable("NAME", resolvedName);
+    }
 
     container = container
       .withExec(["cargo", "fmt", "--", "--check"])

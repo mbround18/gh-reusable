@@ -18,6 +18,11 @@ on:
         type: string
         description: "Comma-separated list of additional Rust compilation targets."
         default: ""
+      name:
+        required: false
+        type: string
+        description: "Optional server name exposed to tests via NAME."
+        default: ""
       runs-on:
         required: false
         type: string
@@ -45,4 +50,5 @@ jobs:
             --toolchain=${{ inputs.toolchain }}
             --components=${{ inputs.components }}
             --target=${{ inputs.target }}
+            --name=${{ inputs.name }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

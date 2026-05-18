@@ -25,7 +25,8 @@
     "yaml": "^2.9.0"
   },
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "packageManager": "pnpm@10.15.1"
 }

@@ -1,15 +1,16 @@
+import { describe, test, beforeEach, afterEach, vi, expect } from "vitest";
 const github = require("@actions/github");
 const { buildNewVersion } = require("../src/version");
 
 describe("buildNewVersion", () => {
   const mockCore = {
-    startGroup: jest.fn(),
-    endGroup: jest.fn(),
-    info: jest.fn(),
+    startGroup: vi.fn(),
+    endGroup: vi.fn(),
+    info: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     delete process.env.GITHUB_REF;
     github.context = {
       eventName: "push",
