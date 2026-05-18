@@ -52,7 +52,7 @@ jobs:
 
       - name: Run Dagger audit module
         id: dagger_audit
-        uses: ./.github/actions/dagger-run
+        uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         with:
           call: >-
             audit

@@ -31,7 +31,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
 
-      - uses: ./actions/github-catalog
+      - uses: mbround18/gh-reusable/actions/github-catalog@main
 
       - name: Update Readme
         run: |
