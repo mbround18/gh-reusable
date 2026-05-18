@@ -77,6 +77,8 @@ on:
         required: false
       DAGGER_CLOUD_TOKEN:
         required: false
+      DISCORD_WEBHOOK_URL:
+        required: false
 
 permissions:
   contents: write
@@ -196,6 +198,7 @@ jobs:
             --run-url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             --run-number=${{ github.run_number }}
             --pr-labels-csv=${{ github.event_name == 'pull_request' && join(github.event.pull_request.labels.*.name, ',') || '' }}
+            --discord-webhook=${{ secrets.DISCORD_WEBHOOK_URL }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
 
       - name: Update sticky PR status comment

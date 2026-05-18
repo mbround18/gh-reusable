@@ -38,6 +38,8 @@ on:
         description: "GitHub token with write access to releases."
       DAGGER_CLOUD_TOKEN:
         required: false
+      DISCORD_WEBHOOK_URL:
+        required: false
 
 permissions:
   contents: write
@@ -71,4 +73,5 @@ jobs:
             --toolchain=${{ inputs.toolchain }}
             --components=${{ inputs.components }}
             --repository=${{ github.repository }}
+            --discord-webhook=${{ secrets.DISCORD_WEBHOOK_URL }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

@@ -50,6 +50,32 @@ interface NamedVersion {
   version: string
 }
 
+interface DiscordEmbedField {
+  name: string
+  value: string
+  inline?: boolean
+}
+
+interface DiscordEmbed {
+  title?: string
+  description?: string
+  url?: string
+  color?: number
+  timestamp?: string
+  thumbnail?: { url: string }
+  image?: { url: string }
+  author?: { name: string; url?: string; icon_url?: string }
+  footer?: { text: string; icon_url?: string }
+  fields?: DiscordEmbedField[]
+}
+
+interface DiscordWebhookPayload {
+  username?: string
+  avatar_url?: string
+  content?: string
+  embeds?: DiscordEmbed[]
+}
+
 @object()
 export class GhReusablePipelines {
   @func()
@@ -99,6 +125,42 @@ export class GhReusablePipelines {
       matched,
       markdown: `✅ Label check passed — present: \`${labels.join("`, `") || "(none)"}\``
     })
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // notify-discord
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async notifyDiscord(
+    webhookUrl: string,
+    title: string,
+    description: string = "",
+    color: number = 0x5865f2,
+    fieldsJson: string = "[]",
+    url: string = "",
+    footer: string = "gh-reusable",
+    username: string = "gh-reusable"
+  ): Promise<string> {
+    let fields: DiscordEmbedField[] = []
+    try {
+      fields = JSON.parse(fieldsJson) as DiscordEmbedField[]
+    } catch {
+      fields = []
+    }
+
+    const embed: DiscordEmbed = {
+      title,
+      color,
+      timestamp: new Date().toISOString(),
+      footer: { text: footer },
+      ...(description ? { description } : {}),
+      ...(url ? { url } : {}),
+      ...(fields.length > 0 ? { fields } : {}),
+    }
+
+    await this.sendDiscordNotification(webhookUrl, { username, embeds: [embed] })
+    return JSON.stringify({ notified: true, title, webhook: webhookUrl ? "(set)" : "(not set)" })
   }
 
   @func()
@@ -234,16 +296,11 @@ export class GhReusablePipelines {
     registry: string = "https://registry.npmjs.org",
     token: string = "",
     tag: string = "",
-    version: string = ""
+    version: string = "",
+    discordWebhook: string = ""
   ): Promise<string> {
     const manager = await this.detectNodePackageManager(source)
-    return this.publishNodePackage(source, {
-      manager,
-      registry,
-      token,
-      tag,
-      version
-    })
+    return this.publishNodePackage(source, { manager, registry, token, tag, version, discordWebhook })
   }
 
   @func()
@@ -252,15 +309,10 @@ export class GhReusablePipelines {
     registry: string = "https://registry.npmjs.org",
     token: string = "",
     tag: string = "",
-    version: string = ""
+    version: string = "",
+    discordWebhook: string = ""
   ): Promise<string> {
-    return this.publishNodePackage(source, {
-      manager: "pnpm",
-      registry,
-      token,
-      tag,
-      version
-    })
+    return this.publishNodePackage(source, { manager: "pnpm", registry, token, tag, version, discordWebhook })
   }
 
   @func()
@@ -269,15 +321,10 @@ export class GhReusablePipelines {
     registry: string = "https://registry.npmjs.org",
     token: string = "",
     tag: string = "",
-    version: string = ""
+    version: string = "",
+    discordWebhook: string = ""
   ): Promise<string> {
-    return this.publishNodePackage(source, {
-      manager: "yarn",
-      registry,
-      token,
-      tag,
-      version
-    })
+    return this.publishNodePackage(source, { manager: "yarn", registry, token, tag, version, discordWebhook })
   }
 
   @func()
@@ -285,7 +332,8 @@ export class GhReusablePipelines {
     source: Directory,
     token: string = "",
     version: string = "",
-    registry: string = "crates.io"
+    registry: string = "crates.io",
+    discordWebhook: string = ""
   ): Promise<string> {
     if (!token) {
       throw new Error("Missing required crates.io token")
@@ -388,6 +436,22 @@ export class GhReusablePipelines {
 
     this.recordPipelineWarnings(reporter, (await cache.save(publishResult.container, true)).warnings)
 
+    await this.sendDiscordNotification(discordWebhook, {
+      username: "gh-reusable",
+      embeds: [{
+        title: `🦀 Published — ${crate.name}@${resolvedVersion}`,
+        color: this.discordColor("success"),
+        url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}`,
+        timestamp: new Date().toISOString(),
+        footer: { text: "gh-reusable · publish-rust-crate" },
+        fields: [
+          { name: "Crate", value: `\`${crate.name}\``, inline: true },
+          { name: "Version", value: `\`${resolvedVersion}\``, inline: true },
+          { name: "Registry", value: `\`${registry}\``, inline: true },
+        ],
+      }],
+    })
+
     return this.publishResult(
       {
         target: "rust-crate",
@@ -411,7 +475,8 @@ export class GhReusablePipelines {
     registry: string = "oci://registry-1.docker.io/helm-charts",
     username: string = "",
     password: string = "",
-    version: string = ""
+    version: string = "",
+    discordWebhook: string = ""
   ): Promise<string> {
     if (!username || !password) {
       throw new Error("Missing required Helm registry credentials")
@@ -505,6 +570,22 @@ export class GhReusablePipelines {
 
     this.recordPipelineWarnings(reporter, (await cache.save(pushResult.container, true)).warnings)
 
+    await this.sendDiscordNotification(discordWebhook, {
+      username: "gh-reusable",
+      embeds: [{
+        title: `⛵ Published — ${chartMeta.name}@${resolvedVersion}`,
+        color: this.discordColor("success"),
+        url: `${chartRef}:${resolvedVersion}`,
+        timestamp: new Date().toISOString(),
+        footer: { text: "gh-reusable · publish-helm-chart" },
+        fields: [
+          { name: "Chart", value: `\`${chartMeta.name}\``, inline: true },
+          { name: "Version", value: `\`${resolvedVersion}\``, inline: true },
+          { name: "Registry", value: `\`${normalizedRegistry}\``, inline: true },
+        ],
+      }],
+    })
+
     return this.publishResult(
       {
         target: "helm-chart",
@@ -530,6 +611,7 @@ export class GhReusablePipelines {
       token: string
       tag: string
       version: string
+      discordWebhook?: string
     }
   ): Promise<string> {
     if (!options.token) {
@@ -637,6 +719,23 @@ export class GhReusablePipelines {
 
     this.recordPipelineWarnings(reporter, (await cache.save(publishResult.container, true)).warnings)
 
+    await this.sendDiscordNotification(options.discordWebhook ?? "", {
+      username: "gh-reusable",
+      embeds: [{
+        title: `📦 Published — ${manifest.name}@${resolvedVersion}`,
+        color: this.discordColor("success"),
+        url: `https://www.npmjs.com/package/${encodeURIComponent(manifest.name)}/v/${resolvedVersion}`,
+        timestamp: new Date().toISOString(),
+        footer: { text: "gh-reusable · publish" },
+        fields: [
+          { name: "Package", value: `\`${manifest.name}\``, inline: true },
+          { name: "Version", value: `\`${resolvedVersion}\``, inline: true },
+          { name: "Manager", value: `\`${options.manager}\``, inline: true },
+          { name: "Registry", value: `\`${options.registry}\``, inline: true },
+        ],
+      }],
+    })
+
     return this.publishResult(
       {
         target: options.manager,
@@ -685,6 +784,30 @@ export class GhReusablePipelines {
     for (const warning of warnings) {
       reporter.recordWarning(warning)
     }
+  }
+
+  private async sendDiscordNotification(webhookUrl: string, payload: DiscordWebhookPayload): Promise<void> {
+    const url = webhookUrl.trim()
+    if (!url) return
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const body = await res.text().catch(() => "(no body)")
+        console.warn(`Discord notification failed (HTTP ${res.status}): ${body}`)
+      }
+    } catch (error) {
+      console.warn(`Discord notification error: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  private discordColor(decision: "success" | "failure" | "skip"): number {
+    if (decision === "success") return 0x57f287 // green
+    if (decision === "failure") return 0xed4245 // red
+    return 0x95a5a6 // gray
   }
 
   private publishResult(
@@ -887,7 +1010,8 @@ export class GhReusablePipelines {
     sha: string = "",
     runUrl: string = "",
     runNumber: string = "",
-    prLabelsCsv: string = ""
+    prLabelsCsv: string = "",
+    discordWebhook: string = ""
   ): Promise<string> {
     const branchName = headRef || refName
     const shortSha = (sha || "0000000").slice(0, 7)
@@ -990,6 +1114,16 @@ export class GhReusablePipelines {
         runUrl,
         runNumber
       })
+      await this.sendDiscordNotification(discordWebhook, {
+        username: "gh-reusable",
+        embeds: [{
+          title: `⏭️ Docker Skipped — ${image}`,
+          color: this.discordColor("skip"),
+          description: summary.reason,
+          timestamp: new Date().toISOString(),
+          footer: { text: "gh-reusable · docker-release" },
+        }],
+      })
       return JSON.stringify(summary)
     }
 
@@ -1019,6 +1153,27 @@ export class GhReusablePipelines {
       hasCanaryLabel,
       runUrl,
       runNumber
+    })
+
+    const isSuccess = summary.decision === "publish"
+    await this.sendDiscordNotification(discordWebhook, {
+      username: "gh-reusable",
+      embeds: [{
+        title: `${isSuccess ? "🐳" : "❌"} Docker ${isSuccess ? "Published" : "Failed"} — ${image}`,
+        color: this.discordColor(isSuccess ? "success" : "failure"),
+        ...(summary.reason ? { description: summary.reason } : {}),
+        ...(runUrl ? { url: runUrl } : {}),
+        timestamp: new Date().toISOString(),
+        footer: { text: "gh-reusable · docker-release" },
+        fields: [
+          { name: "Image", value: `\`${image}\``, inline: true },
+          { name: "Version", value: `\`${summary.versionTag || "n/a"}\``, inline: true },
+          { name: "Registries", value: `\`${summary.registries}\``, inline: true },
+          ...(isSuccess && summary.publishedRefs.length > 0
+            ? [{ name: "Published", value: summary.publishedRefs.map(r => `\`${r}\``).join("\n").slice(0, 1024), inline: false }]
+            : []),
+        ],
+      }],
     })
 
     return JSON.stringify(summary)
@@ -1487,7 +1642,8 @@ export class GhReusablePipelines {
     archiveName: string = "bundle.zip",
     toolchain: string = "stable",
     components: string = "clippy rustfmt",
-    repository: string = ""
+    repository: string = "",
+    discordWebhook: string = ""
   ): Promise<string> {
     const reporter = this.createReporter("rust-binary-release", {
       sourceDir: ".",
@@ -1578,6 +1734,20 @@ export class GhReusablePipelines {
     }
 
     const report = reporter.finalize()
+    await this.sendDiscordNotification(discordWebhook, {
+      username: "gh-reusable",
+      embeds: [{
+        title: `🦀 Release Published — ${tag}`,
+        color: this.discordColor("success"),
+        timestamp: new Date().toISOString(),
+        footer: { text: "gh-reusable · rust-binary-release" },
+        fields: [
+          { name: "Repository", value: `\`${resolvedRepository}\``, inline: true },
+          { name: "Tag", value: `\`${tag}\``, inline: true },
+          { name: "Archive", value: `\`${archiveName}\``, inline: true },
+        ],
+      }],
+    })
     return JSON.stringify({
       success: true,
       tag,

@@ -1,0 +1,59 @@
+name: Discord Notify
+description: Sends a CI status notification to a Discord webhook.
+
+inputs:
+  webhook-url:
+    description: "Discord webhook URL. Skipped silently if empty."
+    required: false
+    default: ""
+  status:
+    description: "Job status: success, failure, or cancelled."
+    required: true
+  workflow:
+    description: "Workflow name shown in the embed title."
+    required: true
+  run-url:
+    description: "URL to the GitHub Actions run."
+    required: true
+  ref:
+    description: "Branch or tag ref."
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Send Discord notification
+      if: inputs.webhook-url != ''
+      shell: bash
+      env:
+        DISCORD_WEBHOOK_URL: ${{ inputs.webhook-url }}
+        STATUS: ${{ inputs.status }}
+        WORKFLOW: ${{ inputs.workflow }}
+        RUN_URL: ${{ inputs.run-url }}
+        REF: ${{ inputs.ref }}
+      run: |
+        case "$STATUS" in
+          success)   color=5763719  ; icon="✅" ;;
+          failure)   color=15548997 ; icon="❌" ;;
+          cancelled) color=9807270  ; icon="⚠️" ;;
+          *)         color=9807270  ; icon="⚠️" ;;
+        esac
+
+        ref_text="${REF:+ on \`$REF\`}"
+        payload=$(jq -nc \
+          --arg username "gh-reusable" \
+          --arg title "$icon $WORKFLOW" \
+          --arg description "Run finished with status \`$STATUS\`${ref_text}. [View run]($RUN_URL)" \
+          --argjson color "$color" \
+          --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          '{username: $username, embeds: [{title: $title, description: $description, color: $color, timestamp: $timestamp, footer: {text: "gh-reusable · CI"}}]}')
+
+        http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+          -H "Content-Type: application/json" \
+          -d "$payload" \
+          "$DISCORD_WEBHOOK_URL")
+
+        if [[ "$http_code" != "2"* ]]; then
+          echo "Warning: Discord webhook returned HTTP $http_code" >&2
+        fi
