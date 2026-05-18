@@ -11,7 +11,7 @@
     "semver": "7.7.4"
   },
   "devDependencies": {
-    "jest": "30.3.0",
+    "jest": "30.4.2",
     "mock-fs": "5.5.0"
   },
   "scripts": {
