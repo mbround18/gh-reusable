@@ -18,7 +18,7 @@ inputs:
   increment:
     description: "Increment value (major, minor, patch). If not provided, will infer from PR or commit labels."
     required: false
-    default: "patch"
+    default: ""
   major-label:
     description: "Label to identify a major increment (default: 'major')."
     required: false

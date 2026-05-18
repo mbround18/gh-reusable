@@ -34,10 +34,32 @@ jobs:
           token: "${{ secrets.GH_TOKEN }}"
           fetch-depth: 0
 
-      - uses: mbround18/gh-reusable/actions/semver@main
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+
+      - name: Collect existing tags
+        id: tags
+        run: |
+          tags="$(git tag --list | paste -sd ',' - || true)"
+          echo "csv=$tags" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve next version via Dagger
         id: semver
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
         with:
-          prefix: ${{ inputs.prefix }}
+          version: v0.20.8
+          module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
+          call: >-
+            compute-semver
+            --tags-csv=${{ steps.tags.outputs.csv }}
+            --prefix=${{ inputs.prefix }}
+            --branch-name=${{ github.head_ref || github.ref_name }}
+            --pr-labels-csv=${{ join(github.event.pull_request.labels.*.name, ',') }}
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
 
       - name: Create tag
         id: create-tag
@@ -45,7 +67,7 @@ jobs:
           git config --local user.name "GitHub Action"
           git config --local user.email "actions@no-reply.github.com"
 
-          TAG_NAME="${{ steps.semver.outputs.new_version }}"
+          TAG_NAME="${{ steps.semver.outputs.stdout }}"
 
           # Check if tag already exists
           if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then

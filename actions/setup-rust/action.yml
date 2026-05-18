@@ -1,63 +1,62 @@
-name: Setup Rust
-description: "Sets up Rust toolchains, components, and additional CLI tools as needed."
+name: "Setup Rust"
+description: "Returns a Rust Dagger container with source mounted, toolchain installed, and optional crates."
 author: "mbround18"
+
 inputs:
+  source:
+    description: "Path to the source directory."
+    required: false
+    default: "."
   toolchain:
-    description: "Rust toolchain to use (e.g., stable, nightly, beta)."
+    description: "Rust toolchain (e.g. 'stable', 'nightly', 'beta'). Defaults to stable."
+    required: false
     default: "stable"
   components:
-    description: "Comma-separated list of Rust components to install (e.g., rustfmt, clippy)."
-    default: ""
+    description: "Space or comma-separated Rust components to install (e.g. 'clippy rustfmt')."
+    required: false
+    default: "clippy rustfmt"
   target:
-    description: "Comma-separated list of additional Rust compilation targets."
+    description: "Comma-separated additional compilation targets."
+    required: false
     default: ""
   crates:
-    description: "Comma-separated list of CLI crates to install (e.g., trunk, wasm-bindgen)."
-    required: true
+    description: "Comma-separated CLI crates to install (e.g. 'trunk,wasm-bindgen-cli')."
+    required: false
+    default: ""
+  cloud-token:
+    description: "Dagger Cloud token for telemetry."
+    required: false
     default: ""
 
+outputs:
+  version:
+    description: "rustc version string reported by the container."
+    value: ${{ steps.run.outputs.stdout }}
+
 runs:
-  using: "composite"
+  using: composite
   steps:
-    - name: Setup Rust Toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
-        toolchain: ${{ inputs.toolchain }}
-        components: ${{ inputs.components }}
-        target: "${{ inputs.target }}"
-
-    - name: Cache Cargo Registry
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}-${{ inputs.toolchain }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-registry-${{ inputs.toolchain }}
-          ${{ runner.os }}-cargo-registry-
-
-    - name: Cache Cargo Index
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}-${{ inputs.toolchain }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-index-${{ inputs.toolchain }}
-          ${{ runner.os }}-cargo-index-
-
-    - name: Install Rust Crates
+    - name: Warm Dagger engine image
       shell: bash
       run: |
-        IFS=',' read -ra CRATES <<< "${{ inputs.crates }}"
-        for crate in "${CRATES[@]}"; do
-          if [ "$crate" != "trunk" ]; then
-            cargo install "$crate"
-          fi
-        done
+        engine_image="registry.dagger.io/engine:v0.20.8"
+        docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
 
-    - name: Install Trunk if Specified
-      if: contains(inputs.crates, 'trunk')
-      uses: mbround18/gh-reusable/actions/install-cli@main
+    - name: Setup Rust via Dagger
+      id: run
+      uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # v8.4.1
+      env:
+        DAGGER_NO_NAG: "1"
       with:
-        repository: trunk-rs/trunk
-        version: latest
-        asset: trunk-x86_64-unknown-linux-gnu.tar.gz
+        version: v0.20.8
+        module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
+        call: >-
+          setup-rust
+          --source=${{ inputs.source }}
+          --toolchain=${{ inputs.toolchain }}
+          --components=${{ inputs.components }}
+          --target=${{ inputs.target }}
+          --crates=${{ inputs.crates }}
+          with-exec --args=rustc,--version
+          stdout
+        cloud-token: ${{ inputs.cloud-token }}

@@ -2,6 +2,29 @@ const github = require("@actions/github");
 const path = require("path");
 const { fetchQuery } = require("./tag");
 
+const BRANCH_INCREMENT_RULES = [
+  {
+    increment: "major",
+    patterns: [
+      /(^|[/-])(major|breaking)([/-]|$)/i,
+      /(^|[/-])breaking-change([/-]|$)/i,
+    ],
+  },
+  {
+    increment: "minor",
+    patterns: [
+      /(^|[/-])(feat|feature|minor)([/-]|$)/i,
+      /^release\/.+/i,
+    ],
+  },
+  {
+    increment: "patch",
+    patterns: [
+      /(^|[/-])(fix|patch|hotfix|bugfix|chore|docs|refactor|test|ci|perf)([/-]|$)/i,
+    ],
+  },
+];
+
 /**
  * Resolves the increment type based on PR or commit labels
  * @param {Array} labels - Array of label objects with name property
@@ -58,6 +81,72 @@ function resolveIncrementFromLabels(
 }
 
 /**
+ * Checks whether labels contain any configured semver labels
+ * @param {Array} labels - labels from GitHub GraphQL response
+ * @param {string} majorLabel
+ * @param {string} minorLabel
+ * @param {string} patchLabel
+ * @returns {boolean}
+ */
+function hasConfiguredIncrementLabel(labels, majorLabel, minorLabel, patchLabel) {
+  if (!labels || !labels.length) {
+    return false;
+  }
+  const labelNames = labels.map((label) =>
+    typeof label === "string" ? label : label.name,
+  );
+  return (
+    labelNames.includes(majorLabel) ||
+    labelNames.includes(minorLabel) ||
+    labelNames.includes(patchLabel)
+  );
+}
+
+/**
+ * Resolves the increment type from a branch name
+ * @param {string} branchName - branch name from PR head or pushed ref
+ * @param {object} core - GitHub Actions core object for logging
+ * @returns {string|null} - Inferred increment or null when no rule matches
+ */
+function resolveIncrementFromBranch(branchName, core) {
+  if (!branchName) {
+    return null;
+  }
+
+  for (const rule of BRANCH_INCREMENT_RULES) {
+    if (rule.patterns.some((pattern) => pattern.test(branchName))) {
+      if (core) {
+        core.info(
+          `Resolved increment "${rule.increment}" from branch "${branchName}"`,
+        );
+      }
+      return rule.increment;
+    }
+  }
+
+  if (core) {
+    core.info(`No branch increment rule matched branch "${branchName}"`);
+  }
+  return null;
+}
+
+/**
+ * Gets a branch name from GitHub context
+ * @returns {string} - Branch name or empty string when unavailable
+ */
+function getBranchNameFromContext() {
+  if (github.context.eventName === "pull_request") {
+    return github.context.payload?.pull_request?.head?.ref || "";
+  }
+
+  if (github.context.ref?.startsWith("refs/heads/")) {
+    return github.context.ref.replace("refs/heads/", "");
+  }
+
+  return "";
+}
+
+/**
  * Detects the increment type based on input or PR/commit labels
  * @param {object} octokit - GitHub API client
  * @param {string} owner - Repository owner
@@ -82,6 +171,10 @@ async function detectIncrement(
   core.info(`GitHub event name: ${github.context.eventName}`);
   core.info(`GitHub ref: ${github.context.ref}`);
   core.info(`GitHub SHA: ${github.context.sha}`);
+  const branchName = getBranchNameFromContext();
+  if (branchName) {
+    core.info(`Detected branch name: ${branchName}`);
+  }
 
   if (incrementInput) {
     core.info(`Using provided increment input: ${incrementInput}`);
@@ -106,16 +199,33 @@ async function detectIncrement(
 
       const labels = result.repository.pullRequest.labels.nodes;
       core.info(`PR labels: ${JSON.stringify(labels.map((l) => l.name))}`);
-
-      return resolveIncrementFromLabels(
-        labels,
-        majorLabel,
-        minorLabel,
-        patchLabel,
-        core,
-      );
+      if (
+        hasConfiguredIncrementLabel(
+          labels,
+          majorLabel,
+          minorLabel,
+          patchLabel,
+        )
+      ) {
+        return resolveIncrementFromLabels(
+          labels,
+          majorLabel,
+          minorLabel,
+          patchLabel,
+          core,
+        );
+      }
+      const branchIncrement = resolveIncrementFromBranch(branchName, core);
+      if (branchIncrement) {
+        return branchIncrement;
+      }
+      return "patch";
     } catch (error) {
       core.warning(`Failed to get PR labels: ${error.message}`);
+      const branchIncrement = resolveIncrementFromBranch(branchName, core);
+      if (branchIncrement) {
+        return branchIncrement;
+      }
       return "patch";
     }
   }
@@ -146,13 +256,27 @@ async function detectIncrement(
       core.info(
         `Associated PR labels: ${JSON.stringify(labels.map((l) => l.name))}`,
       );
-      return resolveIncrementFromLabels(
-        labels,
-        majorLabel,
-        minorLabel,
-        patchLabel,
-        core,
-      );
+      if (
+        hasConfiguredIncrementLabel(
+          labels,
+          majorLabel,
+          minorLabel,
+          patchLabel,
+        )
+      ) {
+        return resolveIncrementFromLabels(
+          labels,
+          majorLabel,
+          minorLabel,
+          patchLabel,
+          core,
+        );
+      }
+      const branchIncrement = resolveIncrementFromBranch(branchName, core);
+      if (branchIncrement) {
+        return branchIncrement;
+      }
+      return "patch";
     } else {
       core.info("No associated PRs found for this commit");
     }
@@ -161,11 +285,17 @@ async function detectIncrement(
     core.info(`Error details: ${error.stack}`);
   }
 
+  const branchIncrement = resolveIncrementFromBranch(branchName, core);
+  if (branchIncrement) {
+    return branchIncrement;
+  }
+
   core.info("No labels found to determine increment. Using patch as default.");
   return "patch";
 }
 
 module.exports = {
   resolveIncrementFromLabels,
+  resolveIncrementFromBranch,
   detectIncrement,
 };

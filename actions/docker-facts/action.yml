@@ -53,5 +53,5 @@ outputs:
     description: "Comma-separated list of tags to apply to the image"
 
 runs:
-  using: "docker"
-  image: "Dockerfile"
+  using: node24
+  main: index.mjs

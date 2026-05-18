@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const {
   resolveIncrementFromLabels,
+  resolveIncrementFromBranch,
   detectIncrement,
 } = require("../src/increment");
 
@@ -87,6 +88,24 @@ describe("resolveIncrementFromLabels", () => {
       "patch",
     );
     expect(result).toBe("minor");
+  });
+});
+
+describe("resolveIncrementFromBranch", () => {
+  test("should resolve major from breaking branch", () => {
+    expect(resolveIncrementFromBranch("breaking/new-api")).toBe("major");
+  });
+
+  test("should resolve minor from feature branch", () => {
+    expect(resolveIncrementFromBranch("feature/improve-search")).toBe("minor");
+  });
+
+  test("should resolve patch from hotfix branch", () => {
+    expect(resolveIncrementFromBranch("hotfix/login-timeout")).toBe("patch");
+  });
+
+  test("should return null when branch does not match rules", () => {
+    expect(resolveIncrementFromBranch("main")).toBeNull();
   });
 });
 
@@ -191,6 +210,39 @@ describe("detectIncrement", () => {
     );
   });
 
+  test("should fallback to branch naming when PR labels do not match", async () => {
+    github.context.eventName = "pull_request";
+    github.context.payload = {
+      pull_request: {
+        number: 123,
+        head: { ref: "feature/new-feature" },
+      },
+    };
+
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        pullRequest: {
+          labels: {
+            nodes: [{ name: "documentation" }],
+          },
+        },
+      },
+    });
+
+    const result = await detectIncrement(
+      mockOctokit,
+      "owner",
+      "repo",
+      "",
+      "major-label",
+      "minor-label",
+      "patch-label",
+      mockCore,
+    );
+
+    expect(result).toBe("minor");
+  });
+
   test("should detect labels from commit-associated PR", async () => {
     // Set up for push event with associated PR
     github.context.eventName = "push";
@@ -265,6 +317,34 @@ describe("detectIncrement", () => {
     expect(mockCore.info).toHaveBeenCalledWith(
       "No associated PRs found for this commit",
     );
+  });
+
+  test("should fallback to branch naming when no associated PR is found", async () => {
+    github.context.eventName = "push";
+    github.context.ref = "refs/heads/feature/faster-ci";
+
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        object: {
+          associatedPullRequests: {
+            nodes: [],
+          },
+        },
+      },
+    });
+
+    const result = await detectIncrement(
+      mockOctokit,
+      "owner",
+      "repo",
+      "",
+      "major-label",
+      "minor-label",
+      "patch-label",
+      mockCore,
+    );
+
+    expect(result).toBe("minor");
   });
 
   test("should handle error getting associated PR labels", async () => {

@@ -1,0 +1,33 @@
+name: "Code Matrix"
+description: "Scans the codebase and outputs detected languages, package managers, and available publish targets."
+author: "mbround18"
+
+inputs:
+  path:
+    description: "Directory to scan (default: repository root)."
+    required: false
+    default: "."
+
+outputs:
+  json:
+    description: "Full detection result as a JSON string."
+  languages:
+    description: "Comma-separated list of detected languages (e.g. typescript,rust)."
+  package-managers:
+    description: "Comma-separated list of detected package managers (e.g. pnpm,cargo)."
+  node-package-manager:
+    description: "Detected Node.js package manager: npm, pnpm, yarn, or empty string."
+  has-docker:
+    description: "'true' if a Dockerfile is present."
+  has-helm:
+    description: "'true' if a Chart.yaml is present."
+  has-compose:
+    description: "'true' if a docker-compose / compose file is present."
+  is-monorepo:
+    description: "'true' if pnpm-workspace.yaml, lerna.json, or nx.json is present."
+  publish-targets:
+    description: "Comma-separated list of available publish targets (e.g. pnpm,rust-crate)."
+
+runs:
+  using: node24
+  main: index.mjs

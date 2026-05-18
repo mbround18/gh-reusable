@@ -2,6 +2,15 @@
 
 The GraphQL Action executes a GraphQL query or mutation using provided inputs. It supports either an inline query or a file path to a query, accepts arguments as comma‑ or newline‑separated key=value pairs, uses a provided token for authentication, and optionally accepts a custom endpoint URL (defaulting to the GitHub GraphQL API).
 
+## Development
+
+This action now uses TypeScript source and a Vite build output.
+
+- Source: `src/index.ts`
+- Build output: `dist/index.js`
+- Build command (workspace): `pnpm --filter @gh-reusable/graphql-action build`
+- Typecheck command (workspace): `pnpm --filter @gh-reusable/graphql-action typecheck`
+
 ## Usage
 
 To use this action in your workflow, add the following steps to your GitHub Actions workflow file:

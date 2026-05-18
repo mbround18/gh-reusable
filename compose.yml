@@ -1,0 +1,7 @@
+services:
+  dagger-pipelines:
+    image: mbround18/gh-reusable:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    command: ["workflow", "--id", "docker-release"]

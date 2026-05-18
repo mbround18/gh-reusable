@@ -1,0 +1,19 @@
+{
+  "name": "gh-reusable",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Workspace bootstrap for reusable actions.",
+  "packageManager": "pnpm@10.15.1",
+  "scripts": {
+    "build": "pnpm -r --if-present run build",
+    "test": "pnpm -r --if-present run test",
+    "typecheck": "pnpm -r --if-present run typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5",
+    "vitest": "^3.2.4"
+  }
+}

@@ -40,32 +40,21 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
-
-      - name: Setup | Rust | ${{ inputs.toolchain }}
-        uses: mbround18/gh-reusable/actions/setup-rust@v0.0.6
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+      - name: Run Rust workflow in Dagger
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
         with:
-          toolchain: ${{ inputs.toolchain }}
-          components: ${{ inputs.components }}
-          target: ${{ inputs.target }}
-
-      - name: Build
-        run: cargo build --verbose
-
-      - name: Run tests
-        run: cargo test --verbose
-
-      - name: Lint
-        run: cargo fmt -- --check
-
-      - name: Clippy
-        run: cargo clippy
-
-      - name: Build Release
-        run: cargo build --verbose --release
-
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # 043fb46, https://github.com/actions/upload-artifact/releases/latest
-        with:
-          name: rust-release
-          path: ./target/release
-          retention-days: 5
+          version: v0.20.8
+          module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
+          call: >-
+            rust-build-and-test
+            --source=.
+            --toolchain=${{ inputs.toolchain }}
+            --components=${{ inputs.components }}
+            --target=${{ inputs.target }}
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

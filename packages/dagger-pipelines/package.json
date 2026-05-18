@@ -1,0 +1,36 @@
+{
+  "name": "@gh-reusable/dagger-pipelines",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reusable Dagger pipeline primitives for GitHub Action packaging.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./workflows": {
+      "types": "./dist/workflows.d.ts",
+      "import": "./dist/workflows.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dagger:ci": "node dist/cli.js ci",
+    "dagger:build-and-push": "node dist/cli.js build-and-push",
+    "dagger:workflow": "node dist/cli.js workflow"
+  },
+  "dependencies": {
+    "@dagger.io/dagger": "^0.20.8",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,57 @@
+name: "Setup Node"
+description: "Returns a Node.js Dagger container with source mounted and corepack enabled."
+author: "mbround18"
+
+inputs:
+  source:
+    description: "Path to the source directory."
+    required: false
+    default: "."
+  node-version:
+    description: "Node.js version (e.g. '24'). Defaults to 24."
+    required: false
+    default: "24"
+  package-manager:
+    description: "Package manager: auto, npm, pnpm, or yarn."
+    required: false
+    default: "auto"
+  install-deps:
+    description: "Run install after setting up the container."
+    required: false
+    default: "false"
+  cloud-token:
+    description: "Dagger Cloud token for telemetry."
+    required: false
+    default: ""
+
+outputs:
+  version:
+    description: "Node.js version string reported by the container."
+    value: ${{ steps.run.outputs.stdout }}
+
+runs:
+  using: composite
+  steps:
+    - name: Warm Dagger engine image
+      shell: bash
+      run: |
+        engine_image="registry.dagger.io/engine:v0.20.8"
+        docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+
+    - name: Setup Node via Dagger
+      id: run
+      uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # v8.4.1
+      env:
+        DAGGER_NO_NAG: "1"
+      with:
+        version: v0.20.8
+        module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
+        call: >-
+          setup-node
+          --source=${{ inputs.source }}
+          --node-version=${{ inputs.node-version }}
+          --package-manager=${{ inputs.package-manager }}
+          --install-deps=${{ inputs.install-deps }}
+          with-exec --args=node,--version
+          stdout
+        cloud-token: ${{ inputs.cloud-token }}

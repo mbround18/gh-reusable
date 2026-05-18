@@ -187,39 +187,17 @@ describe("getLastTag", () => {
   });
 
   test("should handle tags with dashed prefix", async () => {
-    // Mock the exact data we want to test with
-    const tagData = [
-      { name: "app-v-1.0.0" },
-      { name: "app-v-1.2.0" }, // This should be chosen as highest version
-      { name: "app-v-1.1.0" },
-    ];
-
-    // Mock only this specific test case to ensure consistent results
-    mockOctokit.graphql.mockImplementationOnce(() => {
-      return Promise.resolve({
-        repository: {
-          refs: {
-            nodes: tagData,
-          },
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        refs: {
+          nodes: [
+            { name: "app-v-1.0.0" },
+            { name: "app-v-1.2.0" },
+            { name: "app-v-1.1.0" },
+          ],
         },
-      });
+      },
     });
-
-    // Use a spy on Array.prototype.sort to verify sorting behavior
-    const originalSort = Array.prototype.sort;
-    const sortSpy = jest
-      .spyOn(Array.prototype, "sort")
-      .mockImplementationOnce(function (compareFn) {
-        const result = originalSort.call(this, compareFn);
-        // Force the order of tags to match what we expect
-        return tagData
-          .sort((a, b) => {
-            if (a.name === "app-v-1.2.0") return -1; // Make 1.2.0 come first
-            if (b.name === "app-v-1.2.0") return 1;
-            return 0;
-          })
-          .map((tag) => tag.name);
-      });
 
     const result = await getLastTag(
       mockOctokit,
@@ -234,9 +212,36 @@ describe("getLastTag", () => {
       lastTag: "app-v-1.2.0",
       updatedPrefix: "app-v-",
     });
+  });
 
-    // Restore the original sort method
-    sortSpy.mockRestore();
+  test("should ignore non-semver tags when resolving latest tag", async () => {
+    mockOctokit.graphql.mockResolvedValue({
+      repository: {
+        refs: {
+          nodes: [
+            { name: "v1.1.0" },
+            { name: "v1" },
+            { name: "vlatest" },
+            { name: "v1.2.0-alpha.1" },
+            { name: "v1.2.0" },
+          ],
+        },
+      },
+    });
+
+    const result = await getLastTag(
+      mockOctokit,
+      "owner",
+      "repo",
+      "v",
+      "",
+      mockCore,
+    );
+
+    expect(result).toEqual({
+      lastTag: "v1.2.0",
+      updatedPrefix: "v",
+    });
   });
 
   test("should default to v prefix if all tags start with v", async () => {
