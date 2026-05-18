@@ -69,7 +69,7 @@ Full input/secret details in [references/ci-manifest.json](references/ci-manifes
 
 ## Internal CI workflows
 
-- `ci.yaml` — CI _(pull_request, push)_
+- `internal-ci.yaml` — CI _(pull_request, push)_
 - `test-code-matrix.yaml` — Test | Code Matrix _(pull_request, push)_
 - `test-docker-release.yaml` — Test | Docker Release Workflow _(pull_request, push)_
 - `test-graphql-action.yaml` — Test | GraphQL Query Default Branch _(push, pull_request)_

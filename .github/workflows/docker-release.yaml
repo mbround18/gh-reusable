@@ -161,7 +161,7 @@ jobs:
 
       - name: Run Docker release in Dagger
         id: dagger_release
-        uses: ./.github/actions/dagger-run
+        uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           GITHUB_EVENT_PATH: ${{ github.event_path }}
