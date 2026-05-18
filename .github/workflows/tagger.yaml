@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.workflow_ref }}
   cancel-in-progress: false
 
 jobs:

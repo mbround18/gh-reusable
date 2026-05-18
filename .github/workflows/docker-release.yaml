@@ -86,7 +86,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.image }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}-${{ inputs.image }}
   cancel-in-progress: true
 
 run-name: Docker Release for ${{ inputs.image }}
