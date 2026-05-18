@@ -248,6 +248,14 @@ develop-eggs/
 dist/
 !actions/graphql/dist/
 !actions/graphql/dist/**
+!actions/docker-facts/dist/
+!actions/docker-facts/dist/**
+!actions/code-matrix/dist/
+!actions/code-matrix/dist/**
+!actions/ensure-repository/dist/
+!actions/ensure-repository/dist/**
+!actions/install-cli/dist/
+!actions/install-cli/dist/**
 downloads/
 eggs/
 .eggs/

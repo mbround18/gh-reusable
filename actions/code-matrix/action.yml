@@ -11,167 +11,23 @@ inputs:
 outputs:
   json:
     description: "Full detection result as a JSON string."
-    value: ${{ steps.detect.outputs.json }}
   languages:
     description: "Comma-separated list of detected languages (e.g. typescript,rust)."
-    value: ${{ steps.detect.outputs.languages }}
   package-managers:
     description: "Comma-separated list of detected package managers (e.g. pnpm,cargo)."
-    value: ${{ steps.detect.outputs.package_managers }}
   node-package-manager:
     description: "Detected Node.js package manager: npm, pnpm, yarn, or empty string."
-    value: ${{ steps.detect.outputs.node_pm }}
   has-docker:
     description: "'true' if a Dockerfile is present."
-    value: ${{ steps.detect.outputs.has_docker }}
   has-helm:
     description: "'true' if a Chart.yaml is present."
-    value: ${{ steps.detect.outputs.has_helm }}
   has-compose:
     description: "'true' if a docker-compose / compose file is present."
-    value: ${{ steps.detect.outputs.has_compose }}
   is-monorepo:
     description: "'true' if pnpm-workspace.yaml, lerna.json, or nx.json is present."
-    value: ${{ steps.detect.outputs.is_monorepo }}
   publish-targets:
-    description: "Comma-separated list of available Dagger publish targets (e.g. pnpm,rust-crate)."
-    value: ${{ steps.detect.outputs.publish_targets }}
+    description: "Comma-separated list of available publish targets (e.g. pnpm,rust-crate)."
 
 runs:
-  using: composite
-  steps:
-    - name: Detect code matrix
-      id: detect
-      shell: bash
-      working-directory: ${{ inputs.path }}
-      run: |
-        set -euo pipefail
-
-        # ── lockfiles ──────────────────────────────────────────────────────────
-        has_pnpm_lock=false;  [ -f "pnpm-lock.yaml" ]       && has_pnpm_lock=true
-        has_yarn_lock=false;  [ -f "yarn.lock" ]            && has_yarn_lock=true
-        has_npm_lock=false;   [ -f "package-lock.json" ]    && has_npm_lock=true
-        has_cargo_lock=false; [ -f "Cargo.lock" ]           && has_cargo_lock=true
-
-        # ── manifests ─────────────────────────────────────────────────────────
-        has_package_json=false; [ -f "package.json" ]       && has_package_json=true
-        has_cargo_toml=false;   [ -f "Cargo.toml" ]         && has_cargo_toml=true
-        has_pyproject=false;    [ -f "pyproject.toml" ]     && has_pyproject=true
-        has_requirements=false; [ -f "requirements.txt" ]   && has_requirements=true
-        has_go_mod=false;       [ -f "go.mod" ]             && has_go_mod=true
-        has_chart_yaml=false
-        { [ -f "Chart.yaml" ] || find . -maxdepth 3 -name "Chart.yaml" -quit 2>/dev/null | grep -q .; } \
-          && has_chart_yaml=true || true
-
-        # ── tooling ───────────────────────────────────────────────────────────
-        has_tsconfig=false
-        { [ -f "tsconfig.json" ] || ls tsconfig.*.json 2>/dev/null | grep -q .; } \
-          && has_tsconfig=true || true
-
-        has_docker=false
-        { [ -f "Dockerfile" ] || ls Dockerfile.* 2>/dev/null | grep -q .; } \
-          && has_docker=true || true
-
-        has_compose=false
-        { [ -f "docker-compose.yml" ] || [ -f "docker-compose.yaml" ] \
-          || [ -f "compose.yml" ]       || [ -f "compose.yaml" ]; } \
-          && has_compose=true || true
-
-        is_monorepo=false
-        { [ -f "pnpm-workspace.yaml" ] || [ -f "lerna.json" ] || [ -f "nx.json" ]; } \
-          && is_monorepo=true || true
-
-        # ── languages ─────────────────────────────────────────────────────────
-        languages=""
-        if $has_package_json || $has_pnpm_lock || $has_yarn_lock || $has_npm_lock; then
-          if $has_tsconfig; then
-            languages="typescript"
-          else
-            languages="javascript"
-          fi
-        fi
-        $has_cargo_toml   && languages="${languages:+$languages,}rust"
-        $has_pyproject || $has_requirements \
-                          && languages="${languages:+$languages,}python"
-        $has_go_mod       && languages="${languages:+$languages,}go"
-
-        # ── package managers ──────────────────────────────────────────────────
-        pms=""
-        $has_pnpm_lock    && pms="pnpm"
-        $has_yarn_lock    && pms="${pms:+$pms,}yarn"
-        $has_npm_lock     && pms="${pms:+$pms,}npm"
-        $has_cargo_toml   && pms="${pms:+$pms,}cargo"
-        $has_pyproject || $has_requirements \
-                          && pms="${pms:+$pms,}pip"
-        $has_go_mod       && pms="${pms:+$pms,}go"
-
-        # ── node package manager ──────────────────────────────────────────────
-        node_pm=""
-        if $has_pnpm_lock; then node_pm="pnpm"
-        elif $has_yarn_lock; then node_pm="yarn"
-        elif $has_package_json || $has_npm_lock; then node_pm="npm"
-        fi
-
-        # ── publish targets ───────────────────────────────────────────────────
-        targets=""
-        [ -n "$node_pm" ]  && targets="$node_pm"
-        $has_cargo_toml    && targets="${targets:+$targets,}rust-crate"
-        $has_chart_yaml    && targets="${targets:+$targets,}helm-chart"
-
-        # ── manifests list ────────────────────────────────────────────────────
-        manifests=""
-        $has_package_json && manifests="package.json"
-        $has_cargo_toml   && manifests="${manifests:+$manifests,}Cargo.toml"
-        $has_pyproject    && manifests="${manifests:+$manifests,}pyproject.toml"
-        $has_go_mod       && manifests="${manifests:+$manifests,}go.mod"
-        $has_chart_yaml   && manifests="${manifests:+$manifests,}Chart.yaml"
-
-        # ── lockfiles list ────────────────────────────────────────────────────
-        lockfiles=""
-        $has_pnpm_lock  && lockfiles="pnpm-lock.yaml"
-        $has_yarn_lock  && lockfiles="${lockfiles:+$lockfiles,}yarn.lock"
-        $has_npm_lock   && lockfiles="${lockfiles:+$lockfiles,}package-lock.json"
-        $has_cargo_lock && lockfiles="${lockfiles:+$lockfiles,}Cargo.lock"
-
-        # ── build JSON ────────────────────────────────────────────────────────
-        json=$(printf '{
-          "languages": "%s",
-          "packageManagers": "%s",
-          "nodePackageManager": "%s",
-          "hasDocker": %s,
-          "hasHelm": %s,
-          "hasCompose": %s,
-          "isMonorepo": %s,
-          "manifests": "%s",
-          "lockfiles": "%s",
-          "publishTargets": "%s"
-        }' \
-          "$languages" "$pms" "$node_pm" \
-          "$has_docker" "$has_chart_yaml" "$has_compose" "$is_monorepo" \
-          "$manifests" "$lockfiles" "$targets")
-
-        # ── outputs ───────────────────────────────────────────────────────────
-        {
-          echo "json=$json"
-          echo "languages=$languages"
-          echo "package_managers=$pms"
-          echo "node_pm=$node_pm"
-          echo "has_docker=$has_docker"
-          echo "has_helm=$has_chart_yaml"
-          echo "has_compose=$has_compose"
-          echo "is_monorepo=$is_monorepo"
-          echo "publish_targets=$targets"
-        } >> "$GITHUB_OUTPUT"
-
-        echo "### Code Matrix" >> "$GITHUB_STEP_SUMMARY"
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Languages | \`${languages:-none}\` |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Package managers | \`${pms:-none}\` |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Node package manager | \`${node_pm:-none}\` |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Publish targets | \`${targets:-none}\` |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Docker | $has_docker |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Helm | $has_chart_yaml |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Docker Compose | $has_compose |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Monorepo | $is_monorepo |" >> "$GITHUB_STEP_SUMMARY"
+  using: node24
+  main: dist/index.js

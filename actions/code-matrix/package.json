@@ -1,0 +1,13 @@
+{
+  "name": "@gh-reusable/code-matrix-action",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1"
+  }
+}

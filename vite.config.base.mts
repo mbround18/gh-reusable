@@ -12,7 +12,7 @@ export function createActionViteConfig(options: ActionViteConfigOptions) {
       emptyOutDir: true,
       outDir: options.outDir ?? 'dist',
       sourcemap: true,
-      target: options.target ?? 'node20',
+      target: options.target ?? 'node24',
       ssr: options.entry,
       rollupOptions: {
         output: {
