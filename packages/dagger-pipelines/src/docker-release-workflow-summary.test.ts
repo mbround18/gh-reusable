@@ -39,7 +39,7 @@ test('docker release workflow has rich summary and PR/release reporting steps', 
   const releaseNotesStep = steps.find((step) => step.name === 'Update tag release notes');
   const failureStep = steps.find((step) => step.name === 'Fail workflow on docker release error');
 
-  expect(daggerStep?.uses).toContain('dagger/dagger-for-github@');
+  expect(daggerStep?.uses).toContain('.github/actions/dagger-run');
   expect(daggerStep?.with?.call).toContain('--event-name=');
   expect(daggerStep?.with?.call).toContain('--pr-labels-csv=');
   expect(daggerStep?.with?.call).toContain('--docker-token=');

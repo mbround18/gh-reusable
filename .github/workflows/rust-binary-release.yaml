@@ -56,19 +56,10 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Warm Dagger engine image
-        run: |
-          engine_image="registry.dagger.io/engine:v0.20.8"
-          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
-
-      - name: Build, zip, and upload release binaries via Dagger
-        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+      - uses: ./.github/actions/dagger-run
         env:
-          DAGGER_NO_NAG: "1"
           GITHUB_REPOSITORY: ${{ github.repository }}
         with:
-          version: v0.20.8
-          module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
           call: >-
             rust-binary-release
             --source=.

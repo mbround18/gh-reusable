@@ -61,9 +61,7 @@ test('audit workflow runs module audit and supports SARIF alerts + PR history', 
   const historyComment = steps.find((step) => step.name === 'Add PR audit history comment');
   const releaseNotes = steps.find((step) => step.name === 'Update tag release notes with audit summary');
 
-  expect(daggerStep?.uses).toContain('dagger/dagger-for-github@');
-  expect(daggerStep?.env?.DAGGER_NO_NAG).toBe('1');
-  expect(String(daggerStep?.with?.module ?? '')).toContain('/packages/dagger-module@dagger/io');
+  expect(daggerStep?.uses).toContain('.github/actions/dagger-run');
   expect(String(daggerStep?.with?.call ?? '')).toContain('audit');
 
   expect(sarifStep?.if).toContain('inputs.create_alerts');

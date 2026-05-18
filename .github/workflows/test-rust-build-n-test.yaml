@@ -6,8 +6,8 @@ on:
       - main
     paths:
       - "actions/setup-rust/**"
-      - ".github/workflows/rust-build-n-test.yml"
-      - ".github/workflows/test-rust-build-n-test.yml"
+      - ".github/workflows/rust-build-n-test.yaml"
+      - ".github/workflows/test-rust-build-n-test.yaml"
       - "**/*.rs"
       - "**/*.toml"
       - "**/Cargo.lock"
@@ -18,8 +18,8 @@ on:
       - main
     paths:
       - "actions/setup-rust/**"
-      - ".github/workflows/rust-build-n-test.yml"
-      - ".github/workflows/test-rust-build-n-test.yml"
+      - ".github/workflows/rust-build-n-test.yaml"
+      - ".github/workflows/test-rust-build-n-test.yaml"
       - "**/*.rs"
       - "**/*.toml"
       - "**/Cargo.lock"
