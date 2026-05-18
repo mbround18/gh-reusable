@@ -1,7 +1,7 @@
-import { readFileSync, existsSync } from 'node:fs';
-import path from 'node:path';
+import { readFileSync, existsSync } from "node:fs";
+import path from "node:path";
 
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml } from "yaml";
 
 export interface DockerParityInputs {
   readonly image: string;
@@ -63,20 +63,34 @@ export interface ResolveDockerParityInput {
   readonly github: DockerParityGithubContext;
 }
 
-const DEFAULT_DOCKERFILE = './Dockerfile';
-const DEFAULT_CONTEXT = '.';
-const DEFAULT_CANARY_LABEL = 'canary';
+const DEFAULT_DOCKERFILE = "./Dockerfile";
+const DEFAULT_CONTEXT = ".";
+const DEFAULT_CANARY_LABEL = "canary";
 
-const COMPOSE_PATHS = ['docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml'] as const;
+const COMPOSE_PATHS = [
+  "docker-compose.yml",
+  "docker-compose.yaml",
+  "compose.yml",
+  "compose.yaml",
+] as const;
 
-export function resolveDockerParity(input: ResolveDockerParityInput): DockerParityResult {
+export function resolveDockerParity(
+  input: ResolveDockerParityInput,
+): DockerParityResult {
   const dockerfileInput = input.inputs.dockerfile ?? DEFAULT_DOCKERFILE;
   const contextInput = input.inputs.context ?? DEFAULT_CONTEXT;
-  const explicitTarget = input.inputs.target ?? '';
+  const explicitTarget = input.inputs.target ?? "";
 
-  const initialContextAbsolute = resolvePath(input.github.workspace, contextInput);
+  const initialContextAbsolute = resolvePath(
+    input.github.workspace,
+    contextInput,
+  );
   let contextAbsolute = initialContextAbsolute;
-  let dockerfileAbsolute = findDockerfile(input.github.workspace, dockerfileInput, contextInput);
+  let dockerfileAbsolute = findDockerfile(
+    input.github.workspace,
+    dockerfileInput,
+    contextInput,
+  );
   let target = explicitTarget;
   let buildArgs: Readonly<Record<string, string>> = {};
 
@@ -88,16 +102,34 @@ export function resolveDockerParity(input: ResolveDockerParityInput): DockerPari
       if (composeData.context) {
         const composeContext = path.join(contextInput, composeData.context);
         contextAbsolute = resolvePath(input.github.workspace, composeContext);
-        const composeDockerfile = path.join(composeContext, composeData.dockerfile);
-        dockerfileAbsolute = findDockerfile(input.github.workspace, composeDockerfile, contextAbsolute);
+        const composeDockerfile = path.join(
+          composeContext,
+          composeData.dockerfile,
+        );
+        dockerfileAbsolute = findDockerfile(
+          input.github.workspace,
+          composeDockerfile,
+          contextAbsolute,
+        );
       } else {
-        const composeDockerfile = path.join(contextInput, composeData.dockerfile);
-        dockerfileAbsolute = findDockerfile(input.github.workspace, composeDockerfile, contextAbsolute);
+        const composeDockerfile = path.join(
+          contextInput,
+          composeData.dockerfile,
+        );
+        dockerfileAbsolute = findDockerfile(
+          input.github.workspace,
+          composeDockerfile,
+          contextAbsolute,
+        );
       }
     } else if (composeData.context) {
       const composeContext = path.join(contextInput, composeData.context);
       contextAbsolute = resolvePath(input.github.workspace, composeContext);
-      dockerfileAbsolute = findDockerfile(input.github.workspace, dockerfileInput, contextAbsolute);
+      dockerfileAbsolute = findDockerfile(
+        input.github.workspace,
+        dockerfileInput,
+        contextAbsolute,
+      );
     }
 
     if (composeData.target && explicitTarget.length === 0) {
@@ -113,7 +145,7 @@ export function resolveDockerParity(input: ResolveDockerParityInput): DockerPari
     defaultBranch: input.github.defaultBranch,
     canaryLabel: input.inputs.canaryLabel ?? DEFAULT_CANARY_LABEL,
     forcePush: input.inputs.forcePush ?? false,
-    eventPath: input.github.eventPath
+    eventPath: input.github.eventPath,
   });
 
   const tags = generateTags({
@@ -123,7 +155,7 @@ export function resolveDockerParity(input: ResolveDockerParityInput): DockerPari
     withLatest: input.inputs.withLatest ?? false,
     ref: input.github.ref,
     target,
-    prependTarget: input.inputs.prependTarget ?? false
+    prependTarget: input.inputs.prependTarget ?? false,
   });
 
   return {
@@ -134,13 +166,17 @@ export function resolveDockerParity(input: ResolveDockerParityInput): DockerPari
     target,
     push,
     tags,
-    buildArgs
+    buildArgs,
   };
 }
 
-export function resolvePath(workspace: string, value: string, toRelative = false): string {
+export function resolvePath(
+  workspace: string,
+  value: string,
+  toRelative = false,
+): string {
   if (value.length === 0) {
-    return '';
+    return "";
   }
 
   const normalizedWorkspace = path.resolve(workspace);
@@ -148,7 +184,7 @@ export function resolvePath(workspace: string, value: string, toRelative = false
     const absoluteValue = path.resolve(value);
     if (absoluteValue.startsWith(normalizedWorkspace)) {
       const relativePath = path.relative(normalizedWorkspace, absoluteValue);
-      return relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+      return relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
     }
 
     return value;
@@ -158,17 +194,23 @@ export function resolvePath(workspace: string, value: string, toRelative = false
     return path.normalize(value);
   }
 
-  return path.normalize(path.join(normalizedWorkspace, value.replace(/^[./]+/, '')));
+  return path.normalize(
+    path.join(normalizedWorkspace, value.replace(/^[./]+/, "")),
+  );
 }
 
-export function findDockerfile(workspace: string, dockerfilePath: string, contextPath: string): string {
+export function findDockerfile(
+  workspace: string,
+  dockerfilePath: string,
+  contextPath: string,
+): string {
   const absoluteDockerfile = resolvePath(workspace, dockerfilePath);
   const absoluteContext = resolvePath(workspace, contextPath);
 
   const possiblePaths = [
     absoluteDockerfile,
     path.join(absoluteContext, path.basename(dockerfilePath)),
-    path.join(absoluteContext, dockerfilePath.replace(/^[./]+/, ''))
+    path.join(absoluteContext, dockerfilePath.replace(/^[./]+/, "")),
   ];
 
   const uniquePaths = dedupe(possiblePaths);
@@ -181,7 +223,10 @@ export function findDockerfile(workspace: string, dockerfilePath: string, contex
   return absoluteDockerfile;
 }
 
-export function findDockerCompose(workspace: string, contextPath?: string): string | undefined {
+export function findDockerCompose(
+  workspace: string,
+  contextPath?: string,
+): string | undefined {
   const normalizedWorkspace = path.resolve(workspace);
 
   for (const composePath of COMPOSE_PATHS) {
@@ -191,7 +236,7 @@ export function findDockerCompose(workspace: string, contextPath?: string): stri
     }
   }
 
-  if (contextPath && contextPath !== '.' && contextPath !== './') {
+  if (contextPath && contextPath !== "." && contextPath !== "./") {
     const absoluteContext = resolvePath(normalizedWorkspace, contextPath);
     if (absoluteContext !== normalizedWorkspace) {
       for (const composePath of COMPOSE_PATHS) {
@@ -206,16 +251,19 @@ export function findDockerCompose(workspace: string, contextPath?: string): stri
   return undefined;
 }
 
-export function parseDockerCompose(filePath: string, imageName: string): ParseDockerComposeResult {
+export function parseDockerCompose(
+  filePath: string,
+  imageName: string,
+): ParseDockerComposeResult {
   const fallback: ParseDockerComposeResult = {
     dockerfile: null,
     context: null,
     buildArgs: {},
-    target: null
+    target: null,
   };
 
   try {
-    const raw = readFileSync(filePath, 'utf8');
+    const raw = readFileSync(filePath, "utf8");
     const compose = parseYaml(raw) as DockerComposeRecord | null;
     if (!compose?.services) {
       return fallback;
@@ -227,10 +275,10 @@ export function parseDockerCompose(filePath: string, imageName: string): ParseDo
       }
 
       const build = service.build;
-      if (typeof build === 'string') {
+      if (typeof build === "string") {
         return {
           ...fallback,
-          context: build
+          context: build,
         };
       }
 
@@ -239,10 +287,11 @@ export function parseDockerCompose(filePath: string, imageName: string): ParseDo
       }
 
       return {
-        dockerfile: typeof build.dockerfile === 'string' ? build.dockerfile : null,
-        context: typeof build.context === 'string' ? build.context : null,
-        target: typeof build.target === 'string' ? build.target : null,
-        buildArgs: parseBuildArgs(build.args)
+        dockerfile:
+          typeof build.dockerfile === "string" ? build.dockerfile : null,
+        context: typeof build.context === "string" ? build.context : null,
+        target: typeof build.target === "string" ? build.target : null,
+        buildArgs: parseBuildArgs(build.args),
       };
     }
   } catch {
@@ -270,11 +319,11 @@ export function shouldPushImage(input: ShouldPushImageInput): boolean {
     return true;
   }
 
-  if (input.ref.startsWith('refs/tags/')) {
+  if (input.ref.startsWith("refs/tags/")) {
     return true;
   }
 
-  if (input.eventName === 'pull_request') {
+  if (input.eventName === "pull_request") {
     const eventData = loadEventData(input.eventPath);
     const labels = getPullRequestLabels(eventData);
     return labels.includes(input.canaryLabel);
@@ -295,14 +344,16 @@ interface GenerateTagsInput {
 
 export function generateTags(input: GenerateTagsInput): readonly string[] {
   const registries = input.registries.filter((registry) => registry.length > 0);
-  const targetPrefix = input.prependTarget && input.target.length > 0 ? `${input.target}-` : '';
+  const targetPrefix =
+    input.prependTarget && input.target.length > 0 ? `${input.target}-` : "";
 
-  const versionTag = input.version.startsWith('v')
+  const versionTag = input.version.startsWith("v")
     ? `${targetPrefix}${input.version}`
     : `${targetPrefix}v${input.version}`;
 
   const baseTags = [`${input.image}:${versionTag}`];
-  const isReleaseVersion = input.ref.startsWith('refs/tags/') && !isPreReleaseVersion(input.version);
+  const isReleaseVersion =
+    input.ref.startsWith("refs/tags/") && !isPreReleaseVersion(input.version);
 
   if (input.withLatest && isReleaseVersion) {
     baseTags.push(`${input.image}:${targetPrefix}latest`);
@@ -312,7 +363,7 @@ export function generateTags(input: GenerateTagsInput): readonly string[] {
   const imageWithoutRegistry = stripRegistry(input.image);
   for (const baseTag of baseTags) {
     output.push(baseTag);
-    const [, tagValue = 'latest'] = baseTag.split(':');
+    const [, tagValue = "latest"] = baseTag.split(":");
     for (const registry of registries) {
       output.push(`${registry}/${imageWithoutRegistry}:${tagValue}`);
     }
@@ -326,19 +377,19 @@ function parseBuildArgs(args: unknown): Readonly<Record<string, string>> {
     return Object.fromEntries(
       Object.entries(args)
         .filter(([, value]) => value !== undefined)
-        .map(([key, value]) => [key, String(value)])
+        .map(([key, value]) => [key, String(value)]),
     );
   }
 
   if (Array.isArray(args)) {
     const pairs: Array<[string, string]> = [];
     for (const arg of args) {
-      if (typeof arg !== 'string' || !arg.includes('=')) {
+      if (typeof arg !== "string" || !arg.includes("=")) {
         continue;
       }
 
-      const [name, ...valueParts] = arg.split('=');
-      pairs.push([name, valueParts.join('=')]);
+      const [name, ...valueParts] = arg.split("=");
+      pairs.push([name, valueParts.join("=")]);
     }
 
     return Object.fromEntries(pairs);
@@ -347,12 +398,20 @@ function parseBuildArgs(args: unknown): Readonly<Record<string, string>> {
   return {};
 }
 
-function isComposeBuildRecord(value: unknown): value is DockerComposeBuildRecord {
+function isComposeBuildRecord(
+  value: unknown,
+): value is DockerComposeBuildRecord {
   return isRecord(value);
 }
 
-function serviceMatchesImage(service: DockerComposeServiceRecord, imageName: string): boolean {
-  return typeof service.image === 'string' && service.image.startsWith(`${imageName}:`);
+function serviceMatchesImage(
+  service: DockerComposeServiceRecord,
+  imageName: string,
+): boolean {
+  return (
+    typeof service.image === "string" &&
+    service.image.startsWith(`${imageName}:`)
+  );
 }
 
 function loadEventData(eventPath?: string): unknown {
@@ -361,7 +420,7 @@ function loadEventData(eventPath?: string): unknown {
   }
 
   try {
-    return JSON.parse(readFileSync(eventPath, 'utf8')) as unknown;
+    return JSON.parse(readFileSync(eventPath, "utf8")) as unknown;
   } catch {
     return {};
   }
@@ -379,7 +438,7 @@ function getPullRequestLabels(eventData: unknown): readonly string[] {
 
   const labels: string[] = [];
   for (const label of pullRequest.labels) {
-    if (isRecord(label) && typeof label.name === 'string') {
+    if (isRecord(label) && typeof label.name === "string") {
       labels.push(label.name);
     }
   }
@@ -388,25 +447,32 @@ function getPullRequestLabels(eventData: unknown): readonly string[] {
 }
 
 function stripRegistry(image: string): string {
-  if (!image.includes('/')) {
+  if (!image.includes("/")) {
     return image;
   }
 
-  const parts = image.split('/');
-  const first = parts[0] ?? '';
-  if (first.includes('.') || first === 'localhost' || first === 'ghcr' || first === 'docker') {
-    return parts.slice(1).join('/');
+  const parts = image.split("/");
+  const first = parts[0] ?? "";
+  if (
+    first.includes(".") ||
+    first === "localhost" ||
+    first === "ghcr" ||
+    first === "docker"
+  ) {
+    return parts.slice(1).join("/");
   }
 
   return image;
 }
 
 function isPreReleaseVersion(version: string): boolean {
-  return ['alpha', 'beta', 'rc', 'dev'].some((value) => version.includes(value));
+  return ["alpha", "beta", "rc", "dev"].some((value) =>
+    version.includes(value),
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === "object" && value !== null;
 }
 
 function dedupe(values: readonly string[]): readonly string[] {

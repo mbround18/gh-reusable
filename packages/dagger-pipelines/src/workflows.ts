@@ -1,4 +1,4 @@
-import type { Client } from '@dagger.io/dagger';
+import type { Client } from "@dagger.io/dagger";
 
 import {
   buildAndPush,
@@ -14,22 +14,22 @@ import {
   type PackageManager,
   type PublishConfig,
   type RegistryAuthConfig,
-  type SourceConfig
-} from './index.js';
-import { resolveDockerReleasePublishAddress } from './docker-release-semver.js';
+  type SourceConfig,
+} from "./index.js";
+import { resolveDockerReleasePublishAddress } from "./docker-release-semver.js";
 
 export type WorkflowId =
-  | 'docker-release'
-  | 'rust-build-n-test'
-  | 'tagger'
-  | 'test-docker-release'
-  | 'test-ensure-repository'
-  | 'test-graphql-action'
-  | 'test-install-cli'
-  | 'test-rust-build-n-test'
-  | 'test-semver'
-  | 'test-setup-rust'
-  | 'update-readme';
+  | "docker-release"
+  | "rust-build-n-test"
+  | "tagger"
+  | "test-docker-release"
+  | "test-ensure-repository"
+  | "test-graphql-action"
+  | "test-install-cli"
+  | "test-rust-build-n-test"
+  | "test-semver"
+  | "test-setup-rust"
+  | "update-readme";
 
 interface WorkflowCommandConfig {
   readonly name: string;
@@ -65,79 +65,83 @@ interface WorkflowBuildAndPushConfig {
   readonly install: WorkflowInstallConfig;
   readonly build: readonly WorkflowCommandConfig[];
   readonly publish: PublishConfig;
-  readonly docker?: BuildAndPushConfig['docker'];
+  readonly docker?: BuildAndPushConfig["docker"];
 }
 
 interface CiWorkflowDefinition {
-  readonly kind: 'ci';
+  readonly kind: "ci";
   readonly config: WorkflowCiConfig;
 }
 
 interface BuildAndPushWorkflowDefinition {
-  readonly kind: 'buildAndPush';
+  readonly kind: "buildAndPush";
   readonly config: WorkflowBuildAndPushConfig;
 }
 
-export type WorkflowDefinition = CiWorkflowDefinition | BuildAndPushWorkflowDefinition;
-export type WorkflowDefinitions = Readonly<Record<WorkflowId, WorkflowDefinition>>;
+export type WorkflowDefinition =
+  | CiWorkflowDefinition
+  | BuildAndPushWorkflowDefinition;
+export type WorkflowDefinitions = Readonly<
+  Record<WorkflowId, WorkflowDefinition>
+>;
 
 const SKIP_INSTALL_COMMAND = {
-  name: 'skip install',
-  args: ['bash', '-lc', 'true']
+  name: "skip install",
+  args: ["bash", "-lc", "true"],
 } as const satisfies WorkflowCommandConfig;
 
 function bashWorkflowCommand(
   name: string,
   script: string,
-  options?: Pick<WorkflowCommandConfig, 'env' | 'workdir'>
+  options?: Pick<WorkflowCommandConfig, "env" | "workdir">,
 ): WorkflowCommandConfig {
   return {
     name,
-    args: ['bash', '-lc', `set -euo pipefail\n${script.trim()}`],
+    args: ["bash", "-lc", `set -euo pipefail\n${script.trim()}`],
     env: options?.env,
-    workdir: options?.workdir
+    workdir: options?.workdir,
   };
 }
 
-const DEFAULT_RUST_TOOLCHAIN = 'stable';
-const DEFAULT_RUST_COMPONENTS = 'clippy rustfmt';
-const DEFAULT_RUST_TARGET = '';
+const DEFAULT_RUST_TOOLCHAIN = "stable";
+const DEFAULT_RUST_COMPONENTS = "clippy rustfmt";
+const DEFAULT_RUST_TARGET = "";
 
 const RUST_SETUP_SCRIPT = [
   'toolchain="${RUST_TOOLCHAIN:-${INPUT_TOOLCHAIN:-stable}}"',
   'components_raw="${RUST_COMPONENTS:-${INPUT_COMPONENTS:-clippy rustfmt}}"',
   'targets_raw="${RUST_TARGETS:-${INPUT_TARGET:-}}"',
   'crates_raw="${RUST_CRATES:-${INPUT_CRATES:-}}"',
-  '',
+  "",
   'rustup toolchain install "$toolchain" --profile minimal',
   'rustup default "$toolchain"',
-  '',
+  "",
   'components_raw="${components_raw//,/ }"',
   'read -r -a components <<< "$components_raw"',
   'for component in "${components[@]}"; do',
   '  [ -n "$component" ] || continue',
   '  rustup component add --toolchain "$toolchain" "$component"',
-  'done',
-  '',
+  "done",
+  "",
   'targets_raw="${targets_raw//,/ }"',
   'read -r -a targets <<< "$targets_raw"',
   'for target in "${targets[@]}"; do',
   '  [ -n "$target" ] || continue',
   '  rustup target add --toolchain "$toolchain" "$target"',
-  'done',
-  '',
+  "done",
+  "",
   'crates_raw="${crates_raw//,/ }"',
   'read -r -a crates <<< "$crates_raw"',
   'for crate in "${crates[@]}"; do',
   '  [ -n "$crate" ] || continue',
   '  if command -v "$crate" >/dev/null 2>&1; then',
-  '    continue',
-  '  fi',
+  "    continue",
+  "  fi",
   '  cargo install --locked "$crate"',
-  'done',
-  '',
-  'rustup show active-toolchain'
-].join('\n');
+  "done",
+  "",
+  "rustup show active-toolchain",
+].join("\n");
 
 const RUST_TARGET_BUILD_AND_TEST_SCRIPT = [
   'targets_raw="${RUST_TARGETS:-${INPUT_TARGET:-}}"',
@@ -147,12 +151,12 @@ const RUST_TARGET_BUILD_AND_TEST_SCRIPT = [
   '  [ -n "$target" ] || continue',
   '  cargo build --verbose --target "$target"',
   '  cargo test --verbose --target "$target" --no-run',
-  'done'
-].join('\n');
+  "done",
+].join("\n");
 
 function createRustSetupCommand(
   name: string,
-  options: RustSetupOptions = {}
+  options: RustSetupOptions = {},
 ): WorkflowCommandConfig {
   const env: Record<string, string> = {};
 
@@ -171,31 +175,33 @@ function createRustSetupCommand(
 
   return {
     name,
-    args: ['bash', '-euo', 'pipefail', '-c', RUST_SETUP_SCRIPT],
-    env: Object.keys(env).length > 0 ? env : undefined
+    args: ["bash", "-euo", "pipefail", "-c", RUST_SETUP_SCRIPT],
+    env: Object.keys(env).length > 0 ? env : undefined,
   };
 }
 
-function createRustTargetBuildAndTestCommand(name: string): WorkflowCommandConfig {
+function createRustTargetBuildAndTestCommand(
+  name: string,
+): WorkflowCommandConfig {
   return {
     name,
-    args: ['bash', '-euo', 'pipefail', '-c', RUST_TARGET_BUILD_AND_TEST_SCRIPT]
+    args: ["bash", "-euo", "pipefail", "-c", RUST_TARGET_BUILD_AND_TEST_SCRIPT],
   };
 }
 
 export const WORKFLOW_DEFINITIONS = {
-  'test-ensure-repository': {
-    kind: 'ci',
+  "test-ensure-repository": {
+    kind: "ci",
     config: {
       install: {
-        packageManager: 'npm',
-        cacheKey: 'workflow-test-ensure-repository',
-        command: SKIP_INSTALL_COMMAND
+        packageManager: "npm",
+        cacheKey: "workflow-test-ensure-repository",
+        command: SKIP_INSTALL_COMMAND,
       },
       lint: [],
       test: [
         bashWorkflowCommand(
-          'exercise ensure-repository guard logic',
+          "exercise ensure-repository guard logic",
           `
           check_repository() {
             expected="$1"
@@ -219,69 +225,71 @@ export const WORKFLOW_DEFINITIONS = {
             echo "Expected repository mismatch to fail." >&2
             exit 1
           fi
-          `
-        )
-      ]
-    }
+          `,
+        ),
+      ],
+    },
   },
-  'test-rust-build-n-test': {
-    kind: 'ci',
+  "test-rust-build-n-test": {
+    kind: "ci",
     config: {
       container: {
-        image: 'rust:1.89-bookworm',
+        image: "rust:1.89-bookworm",
         env: {
-          CARGO_TERM_COLOR: 'always'
-        }
+          CARGO_TERM_COLOR: "always",
+        },
       },
       install: {
-        packageManager: 'npm',
-        cacheKey: 'workflow-test-rust-build-n-test',
-        command: SKIP_INSTALL_COMMAND
+        packageManager: "npm",
+        cacheKey: "workflow-test-rust-build-n-test",
+        command: SKIP_INSTALL_COMMAND,
       },
       lint: [
-        createRustSetupCommand('setup rust toolchain', {
+        createRustSetupCommand("setup rust toolchain", {
           toolchain: DEFAULT_RUST_TOOLCHAIN,
           components: DEFAULT_RUST_COMPONENTS,
-          target: DEFAULT_RUST_TARGET
+          target: DEFAULT_RUST_TARGET,
         }),
         {
-          name: 'format check',
-          args: ['cargo', 'fmt', '--', '--check']
+          name: "format check",
+          args: ["cargo", "fmt", "--", "--check"],
         },
         {
-          name: 'clippy check',
-          args: ['cargo', 'clippy']
-        }
+          name: "clippy check",
+          args: ["cargo", "clippy"],
+        },
       ],
       test: [
         {
-          name: 'cargo build',
-          args: ['cargo', 'build', '--verbose']
+          name: "cargo build",
+          args: ["cargo", "build", "--verbose"],
         },
         {
-          name: 'cargo test',
-          args: ['cargo', 'test', '--verbose']
+          name: "cargo test",
+          args: ["cargo", "test", "--verbose"],
         },
-        createRustTargetBuildAndTestCommand('cargo build/test for configured targets'),
+        createRustTargetBuildAndTestCommand(
+          "cargo build/test for configured targets",
+        ),
         {
-          name: 'cargo release build',
-          args: ['cargo', 'build', '--verbose', '--release']
-        }
-      ]
-    }
+          name: "cargo release build",
+          args: ["cargo", "build", "--verbose", "--release"],
+        },
+      ],
+    },
   },
-  'update-readme': {
-    kind: 'ci',
+  "update-readme": {
+    kind: "ci",
     config: {
       install: {
-        packageManager: 'npm',
-        cacheKey: 'workflow-update-readme',
-        command: SKIP_INSTALL_COMMAND
+        packageManager: "npm",
+        cacheKey: "workflow-update-readme",
+        command: SKIP_INSTALL_COMMAND,
       },
       lint: [],
       test: [
         bashWorkflowCommand(
-          'run github-catalog action with mocked graphql',
+          "run github-catalog action with mocked graphql",
           `
           bootstrap='.dagger-workflows/update-readme-bootstrap.cjs'
           mkdir -p .dagger-workflows
@@ -322,93 +330,95 @@ export const WORKFLOW_DEFINITIONS = {
             echo 'README.md changed after catalog generation; commit updated catalog output.' >&2
             exit 1
           fi
-          `
-        )
-      ]
-    }
+          `,
+        ),
+      ],
+    },
   },
-  'rust-build-n-test': {
-    kind: 'ci',
+  "rust-build-n-test": {
+    kind: "ci",
     config: {
       container: {
-        image: 'rust:1.89-bookworm',
+        image: "rust:1.89-bookworm",
         env: {
-          CARGO_TERM_COLOR: 'always'
-        }
+          CARGO_TERM_COLOR: "always",
+        },
       },
       install: {
-        packageManager: 'npm',
-        cacheKey: 'workflow-rust-build-n-test',
-        command: SKIP_INSTALL_COMMAND
+        packageManager: "npm",
+        cacheKey: "workflow-rust-build-n-test",
+        command: SKIP_INSTALL_COMMAND,
       },
       lint: [
-        createRustSetupCommand('setup rust toolchain', {
+        createRustSetupCommand("setup rust toolchain", {
           toolchain: DEFAULT_RUST_TOOLCHAIN,
           components: DEFAULT_RUST_COMPONENTS,
-          target: DEFAULT_RUST_TARGET
+          target: DEFAULT_RUST_TARGET,
         }),
         {
-          name: 'format check',
-          args: ['cargo', 'fmt', '--', '--check']
+          name: "format check",
+          args: ["cargo", "fmt", "--", "--check"],
         },
         {
-          name: 'clippy check',
-          args: ['cargo', 'clippy']
-        }
+          name: "clippy check",
+          args: ["cargo", "clippy"],
+        },
       ],
       test: [
         {
-          name: 'cargo build',
-          args: ['cargo', 'build', '--verbose']
+          name: "cargo build",
+          args: ["cargo", "build", "--verbose"],
         },
         {
-          name: 'cargo test',
-          args: ['cargo', 'test', '--verbose']
+          name: "cargo test",
+          args: ["cargo", "test", "--verbose"],
         },
-        createRustTargetBuildAndTestCommand('cargo build/test for configured targets'),
+        createRustTargetBuildAndTestCommand(
+          "cargo build/test for configured targets",
+        ),
         {
-          name: 'cargo release build',
-          args: ['cargo', 'build', '--verbose', '--release']
-        }
-      ]
-    }
+          name: "cargo release build",
+          args: ["cargo", "build", "--verbose", "--release"],
+        },
+      ],
+    },
   },
-  'docker-release': {
-    kind: 'buildAndPush',
+  "docker-release": {
+    kind: "buildAndPush",
     config: {
       install: {
-        packageManager: 'npm',
-        cacheKey: 'workflow-docker-release',
-        command: SKIP_INSTALL_COMMAND
+        packageManager: "npm",
+        cacheKey: "workflow-docker-release",
+        command: SKIP_INSTALL_COMMAND,
       },
       build: [
         {
-          name: 'log docker release metadata',
-          args: ['bash', '-lc', 'echo "Running Docker Release Workflow"']
-        }
+          name: "log docker release metadata",
+          args: ["bash", "-lc", 'echo "Running Docker Release Workflow"'],
+        },
       ],
       publish: {
-        address: 'docker.io/mbround18/gh-reusable-testing:latest',
+        address: "docker.io/mbround18/gh-reusable-testing:latest",
         auth: {
-          address: 'docker.io',
-          username: 'mbround18',
-          passwordEnv: 'DOCKER_TOKEN'
-        }
-      }
-    }
+          address: "docker.io",
+          username: "mbround18",
+          passwordEnv: "DOCKER_TOKEN",
+        },
+      },
+    },
   },
   tagger: {
-    kind: 'ci',
+    kind: "ci",
     config: {
       install: {
-        packageManager: 'npm',
-        cacheKey: 'workflow-tagger',
-        command: SKIP_INSTALL_COMMAND
+        packageManager: "npm",
+        cacheKey: "workflow-tagger",
+        command: SKIP_INSTALL_COMMAND,
       },
       lint: [],
       test: [
         bashWorkflowCommand(
-          'exercise semver and git tag creation flow',
+          "exercise semver and git tag creation flow",
           `
           npm --prefix actions/semver ci
           npm --prefix actions/semver test
@@ -442,44 +452,48 @@ export const WORKFLOW_DEFINITIONS = {
           git tag -d "$tag_name" >/dev/null
           git tag -a "$tag_name" -m "Release $tag_name"
           gh release create --help >/dev/null
-          `
-        )
-      ]
-    }
+          `,
+        ),
+      ],
+    },
   },
-  'test-docker-release': {
-    kind: 'ci',
+  "test-docker-release": {
+    kind: "ci",
     config: {
       install: {
-        packageManager: 'npm',
-        cacheKey: 'workflow-test-docker-release',
-        command: SKIP_INSTALL_COMMAND
+        packageManager: "npm",
+        cacheKey: "workflow-test-docker-release",
+        command: SKIP_INSTALL_COMMAND,
       },
       lint: [],
       test: [
         {
-          name: 'verify docker release workflow exists',
-          args: ['bash', '-lc', 'test -f .github/workflows/docker-release.yaml']
+          name: "verify docker release workflow exists",
+          args: [
+            "bash",
+            "-lc",
+            "test -f .github/workflows/docker-release.yaml",
+          ],
         },
         {
-          name: 'verify docker facts test suite exists',
-          args: ['bash', '-lc', 'test -f actions/docker-facts/src/lib.test.ts']
-        }
-      ]
-    }
+          name: "verify docker facts test suite exists",
+          args: ["bash", "-lc", "test -f actions/docker-facts/src/lib.test.ts"],
+        },
+      ],
+    },
   },
-  'test-graphql-action': {
-    kind: 'ci',
+  "test-graphql-action": {
+    kind: "ci",
     config: {
       install: {
-        packageManager: 'npm',
-        cacheKey: 'workflow-test-graphql-action',
-        command: SKIP_INSTALL_COMMAND
+        packageManager: "npm",
+        cacheKey: "workflow-test-graphql-action",
+        command: SKIP_INSTALL_COMMAND,
       },
       lint: [],
       test: [
         bashWorkflowCommand(
-          'build and exercise graphql action query flow',
+          "build and exercise graphql action query flow",
           `
           npm --prefix actions/graphql ci
           npm --prefix actions/graphql run build
@@ -550,23 +564,23 @@ export const WORKFLOW_DEFINITIONS = {
 
           rmSync(workspace, { recursive: true, force: true });
           NODE
-          `
-        )
-      ]
-    }
+          `,
+        ),
+      ],
+    },
   },
-  'test-install-cli': {
-    kind: 'ci',
+  "test-install-cli": {
+    kind: "ci",
     config: {
       install: {
-        packageManager: 'npm',
-        cacheKey: 'workflow-test-install-cli',
-        command: SKIP_INSTALL_COMMAND
+        packageManager: "npm",
+        cacheKey: "workflow-test-install-cli",
+        command: SKIP_INSTALL_COMMAND,
       },
       lint: [],
       test: [
         bashWorkflowCommand(
-          'download and verify install-cli matrix binaries',
+          "download and verify install-cli matrix binaries",
           `
           install_root='.dagger-workflows/install-cli'
           rm -rf "$install_root"
@@ -636,102 +650,121 @@ export const WORKFLOW_DEFINITIONS = {
           install_cli_release 'schollz/croc' 'v10.0.12' 'croc_%VERSION%_Linux-64bit.tar.gz' '' 'croc --version'
           install_cli_release 'astral-sh/uv' 'latest' 'uv-x86_64-unknown-linux-gnu.tar.gz' '' 'uv --version'
           install_cli_release 'jqlang/jq' 'latest' 'jq-linux-amd64' 'jq' 'jq --version'
-          `
-        )
-      ]
-    }
+          `,
+        ),
+      ],
+    },
   },
-  'test-semver': {
-    kind: 'ci',
+  "test-semver": {
+    kind: "ci",
     config: {
       install: {
-        packageManager: 'npm',
-        cacheKey: 'workflow-test-semver',
-        command: SKIP_INSTALL_COMMAND
+        packageManager: "npm",
+        cacheKey: "workflow-test-semver",
+        command: SKIP_INSTALL_COMMAND,
       },
       lint: [],
       test: [
         {
-          name: 'run semver npm tests',
-          args: ['bash', '-lc', 'cd actions/semver && npm test']
-        }
-      ]
-    }
+          name: "run semver npm tests",
+          args: ["bash", "-lc", "cd actions/semver && npm test"],
+        },
+      ],
+    },
   },
-  'test-setup-rust': {
-    kind: 'ci',
+  "test-setup-rust": {
+    kind: "ci",
     config: {
       container: {
-        image: 'rust:1.89-bookworm'
+        image: "rust:1.89-bookworm",
       },
       install: {
-        packageManager: 'npm',
-        cacheKey: 'workflow-test-setup-rust',
-        command: SKIP_INSTALL_COMMAND
+        packageManager: "npm",
+        cacheKey: "workflow-test-setup-rust",
+        command: SKIP_INSTALL_COMMAND,
       },
       lint: [],
       test: [
         {
-          name: 'verify rust setup action files exist',
-          args: ['bash', '-lc', 'test -f actions/setup-rust/action.yml && test -f actions/install-cli/action.yml']
-        },
-        createRustSetupCommand('setup rust base toolchain', {
-          toolchain: DEFAULT_RUST_TOOLCHAIN,
-          components: 'clippy',
-          target: '',
-          crates: ''
-        }),
-        {
-          name: 'verify clippy component installed',
-          args: ['bash', '-euo', 'pipefail', '-c', 'rustup component list --installed | grep -E "^clippy"']
-        },
-        createRustSetupCommand('setup rust wasm toolchain', {
-          toolchain: DEFAULT_RUST_TOOLCHAIN,
-          components: 'clippy',
-          target: 'wasm32-unknown-unknown',
-          crates: 'trunk'
-        }),
-        {
-          name: 'verify wasm target and trunk installed',
+          name: "verify rust setup action files exist",
           args: [
-            'bash',
-            '-euo',
-            'pipefail',
-            '-c',
-            'rustup target list --installed | grep -E "^wasm32-unknown-unknown$" && command -v trunk'
-          ]
-        }
-      ]
-    }
-  }
+            "bash",
+            "-lc",
+            "test -f actions/setup-rust/action.yml && test -f actions/install-cli/action.yml",
+          ],
+        },
+        createRustSetupCommand("setup rust base toolchain", {
+          toolchain: DEFAULT_RUST_TOOLCHAIN,
+          components: "clippy",
+          target: "",
+          crates: "",
+        }),
+        {
+          name: "verify clippy component installed",
+          args: [
+            "bash",
+            "-euo",
+            "pipefail",
+            "-c",
+            'rustup component list --installed | grep -E "^clippy"',
+          ],
+        },
+        createRustSetupCommand("setup rust wasm toolchain", {
+          toolchain: DEFAULT_RUST_TOOLCHAIN,
+          components: "clippy",
+          target: "wasm32-unknown-unknown",
+          crates: "trunk",
+        }),
+        {
+          name: "verify wasm target and trunk installed",
+          args: [
+            "bash",
+            "-euo",
+            "pipefail",
+            "-c",
+            'rustup target list --installed | grep -E "^wasm32-unknown-unknown$" && command -v trunk',
+          ],
+        },
+      ],
+    },
+  },
 } as const satisfies WorkflowDefinitions;
 
 export type WorkflowEnvironment = Readonly<Record<string, string | undefined>>;
 
 export function validateWorkflowDefinitions(
-  definitions: WorkflowDefinitions = WORKFLOW_DEFINITIONS
+  definitions: WorkflowDefinitions = WORKFLOW_DEFINITIONS,
 ): readonly string[] {
   const errors: string[] = [];
 
-  for (const [workflowId, definition] of Object.entries(definitions) as readonly [
-    WorkflowId,
-    WorkflowDefinition
-  ][]) {
-    if (definition.kind === 'ci') {
-      const commandCount = definition.config.lint.length + definition.config.test.length;
+  for (const [workflowId, definition] of Object.entries(
+    definitions,
+  ) as readonly [WorkflowId, WorkflowDefinition][]) {
+    if (definition.kind === "ci") {
+      const commandCount =
+        definition.config.lint.length + definition.config.test.length;
       if (commandCount === 0) {
-        errors.push(`${workflowId}: ci workflow must include at least one command`);
+        errors.push(
+          `${workflowId}: ci workflow must include at least one command`,
+        );
       }
 
-      validateCommands(errors, workflowId, [...definition.config.lint, ...definition.config.test]);
+      validateCommands(errors, workflowId, [
+        ...definition.config.lint,
+        ...definition.config.test,
+      ]);
       if (definition.config.install.command) {
-        validateCommands(errors, workflowId, [definition.config.install.command]);
+        validateCommands(errors, workflowId, [
+          definition.config.install.command,
+        ]);
       }
       continue;
     }
 
     if (definition.config.build.length === 0) {
-      errors.push(`${workflowId}: buildAndPush workflow must include at least one build command`);
+      errors.push(
+        `${workflowId}: buildAndPush workflow must include at least one build command`,
+      );
     }
 
     validateCommands(errors, workflowId, definition.config.build);
@@ -743,19 +776,20 @@ export function validateWorkflowDefinitions(
   return errors;
 }
 
-const workflowDefinitionValidationErrors = validateWorkflowDefinitions(WORKFLOW_DEFINITIONS);
+const workflowDefinitionValidationErrors =
+  validateWorkflowDefinitions(WORKFLOW_DEFINITIONS);
 if (workflowDefinitionValidationErrors.length > 0) {
   throw new Error(
-    `Invalid workflow definitions: ${workflowDefinitionValidationErrors.join('; ')}`
+    `Invalid workflow definitions: ${workflowDefinitionValidationErrors.join("; ")}`,
   );
 }
 
 export async function runWorkflow(
   client: Client,
   workflowId: WorkflowId,
-  environment: WorkflowEnvironment = process.env
+  environment: WorkflowEnvironment = process.env,
 ): Promise<CiResult | BuildAndPushResult> {
-  if (workflowId === 'docker-release') {
+  if (workflowId === "docker-release") {
     return dockerReleaseWorkflow(client, environment);
   }
 
@@ -764,18 +798,21 @@ export async function runWorkflow(
 
 export async function dockerReleaseWorkflow(
   client: Client,
-  environment: WorkflowEnvironment = process.env
+  environment: WorkflowEnvironment = process.env,
 ): Promise<BuildAndPushResult> {
-  const workflowConfig = getBuildAndPushWorkflow('docker-release');
+  const workflowConfig = getBuildAndPushWorkflow("docker-release");
   const resolvedPublishAddress = resolveDockerReleasePublishAddress(
     workflowConfig.publish.address,
-    environment
+    environment,
   );
-  const dockerConfig = resolveDockerReleaseDockerConfig(resolvedPublishAddress, environment);
+  const dockerConfig = resolveDockerReleaseDockerConfig(
+    resolvedPublishAddress,
+    environment,
+  );
   const publish = resolveDockerReleasePublishConfig(
     workflowConfig.publish,
     dockerConfig.registries ?? [],
-    environment
+    environment,
   );
 
   return buildAndPush(
@@ -783,84 +820,98 @@ export async function dockerReleaseWorkflow(
     toBuildAndPushConfig({
       ...workflowConfig,
       source: {
-        path: environment.GITHUB_WORKSPACE ?? '.'
+        path: environment.GITHUB_WORKSPACE ?? ".",
       },
       docker: dockerConfig,
       publish: {
         ...publish,
-        address: resolvedPublishAddress
-      }
+        address: resolvedPublishAddress,
+      },
     }),
-    environment
+    environment,
   );
 }
 
-export async function rustBuildAndTestWorkflow(client: Client): Promise<CiResult> {
-  return ci(client, toCiConfig(getCiWorkflow('rust-build-n-test')));
+export async function rustBuildAndTestWorkflow(
+  client: Client,
+): Promise<CiResult> {
+  return ci(client, toCiConfig(getCiWorkflow("rust-build-n-test")));
 }
 
 export async function taggerWorkflow(client: Client): Promise<CiResult> {
-  return ci(client, toCiConfig(getCiWorkflow('tagger')));
+  return ci(client, toCiConfig(getCiWorkflow("tagger")));
 }
 
-export async function testDockerReleaseWorkflow(client: Client): Promise<CiResult> {
-  return ci(client, toCiConfig(getCiWorkflow('test-docker-release')));
+export async function testDockerReleaseWorkflow(
+  client: Client,
+): Promise<CiResult> {
+  return ci(client, toCiConfig(getCiWorkflow("test-docker-release")));
 }
 
-export async function testEnsureRepositoryWorkflow(client: Client): Promise<CiResult> {
-  return ci(client, toCiConfig(getCiWorkflow('test-ensure-repository')));
+export async function testEnsureRepositoryWorkflow(
+  client: Client,
+): Promise<CiResult> {
+  return ci(client, toCiConfig(getCiWorkflow("test-ensure-repository")));
 }
 
-export async function testGraphqlActionWorkflow(client: Client): Promise<CiResult> {
-  return ci(client, toCiConfig(getCiWorkflow('test-graphql-action')));
+export async function testGraphqlActionWorkflow(
+  client: Client,
+): Promise<CiResult> {
+  return ci(client, toCiConfig(getCiWorkflow("test-graphql-action")));
 }
 
-export async function testInstallCliWorkflow(client: Client): Promise<CiResult> {
-  return ci(client, toCiConfig(getCiWorkflow('test-install-cli')));
+export async function testInstallCliWorkflow(
+  client: Client,
+): Promise<CiResult> {
+  return ci(client, toCiConfig(getCiWorkflow("test-install-cli")));
 }
 
-export async function testRustBuildAndTestWorkflow(client: Client): Promise<CiResult> {
-  return ci(client, toCiConfig(getCiWorkflow('test-rust-build-n-test')));
+export async function testRustBuildAndTestWorkflow(
+  client: Client,
+): Promise<CiResult> {
+  return ci(client, toCiConfig(getCiWorkflow("test-rust-build-n-test")));
 }
 
 export async function testSemverWorkflow(client: Client): Promise<CiResult> {
-  return ci(client, toCiConfig(getCiWorkflow('test-semver')));
+  return ci(client, toCiConfig(getCiWorkflow("test-semver")));
 }
 
 export async function testSetupRustWorkflow(client: Client): Promise<CiResult> {
-  return ci(client, toCiConfig(getCiWorkflow('test-setup-rust')));
+  return ci(client, toCiConfig(getCiWorkflow("test-setup-rust")));
 }
 
 export async function updateReadmeWorkflow(client: Client): Promise<CiResult> {
-  return ci(client, toCiConfig(getCiWorkflow('update-readme')));
+  return ci(client, toCiConfig(getCiWorkflow("update-readme")));
 }
 
 export const workflowFunctions = {
-  'docker-release': dockerReleaseWorkflow,
-  'rust-build-n-test': rustBuildAndTestWorkflow,
+  "docker-release": dockerReleaseWorkflow,
+  "rust-build-n-test": rustBuildAndTestWorkflow,
   tagger: taggerWorkflow,
-  'test-docker-release': testDockerReleaseWorkflow,
-  'test-ensure-repository': testEnsureRepositoryWorkflow,
-  'test-graphql-action': testGraphqlActionWorkflow,
-  'test-install-cli': testInstallCliWorkflow,
-  'test-rust-build-n-test': testRustBuildAndTestWorkflow,
-  'test-semver': testSemverWorkflow,
-  'test-setup-rust': testSetupRustWorkflow,
-  'update-readme': updateReadmeWorkflow
+  "test-docker-release": testDockerReleaseWorkflow,
+  "test-ensure-repository": testEnsureRepositoryWorkflow,
+  "test-graphql-action": testGraphqlActionWorkflow,
+  "test-install-cli": testInstallCliWorkflow,
+  "test-rust-build-n-test": testRustBuildAndTestWorkflow,
+  "test-semver": testSemverWorkflow,
+  "test-setup-rust": testSetupRustWorkflow,
+  "update-readme": updateReadmeWorkflow,
 } as const;
 
 function getCiWorkflow(workflowId: WorkflowId): WorkflowCiConfig {
   const definition = WORKFLOW_DEFINITIONS[workflowId];
-  if (definition.kind !== 'ci') {
+  if (definition.kind !== "ci") {
     throw new Error(`${workflowId} is not a CI workflow`);
   }
 
   return definition.config;
 }
 
-function getBuildAndPushWorkflow(workflowId: WorkflowId): WorkflowBuildAndPushConfig {
+function getBuildAndPushWorkflow(
+  workflowId: WorkflowId,
+): WorkflowBuildAndPushConfig {
   const definition = WORKFLOW_DEFINITIONS[workflowId];
-  if (definition.kind !== 'buildAndPush') {
+  if (definition.kind !== "buildAndPush") {
     throw new Error(`${workflowId} is not a buildAndPush workflow`);
   }
 
@@ -874,35 +925,45 @@ function toCiConfig(config: WorkflowCiConfig): CiConfig {
     install: {
       packageManager: config.install.packageManager,
       cacheKey: config.install.cacheKey,
-      command: config.install.command ? toCommandDefinition(config.install.command) : undefined
+      command: config.install.command
+        ? toCommandDefinition(config.install.command)
+        : undefined,
     },
     lint: config.lint.map(toCommandDefinition),
-    test: config.test.map(toCommandDefinition)
+    test: config.test.map(toCommandDefinition),
   };
 }
 
-function toBuildAndPushConfig(config: WorkflowBuildAndPushConfig): BuildAndPushConfig {
+function toBuildAndPushConfig(
+  config: WorkflowBuildAndPushConfig,
+): BuildAndPushConfig {
   return {
     source: config.source,
     container: config.container,
     install: {
       packageManager: config.install.packageManager,
       cacheKey: config.install.cacheKey,
-      command: config.install.command ? toCommandDefinition(config.install.command) : undefined
+      command: config.install.command
+        ? toCommandDefinition(config.install.command)
+        : undefined,
     },
     build: config.build.map(toCommandDefinition),
     publish: config.publish,
-    docker: config.docker
+    docker: config.docker,
   };
 }
 
 function resolveDockerReleaseDockerConfig(
   publishAddress: string,
-  environment: WorkflowEnvironment
+  environment: WorkflowEnvironment,
 ): DockerBuildConfig {
   const [image, version] = splitAddressTag(publishAddress);
-  const registries = (environment.DOCKER_RELEASE_REGISTRIES ?? environment.INPUT_REGISTRIES ?? '')
-    .split(',')
+  const registries = (
+    environment.DOCKER_RELEASE_REGISTRIES ??
+    environment.INPUT_REGISTRIES ??
+    ""
+  )
+    .split(",")
     .map((registry) => registry.trim())
     .filter((registry) => registry.length > 0);
 
@@ -910,57 +971,67 @@ function resolveDockerReleaseDockerConfig(
     image,
     version,
     registries,
-    dockerfile: environment.DOCKER_RELEASE_DOCKERFILE ?? environment.INPUT_DOCKERFILE ?? './Dockerfile',
-    context: environment.DOCKER_RELEASE_CONTEXT ?? environment.INPUT_CONTEXT ?? '.',
-    canaryLabel: environment.DOCKER_RELEASE_CANARY_LABEL ?? environment.INPUT_CANARY_LABEL ?? 'canary',
-    forcePush: parseBoolean(environment.DOCKER_RELEASE_FORCE_PUSH ?? environment.INPUT_FORCE_PUSH),
-    withLatest: parseBoolean(environment.DOCKER_RELEASE_WITH_LATEST ?? environment.INPUT_WITH_LATEST),
-    target: environment.DOCKER_RELEASE_TARGET ?? environment.INPUT_TARGET ?? '',
-    prependTarget: parseBoolean(
-      environment.DOCKER_RELEASE_PREPEND_TARGET ?? environment.INPUT_PREPEND_TARGET
+    dockerfile:
+      environment.DOCKER_RELEASE_DOCKERFILE ??
+      environment.INPUT_DOCKERFILE ??
+      "./Dockerfile",
+    context:
+      environment.DOCKER_RELEASE_CONTEXT ?? environment.INPUT_CONTEXT ?? ".",
+    canaryLabel:
+      environment.DOCKER_RELEASE_CANARY_LABEL ??
+      environment.INPUT_CANARY_LABEL ??
+      "canary",
+    forcePush: parseBoolean(
+      environment.DOCKER_RELEASE_FORCE_PUSH ?? environment.INPUT_FORCE_PUSH,
     ),
-    workspacePath: environment.GITHUB_WORKSPACE
+    withLatest: parseBoolean(
+      environment.DOCKER_RELEASE_WITH_LATEST ?? environment.INPUT_WITH_LATEST,
+    ),
+    target: environment.DOCKER_RELEASE_TARGET ?? environment.INPUT_TARGET ?? "",
+    prependTarget: parseBoolean(
+      environment.DOCKER_RELEASE_PREPEND_TARGET ??
+        environment.INPUT_PREPEND_TARGET,
+    ),
+    workspacePath: environment.GITHUB_WORKSPACE,
   };
 }
 
 function resolveDockerReleasePublishConfig(
   publish: PublishConfig,
   registries: readonly string[],
-  environment: WorkflowEnvironment
+  environment: WorkflowEnvironment,
 ): PublishConfig {
   const auths: RegistryAuthConfig[] = [];
   const dockerHubUsername =
     environment.DOCKER_RELEASE_DOCKERHUB_USERNAME ??
     environment.INPUT_DOCKERHUB_USERNAME ??
     firstAuthUsername(publish.auth) ??
-    'mbround18';
+    "mbround18";
   auths.push({
-    address: 'docker.io',
+    address: "docker.io",
     username: dockerHubUsername,
-    passwordEnv: 'DOCKER_TOKEN'
+    passwordEnv: "DOCKER_TOKEN",
   });
 
-  if (registries.includes('ghcr.io')) {
+  if (registries.includes("ghcr.io")) {
     auths.push({
-      address: 'ghcr.io',
+      address: "ghcr.io",
       username:
         environment.DOCKER_RELEASE_GHCR_USERNAME ??
         environment.INPUT_GHCR_USERNAME ??
         environment.GITHUB_ACTOR ??
-        'github-actions[bot]',
-      passwordEnv: 'GHCR_TOKEN'
+        "github-actions[bot]",
+      passwordEnv: "GHCR_TOKEN",
     });
   }
 
   return {
     ...publish,
-    auth: auths
+    auth: auths,
   };
 }
 
-function firstAuthUsername(
-  auth: PublishConfig['auth']
-): string | undefined {
+function firstAuthUsername(auth: PublishConfig["auth"]): string | undefined {
   if (!auth) {
     return undefined;
   }
@@ -973,36 +1044,40 @@ function firstAuthUsername(
   return undefined;
 }
 
-function isRegistryAuthConfig(auth: PublishConfig['auth']): auth is RegistryAuthConfig {
+function isRegistryAuthConfig(
+  auth: PublishConfig["auth"],
+): auth is RegistryAuthConfig {
   return Boolean(auth) && !Array.isArray(auth);
 }
 
 function splitAddressTag(address: string): readonly [string, string] {
-  const lastColon = address.lastIndexOf(':');
-  const lastSlash = address.lastIndexOf('/');
+  const lastColon = address.lastIndexOf(":");
+  const lastSlash = address.lastIndexOf("/");
   if (lastColon > lastSlash) {
     return [address.slice(0, lastColon), address.slice(lastColon + 1)];
   }
 
-  return [address, 'latest'];
+  return [address, "latest"];
 }
 
 function parseBoolean(value: string | undefined): boolean {
-  return value?.toLowerCase() === 'true';
+  return value?.toLowerCase() === "true";
 }
 
-function toCommandDefinition(command: WorkflowCommandConfig): CommandDefinition {
+function toCommandDefinition(
+  command: WorkflowCommandConfig,
+): CommandDefinition {
   return {
     name: command.name,
     args: toCommandArgs(command.args),
     env: command.env,
-    workdir: command.workdir
+    workdir: command.workdir,
   };
 }
 
 function toCommandArgs(args: readonly string[]): CommandArgs {
   if (args.length === 0) {
-    throw new Error('Command args must contain at least one value');
+    throw new Error("Command args must contain at least one value");
   }
 
   return [args[0], ...args.slice(1)] as CommandArgs;
@@ -1011,11 +1086,13 @@ function toCommandArgs(args: readonly string[]): CommandArgs {
 function validateCommands(
   errors: string[],
   workflowId: WorkflowId,
-  commands: readonly WorkflowCommandConfig[]
+  commands: readonly WorkflowCommandConfig[],
 ): void {
   for (const command of commands) {
     if (command.args.length === 0) {
-      errors.push(`${workflowId}: command '${command.name}' has no executable arguments`);
+      errors.push(
+        `${workflowId}: command '${command.name}' has no executable arguments`,
+      );
     }
   }
 }

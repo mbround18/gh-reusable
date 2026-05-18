@@ -12,13 +12,18 @@ on:
         type: string
         description: "GitHub runner to use for this workflow."
         default: "ubuntu-latest"
+    secrets:
+      DAGGER_CLOUD_TOKEN:
+        required: false
+      DISCORD_WEBHOOK_URL:
+        required: false
   workflow_dispatch:
   pull_request:
     branches:
       - main
     paths:
       - "actions/ensure-repository/**"
-      - ".github/workflows/test-ensure-repository.yml"
+      - ".github/workflows/test-ensure-repository.yaml"
   push:
     tags:
       - "*"
@@ -26,7 +31,7 @@ on:
       - main
     paths:
       - "actions/ensure-repository/**"
-      - ".github/workflows/test-ensure-repository.yml"
+      - ".github/workflows/test-ensure-repository.yaml"
 
 jobs:
   test_ensure_repository:
@@ -34,20 +39,24 @@ jobs:
     runs-on: ${{ inputs.runs-on || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
-      - name: Warm Dagger engine image
-        run: |
-          engine_image="registry.dagger.io/engine:v0.20.8"
-          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+
       - name: Test ensure-repository (matching repo)
-        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        uses: ./.github/actions/dagger-run
         env:
-          DAGGER_NO_NAG: "1"
           GITHUB_REPOSITORY: ${{ github.repository }}
         with:
-          version: v0.20.8
           module: ./packages/dagger-module
           call: >-
             ensure-repository
             --expected-repository=${{ github.repository }}
             --repository=${{ github.repository }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+      - if: always()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ job.status }}
+          workflow: ${{ github.workflow }}
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ref: ${{ github.ref_name }}

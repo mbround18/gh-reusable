@@ -12,10 +12,7 @@ const BRANCH_INCREMENT_RULES = [
   },
   {
     increment: "minor",
-    patterns: [
-      /(^|[/-])(feat|feature|minor)([/-]|$)/i,
-      /^release\/.+/i,
-    ],
+    patterns: [/(^|[/-])(feat|feature|minor)([/-]|$)/i, /^release\/.+/i],
   },
   {
     increment: "patch",
@@ -88,7 +85,12 @@ function resolveIncrementFromLabels(
  * @param {string} patchLabel
  * @returns {boolean}
  */
-function hasConfiguredIncrementLabel(labels, majorLabel, minorLabel, patchLabel) {
+function hasConfiguredIncrementLabel(
+  labels,
+  majorLabel,
+  minorLabel,
+  patchLabel,
+) {
   if (!labels || !labels.length) {
     return false;
   }
@@ -200,12 +202,7 @@ async function detectIncrement(
       const labels = result.repository.pullRequest.labels.nodes;
       core.info(`PR labels: ${JSON.stringify(labels.map((l) => l.name))}`);
       if (
-        hasConfiguredIncrementLabel(
-          labels,
-          majorLabel,
-          minorLabel,
-          patchLabel,
-        )
+        hasConfiguredIncrementLabel(labels, majorLabel, minorLabel, patchLabel)
       ) {
         return resolveIncrementFromLabels(
           labels,
@@ -257,12 +254,7 @@ async function detectIncrement(
         `Associated PR labels: ${JSON.stringify(labels.map((l) => l.name))}`,
       );
       if (
-        hasConfiguredIncrementLabel(
-          labels,
-          majorLabel,
-          minorLabel,
-          patchLabel,
-        )
+        hasConfiguredIncrementLabel(labels, majorLabel, minorLabel, patchLabel)
       ) {
         return resolveIncrementFromLabels(
           labels,

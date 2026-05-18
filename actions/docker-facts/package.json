@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@actions/core": "^1.11.1",
-    "yaml": "^2.8.1"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "vitest": "^3.2.4"

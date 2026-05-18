@@ -25,36 +25,38 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
         with:
           fetch-depth: 0
+
       - name: Collect existing tags
         id: tags
         run: |
           tags="$(git tag --list | paste -sd ',' - || true)"
           echo "csv=$tags" >> "$GITHUB_OUTPUT"
-      - name: Warm Dagger engine image
-        run: |
-          engine_image="registry.dagger.io/engine:v0.20.8"
-          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+
       - name: Test compute-semver (patch from tags)
-        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
-        env:
-          DAGGER_NO_NAG: "1"
+        uses: ./.github/actions/dagger-run
         with:
-          version: v0.20.8
           module: ./packages/dagger-module
           call: >-
             compute-semver
             --tags-csv=${{ steps.tags.outputs.csv }}
             --increment=patch
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
       - name: Test compute-semver (branch-name inference)
-        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
-        env:
-          DAGGER_NO_NAG: "1"
+        uses: ./.github/actions/dagger-run
         with:
-          version: v0.20.8
           module: ./packages/dagger-module
           call: >-
             compute-semver
             --tags-csv=${{ steps.tags.outputs.csv }}
             --branch-name=feat/new-thing
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+      - if: always()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ job.status }}
+          workflow: ${{ github.workflow }}
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ref: ${{ github.ref_name }}

@@ -1,3 +1,3 @@
-import { createActionViteConfig } from '../../vite.config.base.mts';
+import { createActionViteConfig } from "../../vite.config.base.mts";
 
-export default createActionViteConfig({ entry: 'src/index.ts' });
+export default createActionViteConfig({ entry: "src/index.ts" });

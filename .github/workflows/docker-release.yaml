@@ -77,6 +77,8 @@ on:
         required: false
       DAGGER_CLOUD_TOKEN:
         required: false
+      DISCORD_WEBHOOK_URL:
+        required: false
 
 permissions:
   contents: write
@@ -100,11 +102,6 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
         with:
           fetch-depth: 0
-      - name: Warm Dagger engine image
-        run: |
-          engine_image="registry.dagger.io/engine:v0.20.8"
-          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
-
       - if: ${{ inputs.download_artifact != '' }}
         uses: actions/download-artifact@ad191675b41f6a5b46da9a048cb6893812da158b # ad19167, https://github.com/actions/download-artifact/releases/latest
         with:
@@ -164,10 +161,8 @@ jobs:
 
       - name: Run Docker release in Dagger
         id: dagger_release
-        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        uses: ./.github/actions/dagger-run
         env:
-          DAGGER_NO_NAG: "1"
-          DAGGER_VERSION: v0.20.8
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           GITHUB_EVENT_PATH: ${{ github.event_path }}
           GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -176,8 +171,6 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_SHA: ${{ github.sha }}
         with:
-          version: v0.20.8
-          module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
           call: >-
             docker-release
             --source=.
@@ -205,6 +198,7 @@ jobs:
             --run-url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             --run-number=${{ github.run_number }}
             --pr-labels-csv=${{ github.event_name == 'pull_request' && join(github.event.pull_request.labels.*.name, ',') || '' }}
+            --discord-webhook=${{ secrets.DISCORD_WEBHOOK_URL }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
 
       - name: Update sticky PR status comment

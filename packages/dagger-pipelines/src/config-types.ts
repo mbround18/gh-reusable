@@ -3,38 +3,38 @@ export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
 export type JsonObject = { readonly [key: string]: JsonValue };
 export type JsonArray = readonly JsonValue[];
 
-export type DaggerTask = 'install' | 'lint' | 'test' | 'build' | 'publish';
+export type DaggerTask = "install" | "lint" | "test" | "build" | "publish";
 
 export type Toolchain =
-  | 'pnpm'
-  | 'npm'
-  | 'cargo'
-  | 'docker-buildx'
-  | 'github-cli'
-  | 'shell';
+  | "pnpm"
+  | "npm"
+  | "cargo"
+  | "docker-buildx"
+  | "github-cli"
+  | "shell";
 
 export type ActionId =
-  | 'graphql'
-  | 'docker-build'
-  | 'github-catalog'
-  | 'setup-rust'
-  | 'install-cli'
-  | 'ensure-repository'
-  | 'semver'
-  | 'docker-facts';
+  | "graphql"
+  | "docker-build"
+  | "github-catalog"
+  | "setup-rust"
+  | "install-cli"
+  | "ensure-repository"
+  | "semver"
+  | "docker-facts";
 
 export type WorkflowFile =
-  | 'docker-release.yaml'
-  | 'rust-build-n-test.yml'
-  | 'tagger.yaml'
-  | 'test-docker-release.yaml'
-  | 'test-ensure-repository.yml'
-  | 'test-graphql-action.yaml'
-  | 'test-install-cli.yaml'
-  | 'test-rust-build-n-test.yml'
-  | 'test-semver.yaml'
-  | 'test-setup-rust.yaml'
-  | 'update-readme.yml';
+  | "docker-release.yaml"
+  | "rust-build-n-test.yml"
+  | "tagger.yaml"
+  | "test-docker-release.yaml"
+  | "test-ensure-repository.yml"
+  | "test-graphql-action.yaml"
+  | "test-install-cli.yaml"
+  | "test-rust-build-n-test.yml"
+  | "test-semver.yaml"
+  | "test-setup-rust.yaml"
+  | "update-readme.yml";
 
 export interface CommandPreset {
   readonly id: string;
@@ -57,7 +57,7 @@ export interface TaskPresetRefs {
 export interface ActionCoverageEntry {
   readonly id: ActionId;
   readonly path: `actions/${ActionId}`;
-  readonly runtime: 'docker' | 'composite';
+  readonly runtime: "docker" | "composite";
   readonly toolchains: readonly Toolchain[];
   readonly presets: TaskPresetRefs;
 }

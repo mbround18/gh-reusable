@@ -1,0 +1,47 @@
+name: Enforce PR Labels
+
+on:
+  workflow_call:
+    inputs:
+      required_labels_any:
+        required: false
+        type: string
+        default: "major,minor,patch,bug,dependencies,documentation,internal"
+        description: "Comma-separated list of labels where at least one must be present."
+      required_labels_any_description:
+        required: false
+        type: string
+        default: "Select at least one label to categorize this PR."
+        description: "Error message shown when no required label is present."
+      banned_labels:
+        required: false
+        type: string
+        default: "banned"
+        description: "Comma-separated list of labels that must not be present."
+      runs-on:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+        description: "GitHub runner label."
+    secrets:
+      DAGGER_CLOUD_TOKEN:
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  enforce-label:
+    name: Enforce Labels
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - uses: ./.github/actions/dagger-run
+        with:
+          call: >-
+            enforce-pr-labels
+            --labels-csv=${{ join(github.event.pull_request.labels.*.name, ',') }}
+            --required-any-csv=${{ inputs.required_labels_any }}
+            --banned-csv=${{ inputs.banned_labels }}
+            --required-any-description=${{ inputs.required_labels_any_description }}
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
