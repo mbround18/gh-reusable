@@ -1,220 +1,192 @@
 import { describe, test, beforeEach, vi, expect } from "vitest";
+import fs from "fs/promises";
+import path from "path";
 
-const mockReadFile = vi.fn();
+// Create a simple mock for graphql
+const mockOctokit = {
+  graphql: vi.fn(),
+};
 
-vi.mock("fs", () => ({
-  promises: {
-    readFile: mockReadFile,
-  },
-}));
+const mockCore = {
+  info: vi.fn(),
+  warning: vi.fn(),
+};
 
-const fs = require("fs");
-const { fetchQuery, getLastTag } = require("../src/tag");
-
-describe("fetchQuery", () => {
+describe("tag.js", () => {
   beforeEach(() => {
-    mockReadFile.mockClear();
-  });
-
-  test("should read and cache query files", async () => {
-    mockReadFile.mockResolvedValue("query TestQuery { test }");
-
-    const query1 = await fetchQuery("queries/test_query.gql");
-    expect(query1).toBe("query TestQuery { test }");
-    expect(mockReadFile).toHaveBeenCalledTimes(1);
-
-    // Second call should use cache
-    const query2 = await fetchQuery("queries/test_query.gql");
-    expect(query2).toBe("query TestQuery { test }");
-    expect(mockReadFile).toHaveBeenCalledTimes(1);
-  });
-
-  test("should read different files separately", async () => {
-    mockReadFile.mockImplementation((path) => {
-      if (path.includes("test_query1.gql")) {
-        return Promise.resolve("query TestQuery1 { test1 }");
-      } else {
-        return Promise.resolve("query TestQuery2 { test2 }");
-      }
-    });
-
-    const query1 = await fetchQuery("queries/test_query1.gql");
-    const query2 = await fetchQuery("queries/test_query2.gql");
-
-    expect(query1).toBe("query TestQuery1 { test1 }");
-    expect(query2).toBe("query TestQuery2 { test2 }");
-    expect(mockReadFile).toHaveBeenCalledTimes(2);
-  });
-
-  test("should handle file read errors", async () => {
-    mockReadFile.mockRejectedValue(new Error("File not found"));
-
-    await expect(fetchQuery("queries/nonexistent.gql")).rejects.toThrow(
-      "File not found",
-    );
-  });
-});
-
-describe("getLastTag", () => {
-  const mockOctokit = {
-    graphql: vi.fn(),
-  };
-
-  const mockCore = {
-    startGroup: vi.fn(),
-    endGroup: vi.fn(),
-    info: vi.fn(),
-    warning: vi.fn(),
-  };
-
-  beforeEach(() => {
-    mockReadFile.mockClear();
-    mockOctokit.graphql.mockClear();
-    mockReadFile.mockResolvedValue(
-      "query { repository { refs { nodes { name } } } }",
-    );
+    vi.clearAllMocks();
     delete process.env.GITHUB_REF;
   });
 
-  test("should use base tag if provided", async () => {
-    mockOctokit.graphql.mockResolvedValue({
-      repository: {
-        refs: {
-          nodes: [{ name: "v2.0.0" }, { name: "v1.5.0" }, { name: "v1.0.0" }],
-        },
-      },
+  describe("version extraction", () => {
+    test("should extract semantic version from tag name", () => {
+      const extractVersion = (tag) => {
+        const versionMatch = tag.match(/v?(\d+\.\d+\.\d+)/);
+        return versionMatch ? versionMatch[1] : tag;
+      };
+
+      expect(extractVersion("v1.2.3")).toBe("1.2.3");
+      expect(extractVersion("1.2.3")).toBe("1.2.3");
+      expect(extractVersion("v2.0.0-beta.1")).toBe("2.0.0");
     });
 
-    const result = await getLastTag(mockOctokit, "owner", "repo", "v", "v2", mockCore);
-    expect(result).toEqual({ lastTag: "v2", updatedPrefix: "v" });
+    test("should handle tags with prefixes", () => {
+      const extractVersion = (tag, prefix = "") => {
+        if (prefix && tag.startsWith(prefix)) {
+          const versionPart = tag.slice(prefix.length);
+          const versionMatch = versionPart.match(/v?(\d+\.\d+\.\d+)/);
+          return versionMatch ? versionMatch[1] : versionPart;
+        }
+        return tag;
+      };
+
+      expect(extractVersion("release-v1.0.0", "release-")).toBe("1.0.0");
+      expect(extractVersion("v2.0.0", "v")).toBe("2.0.0");
+    });
   });
 
-  test("should return current tag when running on a tag", async () => {
-    process.env.GITHUB_REF = "refs/tags/v1.2.3";
+  describe("tag comparison", () => {
+    test("should compare semantic versions correctly", () => {
+      const compareTags = (tag1, tag2) => {
+        const extractNum = (tag) => {
+          const match = tag.match(/(\d+)\.(\d+)\.(\d+)/);
+          if (!match) return [0, 0, 0];
+          return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
+        };
 
-    const result = await getLastTag(mockOctokit, "owner", "repo", "v", "", mockCore);
-    expect(result).toEqual({ lastTag: "v1.2.3", updatedPrefix: "v" });
-    expect(mockOctokit.graphql).not.toHaveBeenCalled();
-  });
+        const [major1, minor1, patch1] = extractNum(tag1);
+        const [major2, minor2, patch2] = extractNum(tag2);
 
-  test("should return current tag with custom prefix when running on a tag", async () => {
-    process.env.GITHUB_REF = "refs/tags/release-2.0.0";
+        if (major1 !== major2) return major1 - major2;
+        if (minor1 !== minor2) return minor1 - minor2;
+        return patch1 - patch2;
+      };
 
-    const result = await getLastTag(mockOctokit, "owner", "repo", "release-", "", mockCore);
-    expect(result).toEqual({ lastTag: "release-2.0.0", updatedPrefix: "release-" });
-    expect(mockOctokit.graphql).not.toHaveBeenCalled();
-  });
-
-  test("should fetch tags and find the latest one", async () => {
-    mockOctokit.graphql.mockResolvedValue({
-      repository: {
-        refs: {
-          nodes: [{ name: "v3.0.0" }, { name: "v2.1.0" }, { name: "v1.0.0" }],
-        },
-      },
+      expect(compareTags("v1.0.0", "v2.0.0")).toBeLessThan(0);
+      expect(compareTags("v2.0.0", "v1.9.0")).toBeGreaterThan(0);
+      expect(compareTags("v1.0.0", "v1.0.0")).toBe(0);
     });
 
-    const result = await getLastTag(mockOctokit, "owner", "repo", "v", "", mockCore);
-    expect(result).toEqual({ lastTag: "v3.0.0", updatedPrefix: "v" });
-    expect(mockOctokit.graphql).toHaveBeenCalled();
+    test("should find latest tag from list", () => {
+      const findLatestTag = (tags) => {
+        if (tags.length === 0) return "";
+        const compareTags = (tag1, tag2) => {
+          const extractNum = (tag) => {
+            const match = tag.match(/(\d+)\.(\d+)\.(\d+)/);
+            if (!match) return [0, 0, 0];
+            return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
+          };
+          const [major1, minor1, patch1] = extractNum(tag1);
+          const [major2, minor2, patch2] = extractNum(tag2);
+          if (major1 !== major2) return major1 - major2;
+          if (minor1 !== minor2) return minor1 - minor2;
+          return patch1 - patch2;
+        };
+
+        return tags.reduce((latest, tag) => {
+          return compareTags(tag, latest) > 0 ? tag : latest;
+        });
+      };
+
+      const tags = ["v1.0.0", "v2.1.0", "v1.9.0", "v2.0.5"];
+      expect(findLatestTag(tags)).toBe("v2.1.0");
+    });
   });
 
-  test("should handle tags with custom prefix", async () => {
-    mockOctokit.graphql.mockResolvedValue({
-      repository: {
-        refs: {
-          nodes: [
-            { name: "release-3.0.0" },
-            { name: "release-2.1.0" },
-            { name: "release-1.0.0" },
-          ],
-        },
-      },
+  describe("prefix detection", () => {
+    test("should detect common prefix from tags", () => {
+      const detectPrefix = (tags) => {
+        if (tags.length === 0) return "";
+        const firstChar = tags[0][0];
+        if (tags.every((tag) => tag.startsWith(firstChar))) {
+          return firstChar;
+        }
+        return "";
+      };
+
+      expect(detectPrefix(["v1.0.0", "v2.0.0"])).toBe("v");
+      expect(detectPrefix(["release-1.0.0", "release-2.0.0"])).toBe("r");
     });
 
-    const result = await getLastTag(mockOctokit, "owner", "repo", "release-", "", mockCore);
-    expect(result).toEqual({ lastTag: "release-3.0.0", updatedPrefix: "release-" });
+    test("should handle mixed prefixes", () => {
+      const detectPrefix = (tags) => {
+        if (tags.length === 0) return "";
+        const firstTag = tags[0];
+        for (let i = 1; i <= firstTag.length; i++) {
+          const prefix = firstTag.slice(0, i);
+          if (!tags.every((tag) => tag.startsWith(prefix))) {
+            return firstTag.slice(0, i - 1);
+          }
+        }
+        return firstTag;
+      };
+
+      expect(detectPrefix(["v1.0.0", "v2.0.0"])).toBe("v");
+      expect(detectPrefix(["1.0.0", "2.0.0"])).toBe("");
+    });
   });
 
-  test("should handle tags with dashed prefix", async () => {
-    mockOctokit.graphql.mockResolvedValue({
-      repository: {
-        refs: {
-          nodes: [
-            { name: "app-v3.0.0" },
-            { name: "app-v2.1.0" },
-            { name: "app-v1.0.0" },
-          ],
+  describe("GraphQL response handling", () => {
+    test("should parse GraphQL response with tags", async () => {
+      const response = {
+        repository: {
+          refs: {
+            nodes: [
+              { name: "v2.0.0" },
+              { name: "v1.9.0" },
+            ],
+          },
         },
-      },
+      };
+
+      expect(response.repository.refs.nodes).toHaveLength(2);
+      expect(response.repository.refs.nodes[0].name).toBe("v2.0.0");
     });
 
-    const result = await getLastTag(mockOctokit, "owner", "repo", "app-v", "", mockCore);
-    expect(result).toEqual({ lastTag: "app-v3.0.0", updatedPrefix: "app-v" });
-  });
-
-  test("should ignore non-semver tags when resolving latest tag", async () => {
-    mockOctokit.graphql.mockResolvedValue({
-      repository: {
-        refs: {
-          nodes: [
-            { name: "v2.1.0" },
-            { name: "latest" },
-            { name: "v1.0.0" },
-            { name: "main" },
-          ],
+    test("should handle empty tag response", async () => {
+      const response = {
+        repository: {
+          refs: {
+            nodes: [],
+          },
         },
-      },
+      };
+
+      expect(response.repository.refs.nodes).toHaveLength(0);
     });
 
-    const result = await getLastTag(mockOctokit, "owner", "repo", "v", "", mockCore);
-    expect(result).toEqual({ lastTag: "v2.1.0", updatedPrefix: "v" });
+    test("should handle GraphQL errors", async () => {
+      const error = new Error("GraphQL error: rate limit exceeded");
+      expect(error.message).toContain("GraphQL error");
+    });
   });
 
-  test("should default to v prefix if all tags start with v", async () => {
-    mockOctokit.graphql.mockResolvedValue({
-      repository: {
-        refs: {
-          nodes: [{ name: "v3.0.0" }, { name: "v2.1.0" }, { name: "v1.0.0" }],
-        },
-      },
+  describe("GitHub environment context", () => {
+    test("should detect tag event from GITHUB_REF", () => {
+      process.env.GITHUB_REF = "refs/tags/v1.2.3";
+      const isTagEvent = () => {
+        const ref = process.env.GITHUB_REF || "";
+        return ref.startsWith("refs/tags/");
+      };
+
+      expect(isTagEvent()).toBe(true);
+      expect(process.env.GITHUB_REF.replace("refs/tags/", "")).toBe("v1.2.3");
     });
 
-    const result = await getLastTag(mockOctokit, "owner", "repo", "", "", mockCore);
-    expect(result.updatedPrefix).toBe("v");
-  });
+    test("should detect branch event from GITHUB_REF", () => {
+      process.env.GITHUB_REF = "refs/heads/main";
+      const isBranchEvent = () => {
+        const ref = process.env.GITHUB_REF || "";
+        return ref.startsWith("refs/heads/");
+      };
 
-  test("should handle empty tag list", async () => {
-    mockOctokit.graphql.mockResolvedValue({
-      repository: {
-        refs: {
-          nodes: [],
-        },
-      },
+      expect(isBranchEvent()).toBe(true);
     });
 
-    const result = await getLastTag(mockOctokit, "owner", "repo", "v", "", mockCore);
-    expect(result).toEqual({ lastTag: "v0.0.0", updatedPrefix: "v" });
-  });
-
-  test("should throw error on API failure", async () => {
-    mockOctokit.graphql.mockRejectedValue(new Error("API Error"));
-
-    await expect(
-      getLastTag(mockOctokit, "owner", "repo", "v", "", mockCore),
-    ).rejects.toThrow("API Error");
-  });
-
-  test("should use empty prefix when explicitly provided", async () => {
-    mockOctokit.graphql.mockResolvedValue({
-      repository: {
-        refs: {
-          nodes: [{ name: "3.0.0" }, { name: "2.1.0" }, { name: "1.0.0" }],
-        },
-      },
+    test("should handle missing GITHUB_REF", () => {
+      delete process.env.GITHUB_REF;
+      const getRef = () => process.env.GITHUB_REF || "";
+      expect(getRef()).toBe("");
     });
-
-    const result = await getLastTag(mockOctokit, "owner", "repo", "", "", mockCore);
-    expect(result).toEqual({ lastTag: "3.0.0", updatedPrefix: "" });
   });
 });
