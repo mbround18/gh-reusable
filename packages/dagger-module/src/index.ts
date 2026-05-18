@@ -9,72 +9,25 @@ import {
   summarizeText,
 } from "./reporting"
 import { PipelineCache } from "./cache"
-
-type DockerReleaseDecision = "publish" | "skip" | "failed"
-type NodePackageManager = "npm" | "pnpm" | "yarn"
-type PublishTarget = "npm" | "pnpm" | "yarn" | "rust-crate" | "helm-chart"
-
-interface DockerReleaseSummary {
-  decision: DockerReleaseDecision
-  outcome: string
-  image: string
-  versionTag: string
-  releaseTag: string
-  context: string
-  dockerfile: string
-  target: string
-  platforms: string
-  registries: string
-  dockerAuth: boolean
-  ghcrAuth: boolean
-  reason?: string
-  plannedAddresses: string[]
-  publishedRefs: string[]
-  markdown: string
-}
-
-interface PublishResult {
-  target: PublishTarget
-  name: string
-  version: string
-  registry: string
-  url: string
-  digest?: string
-  packageManager?: NodePackageManager
-  artifactPath?: string
-  notes?: string
-}
-
-interface NamedVersion {
-  name: string
-  version: string
-}
-
-interface DiscordEmbedField {
-  name: string
-  value: string
-  inline?: boolean
-}
-
-interface DiscordEmbed {
-  title?: string
-  description?: string
-  url?: string
-  color?: number
-  timestamp?: string
-  thumbnail?: { url: string }
-  image?: { url: string }
-  author?: { name: string; url?: string; icon_url?: string }
-  footer?: { text: string; icon_url?: string }
-  fields?: DiscordEmbedField[]
-}
-
-interface DiscordWebhookPayload {
-  username?: string
-  avatar_url?: string
-  content?: string
-  embeds?: DiscordEmbed[]
-}
+import type {
+  SemverIncrement,
+  DockerReleaseDecision,
+  NodePackageManager,
+  PublishTarget,
+  NamedVersion,
+  PublishResult,
+  NodePublishOptions,
+  DockerReleaseSummary,
+  DockerReleaseContext,
+  DockerFactsPushInput,
+  DockerComposeBuild,
+  StepResult,
+  ReporterInputs,
+  BranchRule,
+  DiscordEmbedField,
+  DiscordEmbed,
+  DiscordWebhookPayload,
+} from "./types"
 
 @object()
 export class GhReusablePipelines {
@@ -605,14 +558,7 @@ export class GhReusablePipelines {
 
   private async publishNodePackage(
     source: Directory,
-    options: {
-      manager: NodePackageManager
-      registry: string
-      token: string
-      tag: string
-      version: string
-      discordWebhook?: string
-    }
+    options: NodePublishOptions
   ): Promise<string> {
     if (!options.token) {
       throw new Error(`Missing required token for ${options.manager} publish`)
@@ -826,12 +772,7 @@ export class GhReusablePipelines {
     })
   }
 
-  private createReporter(pipelineName: string, inputs: {
-    sourceDir: string
-    version?: string
-    registryUrls?: readonly string[]
-    credentials?: Readonly<Record<string, boolean>>
-  }): PipelineReporter {
+  private createReporter(pipelineName: string, inputs: ReporterInputs): PipelineReporter {
     return new PipelineReporter({
       pipelineName,
       sourceDir: inputs.sourceDir,
@@ -846,12 +787,7 @@ export class GhReusablePipelines {
     container: Container,
     name: string,
     command: readonly [string, ...string[]]
-  ): Promise<{
-    container: Container
-    stdout: string
-    stderr: string
-    exitCode: number
-  }> {
+  ): Promise<StepResult> {
     const stepDir = `/tmp/dagger-report-${this.slugify(name)}`
     const script = [
       "set -euo pipefail",
@@ -1199,7 +1135,7 @@ export class GhReusablePipelines {
     return normalized
   }
 
-  private resolveVersionTag(tagsCsv: string, prefix: string, increment: "major" | "minor" | "patch"): string {
+  private resolveVersionTag(tagsCsv: string, prefix: string, increment: SemverIncrement): string {
     const current = this.csv(tagsCsv)
       .filter((tag) => tag.startsWith(prefix))
       .map((tag) => tag.slice(prefix.length))
@@ -1223,7 +1159,7 @@ export class GhReusablePipelines {
     return `${prefix}${next}`
   }
 
-  private normalizeIncrement(value: string): "major" | "minor" | "patch" {
+  private normalizeIncrement(value: string): SemverIncrement {
     if (value === "major" || value === "minor" || value === "patch") {
       return value
     }
@@ -1258,17 +1194,7 @@ export class GhReusablePipelines {
 
   private renderDockerReleaseSummary(
     summary: DockerReleaseSummary,
-    context: {
-      eventName: string
-      ref: string
-      branchName: string
-      isPullRequestContext: boolean
-      forcePush: boolean
-      canaryLabel: string
-      hasCanaryLabel: boolean
-      runUrl: string
-      runNumber: string
-    }
+    context: DockerReleaseContext
   ): string {
     const plannedAddresses = summary.plannedAddresses.length > 0 ? summary.plannedAddresses.join("\n") : "- (none)"
     const publishedRefs = summary.publishedRefs.length > 0 ? summary.publishedRefs.join("\n") : "- (none)"
@@ -1844,14 +1770,14 @@ export class GhReusablePipelines {
     majorLabel: string,
     minorLabel: string,
     patchLabel: string
-  ): string {
+  ): SemverIncrement {
     const labels = this.csv(prLabelsCsv)
     if (labels.includes(majorLabel)) return "major"
     if (labels.includes(minorLabel)) return "minor"
     if (labels.includes(patchLabel)) return "patch"
 
     if (branchName) {
-      const branchRules: Array<{ increment: string; patterns: RegExp[] }> = [
+      const branchRules: BranchRule[] = [
         {
           increment: "major",
           patterns: [/(^|[/-])(major|breaking)([/-]|$)/i, /(^|[/-])breaking-change([/-]|$)/i]
@@ -1968,11 +1894,8 @@ export class GhReusablePipelines {
     })
   }
 
-  private parseDockerComposeYaml(
-    raw: string,
-    imageName: string
-  ): { dockerfile: string | null; context: string | null; target: string | null; buildArgs: Record<string, string> } {
-    const fallback = { dockerfile: null, context: null, target: null, buildArgs: {} }
+  private parseDockerComposeYaml(raw: string, imageName: string): DockerComposeBuild {
+    const fallback: DockerComposeBuild = { dockerfile: null, context: null, target: null, buildArgs: {} }
     try {
       const compose = parseYaml(raw) as { services?: Record<string, { image?: unknown; build?: unknown }> } | null
       if (!compose?.services) return fallback
@@ -2016,14 +1939,7 @@ export class GhReusablePipelines {
     return {}
   }
 
-  private resolveDockerFactsPush(input: {
-    eventName: string
-    ref: string
-    defaultBranch: string
-    canaryLabel: string
-    forcePush: boolean
-    prLabelsCsv: string
-  }): boolean {
+  private resolveDockerFactsPush(input: DockerFactsPushInput): boolean {
     if (input.forcePush) return true
     if (input.ref === `refs/heads/${input.defaultBranch}` || input.ref.startsWith("refs/tags/")) return true
     if (input.eventName === "pull_request") {

@@ -27,10 +27,10 @@
   },
   "dependencies": {
     "@dagger.io/dagger": "^0.20.8",
-    "yaml": "^2.8.1"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.2",
+    "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }
 }
