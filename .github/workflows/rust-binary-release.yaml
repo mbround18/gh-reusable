@@ -25,7 +25,7 @@ on:
       components:
         required: false
         type: string
-        default: "clippy rustfmt"
+        default: "clippy,rustfmt"
         description: "Rust components to install."
       runs-on:
         required: false

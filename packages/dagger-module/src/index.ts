@@ -141,7 +141,7 @@ export class GhReusablePipelines {
   async rustBuildAndTest(
     source: Directory,
     toolchain: string = "stable",
-    components: string = "clippy rustfmt",
+    components: string = "clippy,rustfmt",
     target: string = "",
   ): Promise<string> {
     const targetList = this.splitCsv(target);
@@ -1898,7 +1898,7 @@ export class GhReusablePipelines {
   async setupRust(
     source: Directory,
     toolchain: string = "stable",
-    components: string = "clippy rustfmt",
+    components: string = "clippy,rustfmt",
     target: string = "",
     crates: string = "",
   ): Promise<Container> {
@@ -2072,7 +2072,7 @@ export class GhReusablePipelines {
     buildCommand: string = "cargo build --release",
     archiveName: string = "bundle.zip",
     toolchain: string = "stable",
-    components: string = "clippy rustfmt",
+    components: string = "clippy,rustfmt",
     repository: string = "",
     discordWebhook: string = "",
   ): Promise<string> {

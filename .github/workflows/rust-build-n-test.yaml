@@ -12,7 +12,7 @@ on:
         required: false
         type: string
         description: "Comma-separated list of Rust components to install (e.g., rustfmt, clippy)."
-        default: "clippy rustfmt"
+        default: "clippy,rustfmt"
       target:
         required: false
         type: string
