@@ -14,7 +14,7 @@ inputs:
   components:
     description: "Space or comma-separated Rust components to install (e.g. 'clippy rustfmt')."
     required: false
-    default: "clippy rustfmt"
+    default: "clippy,rustfmt"
   target:
     description: "Comma-separated additional compilation targets."
     required: false
