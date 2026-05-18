@@ -1,3 +1,4 @@
+import { describe, test, beforeEach, afterEach, vi, expect } from "vitest";
 const core = require("@actions/core");
 const github = require("@actions/github");
 const { run } = require("../src/index");
@@ -6,17 +7,17 @@ const { detectIncrement } = require("../src/increment");
 const { buildNewVersion } = require("../src/version");
 
 // Mock all dependencies
-jest.mock("@actions/core");
-jest.mock("@actions/github");
-jest.mock("../src/tag");
-jest.mock("../src/increment");
-jest.mock("../src/version");
+vi.mock("@actions/core");
+vi.mock("@actions/github");
+vi.mock("../src/tag");
+vi.mock("../src/increment");
+vi.mock("../src/version");
 
 // Create mock Octokit instance
 const mockOctokit = {
   rest: {
     repos: {
-      createRelease: jest.fn(),
+      createRelease: vi.fn(),
     },
   },
 };
@@ -24,7 +25,7 @@ const mockOctokit = {
 describe("index.js", () => {
   beforeEach(() => {
     // Reset mocks
-    jest.resetAllMocks();
+    vi.clearAllMocks();
 
     // Mock getInput
     core.getInput.mockImplementation((name) => {
@@ -52,7 +53,7 @@ describe("index.js", () => {
     github.context.repo = { owner: "testowner", repo: "testrepo" };
     github.context.sha = "1234567890abcdef";
     github.context.eventName = "push";
-    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+    github.getOctokit = vi.fn().mockReturnValue(mockOctokit);
   });
 
   test("should get inputs, generate new version, and set output", async () => {

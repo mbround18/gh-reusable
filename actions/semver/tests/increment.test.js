@@ -1,3 +1,4 @@
+import { describe, test, beforeEach, afterEach, vi, expect } from "vitest";
 const github = require("@actions/github");
 const path = require("path");
 const fs = require("fs");
@@ -8,7 +9,7 @@ const {
 } = require("../src/increment");
 
 // Mock GitHub context and fs
-jest.mock("@actions/github", () => ({
+vi.mock("@actions/github", () => ({
   context: {
     eventName: "push",
     payload: {},
@@ -18,9 +19,9 @@ jest.mock("@actions/github", () => ({
   },
 }));
 
-jest.mock("fs", () => ({
+vi.mock("fs", () => ({
   promises: {
-    readFile: jest.fn(),
+    readFile: vi.fn(),
   },
 }));
 
@@ -111,18 +112,18 @@ describe("resolveIncrementFromBranch", () => {
 
 describe("detectIncrement", () => {
   const mockOctokit = {
-    graphql: jest.fn(),
+    graphql: vi.fn(),
   };
 
   const mockCore = {
-    startGroup: jest.fn(),
-    endGroup: jest.fn(),
-    info: jest.fn(),
-    warning: jest.fn(),
+    startGroup: vi.fn(),
+    endGroup: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     fs.promises.readFile.mockResolvedValue("query { test }");
 
     // Reset GitHub context

@@ -40,8 +40,8 @@ jobs:
         with:
           call: >-
             enforce-pr-labels
-            --labels-csv=${{ join(github.event.pull_request.labels.*.name, ',') }}
-            --required-any-csv=${{ inputs.required_labels_any }}
-            --banned-csv=${{ inputs.banned_labels }}
-            --required-any-description=${{ inputs.required_labels_any_description }}
+            --labels-csv="${{ join(github.event.pull_request.labels.*.name, ',') }}"
+            --required-any-csv="${{ inputs.required_labels_any }}"
+            --banned-csv="${{ inputs.banned_labels }}"
+            --required-any-description="${{ inputs.required_labels_any_description }}"
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

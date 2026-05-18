@@ -217,6 +217,125 @@ describe("dockerFacts — push decision", () => {
   });
 });
 
+// ─── enforcePrLabels ────────────────────────────────────────────────────────
+
+function csv(value: string): string[] {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function enforcePrLabelsLogic(
+  labelsCsv: string,
+  requiredAnyCsv: string,
+  bannedCsv: string,
+  requiredAnyDescription: string = "Select at least one required label",
+): { pass: boolean; labels: string[]; matched: string[] } {
+  const labels = csv(labelsCsv);
+  const required = csv(requiredAnyCsv);
+  const banned = csv(bannedCsv);
+
+  const bannedFound = banned.filter((l) => labels.includes(l));
+  if (bannedFound.length > 0) {
+    throw new Error(`PR has banned label(s): ${bannedFound.join(", ")}`);
+  }
+
+  const hasRequired =
+    required.length === 0 || required.some((l) => labels.includes(l));
+  if (!hasRequired) {
+    throw new Error(
+      `${requiredAnyDescription} (required one of: ${required.join(", ")})`,
+    );
+  }
+
+  const matched = required.filter((l) => labels.includes(l));
+  return {
+    pass: true,
+    labels,
+    matched,
+  };
+}
+
+describe("enforcePrLabels — label validation", () => {
+  test("passes with required label present", () => {
+    const result = enforcePrLabelsLogic(
+      "major,bug",
+      "major,minor,patch",
+      "",
+    );
+    expect(result.pass).toBe(true);
+    expect(result.labels).toEqual(["major", "bug"]);
+    expect(result.matched).toEqual(["major"]);
+  });
+
+  test("passes when no required labels specified", () => {
+    const result = enforcePrLabelsLogic("any-label", "", "");
+    expect(result.pass).toBe(true);
+    expect(result.labels).toEqual(["any-label"]);
+    expect(result.matched).toEqual([]);
+  });
+
+  test("fails when required label is missing", () => {
+    expect(() =>
+      enforcePrLabelsLogic("bug", "major,minor,patch", ""),
+    ).toThrow("Select at least one required label");
+  });
+
+  test("fails with custom error message when required label missing", () => {
+    expect(() =>
+      enforcePrLabelsLogic(
+        "bug",
+        "major,minor,patch",
+        "",
+        "You must select a version bump",
+      ),
+    ).toThrow("You must select a version bump");
+  });
+
+  test("fails when banned label is present", () => {
+    expect(() =>
+      enforcePrLabelsLogic("bug,banned", "major,minor,patch", "banned"),
+    ).toThrow("PR has banned label(s): banned");
+  });
+
+  test("fails when multiple banned labels are present", () => {
+    expect(() =>
+      enforcePrLabelsLogic(
+        "bug,skip-ci,do-not-merge",
+        "major,minor,patch",
+        "skip-ci,do-not-merge",
+      ),
+    ).toThrow("PR has banned label(s): skip-ci, do-not-merge");
+  });
+
+  test("handles whitespace in CSV values", () => {
+    const result = enforcePrLabelsLogic(
+      "major , bug , docs",
+      "major, minor, patch",
+      "banned, skip-ci",
+    );
+    expect(result.labels).toEqual(["major", "bug", "docs"]);
+    expect(result.matched).toEqual(["major"]);
+  });
+
+  test("empty labels pass with no required labels", () => {
+    const result = enforcePrLabelsLogic("", "", "");
+    expect(result.pass).toBe(true);
+    expect(result.labels).toEqual([]);
+    expect(result.matched).toEqual([]);
+  });
+
+  test("matches multiple required labels", () => {
+    const result = enforcePrLabelsLogic(
+      "major,minor,documentation",
+      "major,minor,patch",
+      "",
+    );
+    expect(result.matched).toEqual(["major", "minor"]);
+  });
+});
+
 // ─── graphql variable coercion ────────────────────────────────────────────────
 // Port of the coercion logic without the graphql parser (structural test only)
 

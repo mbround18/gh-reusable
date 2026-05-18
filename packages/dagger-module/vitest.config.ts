@@ -8,5 +8,11 @@ export default defineConfig({
     teardownTimeout: 5_000,
     forceExit: true,
     reporters: ["verbose"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov", "html"],
+      include: ["src/**/*.ts"],
+      exclude: ["node_modules", "tests", "dist", "**/*.test.ts"],
+    },
   },
 });

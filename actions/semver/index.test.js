@@ -1,19 +1,20 @@
+import { describe, test, beforeEach, afterEach, vi, expect } from "vitest";
 const path = require("path");
 const semver = require("semver");
 
-const mockReadFile = jest.fn();
+const mockReadFile = vi.fn();
 
-jest.mock("@actions/core");
-jest.mock("@actions/github");
-jest.mock("fs", () => ({
+vi.mock("@actions/core");
+vi.mock("@actions/github");
+vi.mock("fs", () => ({
   promises: {
     readFile: mockReadFile,
   },
   constants: {
     O_RDONLY: 0,
   },
-  existsSync: jest.fn(),
-  readFileSync: jest.fn(),
+  existsSync: vi.fn(),
+  readFileSync: vi.fn(),
 }));
 
 const core = require("@actions/core");
@@ -40,9 +41,9 @@ mockReadFile.mockImplementation((filePath) => {
   }
 });
 
-jest.mock("./src/version");
-jest.mock("./src/increment");
-jest.mock("./src/tag");
+vi.mock("./src/version");
+vi.mock("./src/increment");
+vi.mock("./src/tag");
 
 const index = require("./tests/test-helpers");
 
@@ -233,8 +234,8 @@ describe("resolveIncrementFromLabels", () => {
 
 describe("fetchQuery", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
+    vi.clearAllMocks();
+    vi.resetModules();
   });
 
   test("should read and cache query files", async () => {
@@ -277,17 +278,17 @@ describe("fetchQuery", () => {
 
 describe("getLastTag", () => {
   const mockOctokit = {
-    graphql: jest.fn(),
+    graphql: vi.fn(),
   };
 
   const mockCore = {
-    startGroup: jest.fn(),
-    endGroup: jest.fn(),
-    info: jest.fn(),
+    startGroup: vi.fn(),
+    endGroup: vi.fn(),
+    info: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     fs.promises.readFile.mockResolvedValue(
       "query { repository { refs { nodes { name } } } }",
     );
@@ -449,18 +450,18 @@ describe("getLastTag", () => {
 
 describe("detectIncrement", () => {
   const mockOctokit = {
-    graphql: jest.fn(),
+    graphql: vi.fn(),
   };
 
   const mockCore = {
-    startGroup: jest.fn(),
-    endGroup: jest.fn(),
-    info: jest.fn(),
-    warning: jest.fn(),
+    startGroup: vi.fn(),
+    endGroup: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     fs.promises.readFile.mockImplementation((path) => {
       if (path.includes("pr_labels.gql")) {
         return Promise.resolve(
@@ -643,9 +644,9 @@ describe("detectIncrement", () => {
 
 describe("run function", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    core.getInput = jest.fn((name) => {
+    core.getInput = vi.fn((name) => {
       const inputs = {
         token: "fake-token",
         base: "",
@@ -658,12 +659,12 @@ describe("run function", () => {
       return inputs[name] || "";
     });
 
-    core.setOutput = jest.fn();
-    core.setFailed = jest.fn();
-    core.info = jest.fn();
-    core.startGroup = jest.fn();
-    core.endGroup = jest.fn();
-    core.debug = jest.fn();
+    core.setOutput = vi.fn();
+    core.setFailed = vi.fn();
+    core.info = vi.fn();
+    core.startGroup = vi.fn();
+    core.endGroup = vi.fn();
+    core.debug = vi.fn();
 
     github.context = {
       eventName: "push",
@@ -673,8 +674,8 @@ describe("run function", () => {
       ref: "refs/heads/main",
     };
 
-    github.getOctokit = jest.fn().mockReturnValue({
-      graphql: jest.fn(),
+    github.getOctokit = vi.fn().mockReturnValue({
+      graphql: vi.fn(),
     });
 
     fs.promises.readFile.mockImplementation((path) => {
@@ -726,12 +727,12 @@ describe("run function", () => {
       }
     });
 
-    index.getLastTag = jest.fn().mockResolvedValue({
+    index.getLastTag = vi.fn().mockResolvedValue({
       lastTag: "v1.2.0",
       updatedPrefix: "v",
     });
 
-    index.detectIncrement = jest.fn().mockResolvedValue("patch");
+    index.detectIncrement = vi.fn().mockResolvedValue("patch");
 
     const originalBuildNewVersion = index.buildNewVersion;
     index.buildNewVersion = jest
@@ -740,7 +741,7 @@ describe("run function", () => {
         return originalBuildNewVersion(lastTag, prefix, increment, isPR, sha);
       });
 
-    index.run = jest.fn().mockImplementation(async () => {
+    index.run = vi.fn().mockImplementation(async () => {
       try {
         const token = core.getInput("token") || process.env.GITHUB_TOKEN;
         if (!token) {
@@ -775,7 +776,7 @@ describe("run function", () => {
   });
 
   test("run should handle base tag input", async () => {
-    core.getInput = jest.fn((name) => {
+    core.getInput = vi.fn((name) => {
       const inputs = {
         token: "fake-token",
         base: "v2.0.0",
@@ -788,18 +789,18 @@ describe("run function", () => {
       return inputs[name] || "";
     });
 
-    index.getLastTag = jest.fn().mockResolvedValue({
+    index.getLastTag = vi.fn().mockResolvedValue({
       lastTag: "v2.0.0",
       updatedPrefix: "v",
     });
-    index.detectIncrement = jest.fn().mockResolvedValue("minor");
+    index.detectIncrement = vi.fn().mockResolvedValue("minor");
 
     await index.run();
     expect(core.setOutput).toHaveBeenCalledWith("new_version", "v2.1.0");
   });
 
   test("run should fail on missing token", async () => {
-    core.getInput = jest.fn((name) => {
+    core.getInput = vi.fn((name) => {
       const inputs = {
         token: "",
         base: "",
@@ -819,12 +820,12 @@ describe("run function", () => {
   });
 
   test("run should handle version validation failure", async () => {
-    index.getLastTag = jest.fn().mockResolvedValue({
+    index.getLastTag = vi.fn().mockResolvedValue({
       lastTag: "invalid-version",
       updatedPrefix: "",
     });
 
-    index.buildNewVersion = jest.fn().mockImplementation(() => {
+    index.buildNewVersion = vi.fn().mockImplementation(() => {
       throw new Error("Invalid semver: invalid-version");
     });
 
@@ -833,20 +834,20 @@ describe("run function", () => {
   });
 
   test("run should handle API errors", async () => {
-    index.getLastTag = jest.fn().mockRejectedValue(new Error("API failure"));
+    index.getLastTag = vi.fn().mockRejectedValue(new Error("API failure"));
 
     await index.run();
     expect(core.setFailed).toHaveBeenCalledWith("💥 API failure");
   });
 
   test("run should handle PR event", async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     github.context.eventName = "pull_request";
     github.context.payload = { pull_request: { number: 123 } };
     github.context.sha = "abcdef1234567890";
 
-    index.run = jest.fn().mockImplementation(async () => {
+    index.run = vi.fn().mockImplementation(async () => {
       core.setOutput("new_version", "v1.2.0-abcdef1");
     });
 
@@ -855,12 +856,12 @@ describe("run function", () => {
   });
 
   test("run should handle tag event correctly", async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     github.context.eventName = "push";
     github.context.ref = "refs/tags/v2.0.0";
 
-    index.getLastTag = jest.fn().mockResolvedValue({
+    index.getLastTag = vi.fn().mockResolvedValue({
       lastTag: "v1.2.0", // Previous version
       updatedPrefix: "v",
     });
@@ -875,9 +876,9 @@ describe("run function", () => {
         return `${prefix}1.2.1`;
       });
 
-    index.detectIncrement = jest.fn().mockResolvedValue("patch");
+    index.detectIncrement = vi.fn().mockResolvedValue("patch");
 
-    index.run = jest.fn().mockImplementation(async () => {
+    index.run = vi.fn().mockImplementation(async () => {
       try {
         const { lastTag, updatedPrefix } = await index.getLastTag();
         const increment = await index.detectIncrement();
