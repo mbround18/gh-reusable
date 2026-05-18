@@ -1,0 +1,83 @@
+name: Rust Binary Release
+
+on:
+  workflow_call:
+    inputs:
+      build_command:
+        required: false
+        type: string
+        default: "cargo build --release"
+        description: "Command used to build the Rust binaries."
+      binary_paths_csv:
+        required: true
+        type: string
+        description: "Comma or space-separated paths to binaries to include in the release archive (e.g. 'target/release/foo,target/release/bar')."
+      archive_name:
+        required: false
+        type: string
+        default: "bundle.zip"
+        description: "Name of the ZIP archive uploaded to the release."
+      toolchain:
+        required: false
+        type: string
+        default: "stable"
+        description: "Rust toolchain to use."
+      components:
+        required: false
+        type: string
+        default: "clippy rustfmt"
+        description: "Rust components to install."
+      runs-on:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+        description: "GitHub runner label."
+    secrets:
+      GH_TOKEN:
+        required: true
+        description: "GitHub token with write access to releases."
+      DAGGER_CLOUD_TOKEN:
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-upload:
+    name: Build & Upload Binaries
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+
+      - name: Build, zip, and upload release binaries via Dagger
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        with:
+          version: v0.20.8
+          module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
+          call: >-
+            rust-binary-release
+            --source=.
+            --build-command=${{ inputs.build_command }}
+            --binary-paths-csv=${{ inputs.binary_paths_csv }}
+            --archive-name=${{ inputs.archive_name }}
+            --tag=${{ github.event_name == 'release' && github.event.release.tag_name || github.ref_name }}
+            --gh-token=${{ secrets.GH_TOKEN }}
+            --toolchain=${{ inputs.toolchain }}
+            --components=${{ inputs.components }}
+            --repository=${{ github.repository }}
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

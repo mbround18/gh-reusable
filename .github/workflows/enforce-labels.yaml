@@ -1,0 +1,57 @@
+name: Enforce PR Labels
+
+on:
+  workflow_call:
+    inputs:
+      required_labels_any:
+        required: false
+        type: string
+        default: "major,minor,patch,bug,dependencies,documentation,internal"
+        description: "Comma-separated list of labels where at least one must be present."
+      required_labels_any_description:
+        required: false
+        type: string
+        default: "Select at least one label to categorize this PR."
+        description: "Error message shown when no required label is present."
+      banned_labels:
+        required: false
+        type: string
+        default: "banned"
+        description: "Comma-separated list of labels that must not be present."
+      runs-on:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+        description: "GitHub runner label."
+    secrets:
+      DAGGER_CLOUD_TOKEN:
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  enforce-label:
+    name: Enforce Labels
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Warm Dagger engine image
+        run: |
+          engine_image="registry.dagger.io/engine:v0.20.8"
+          docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+
+      - name: Enforce PR labels via Dagger
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+        env:
+          DAGGER_NO_NAG: "1"
+        with:
+          version: v0.20.8
+          module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
+          call: >-
+            enforce-pr-labels
+            --labels-csv=${{ join(github.event.pull_request.labels.*.name, ',') }}
+            --required-any-csv=${{ inputs.required_labels_any }}
+            --banned-csv=${{ inputs.banned_labels }}
+            --required-any-description=${{ inputs.required_labels_any_description }}
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}

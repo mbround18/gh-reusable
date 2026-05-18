@@ -67,6 +67,40 @@ export class GhReusablePipelines {
       .stdout()
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // enforce-pr-labels
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async enforcePrLabels(
+    labelsCsv: string = "",
+    requiredAnyCsv: string = "",
+    bannedCsv: string = "",
+    requiredAnyDescription: string = "Select at least one required label"
+  ): Promise<string> {
+    const labels = this.csv(labelsCsv)
+    const required = this.csv(requiredAnyCsv)
+    const banned = this.csv(bannedCsv)
+
+    const bannedFound = banned.filter((l) => labels.includes(l))
+    if (bannedFound.length > 0) {
+      throw new Error(`PR has banned label(s): ${bannedFound.join(", ")}`)
+    }
+
+    const hasRequired = required.length === 0 || required.some((l) => labels.includes(l))
+    if (!hasRequired) {
+      throw new Error(`${requiredAnyDescription} (required one of: ${required.join(", ")})`)
+    }
+
+    const matched = required.filter((l) => labels.includes(l))
+    return JSON.stringify({
+      pass: true,
+      labels,
+      matched,
+      markdown: `✅ Label check passed — present: \`${labels.join("`, `") || "(none)"}\``
+    })
+  }
+
   @func()
   async rustBuildAndTest(
     source: Directory,
@@ -1437,6 +1471,122 @@ export class GhReusablePipelines {
       .from(image)
       .withMountedDirectory("/src", source)
       .withWorkdir("/src")
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // rust-binary-release
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async rustBinaryRelease(
+    source: Directory,
+    binaryPathsCsv: string,
+    tag: string,
+    ghToken: string,
+    buildCommand: string = "cargo build --release",
+    archiveName: string = "bundle.zip",
+    toolchain: string = "stable",
+    components: string = "clippy rustfmt",
+    repository: string = ""
+  ): Promise<string> {
+    const reporter = this.createReporter("rust-binary-release", {
+      sourceDir: ".",
+      registryUrls: [],
+      credentials: { GH_TOKEN: true }
+    })
+
+    const resolvedRepository = repository.trim() || process.env.GITHUB_REPOSITORY?.trim() || ""
+    if (!resolvedRepository) {
+      throw new Error("repository must be provided or GITHUB_REPOSITORY env must be set")
+    }
+
+    const archiveDir = "/tmp/release-archive"
+    const setupScript = [
+      "apt-get update -qq",
+      "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends make zip curl gpg",
+      "curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg",
+      "chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg",
+      `echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list`,
+      "apt-get update -qq",
+      "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gh"
+    ].join(" && ")
+
+    let container = (await this.buildRustContainer(source, toolchain, components, "", ""))
+      .withExec(["sh", "-lc", setupScript])
+
+    // Build
+    const buildStep = reporter.startStep("build", { command: buildCommand })
+    const buildResult = await this.runCapturedStep(container, "build", ["sh", "-lc", buildCommand])
+    reporter.endStep(buildStep, {
+      success: buildResult.exitCode === 0,
+      stdout: buildResult.stdout,
+      stderr: buildResult.stderr,
+      stdoutSummary: summarizeText(buildResult.stdout),
+      stderrSummary: summarizeText(buildResult.stderr),
+      exitCode: buildResult.exitCode
+    })
+    if (buildResult.exitCode !== 0) {
+      reporter.recordError("build", buildResult.stderr || buildResult.stdout, "Fix build errors before releasing")
+      throw new Error(`Build failed:\n${buildResult.stderr || buildResult.stdout}`)
+    }
+
+    // Zip
+    const binaryPaths = this.splitCsv(binaryPathsCsv)
+    const zipScript = [
+      `mkdir -p ${archiveDir}`,
+      `cd /src && zip ${archiveDir}/${archiveName} ${binaryPaths.join(" ")}`
+    ].join(" && ")
+
+    const zipStep = reporter.startStep("zip", { command: `zip ${archiveName}` })
+    const zipResult = await this.runCapturedStep(buildResult.container, "zip", ["sh", "-lc", zipScript])
+    reporter.endStep(zipStep, {
+      success: zipResult.exitCode === 0,
+      stdout: zipResult.stdout,
+      stderr: zipResult.stderr,
+      stdoutSummary: summarizeText(zipResult.stdout),
+      stderrSummary: summarizeText(zipResult.stderr),
+      exitCode: zipResult.exitCode
+    })
+    if (zipResult.exitCode !== 0) {
+      reporter.recordError("zip", zipResult.stderr || zipResult.stdout, "Check binary paths exist after build")
+      throw new Error(`Zip failed:\n${zipResult.stderr || zipResult.stdout}`)
+    }
+
+    // Upload via gh CLI
+    const uploadScript = [
+      "set -euo pipefail",
+      `gh release upload ${shellQuote(tag)} ${shellQuote(`${archiveDir}/${archiveName}`)} --clobber --repo ${shellQuote(resolvedRepository)}`
+    ].join("\n")
+
+    const uploadContainer = zipResult.container
+      .withSecretVariable("GH_TOKEN", dag.setSecret("gh-token", ghToken))
+      .withEnvVariable("GITHUB_REPOSITORY", resolvedRepository)
+
+    const uploadStep = reporter.startStep("gh release upload", { command: `gh release upload ${tag} ${archiveName}` })
+    const uploadResult = await this.runCapturedStep(uploadContainer, "gh release upload", ["sh", "-lc", uploadScript])
+    reporter.endStep(uploadStep, {
+      success: uploadResult.exitCode === 0,
+      stdout: uploadResult.stdout,
+      stderr: uploadResult.stderr,
+      stdoutSummary: summarizeText(uploadResult.stdout),
+      stderrSummary: summarizeText(uploadResult.stderr),
+      exitCode: uploadResult.exitCode
+    })
+    if (uploadResult.exitCode !== 0) {
+      reporter.recordError("gh release upload", uploadResult.stderr || uploadResult.stdout, "Check GH_TOKEN permissions and that the release exists for this tag")
+      throw new Error(`Upload failed:\n${uploadResult.stderr || uploadResult.stdout}`)
+    }
+
+    const report = reporter.finalize()
+    return JSON.stringify({
+      success: true,
+      tag,
+      archiveName,
+      repository: resolvedRepository,
+      markdown: report.markdown,
+      report,
+      reportMarkdown: report.markdown
+    })
   }
 
   private async buildRustContainer(
