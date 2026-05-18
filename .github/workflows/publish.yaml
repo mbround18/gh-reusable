@@ -61,7 +61,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}
   cancel-in-progress: true
 
 jobs:
