@@ -1,0 +1,1499 @@
+{
+  "generatedAt": "2026-05-18",
+  "daggerVersion": "v0.20.8",
+  "moduleRef": "github.com/mbround18/gh-reusable/packages/dagger-module@main",
+  "reusableWorkflows": [
+    {
+      "file": "audit.yaml",
+      "name": "Audit Workflow",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner label."
+        },
+        {
+          "name": "semgrep_config",
+          "type": "string",
+          "required": false,
+          "default": "auto",
+          "description": "Semgrep ruleset config."
+        },
+        {
+          "name": "include_gitleaks",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Include secret scanning with gitleaks."
+        },
+        {
+          "name": "create_alerts",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Upload SARIF findings as GitHub code scanning alerts."
+        },
+        {
+          "name": "track_release_summary",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "When true on tag refs, create/update release notes with audit summary."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "file": "docker-release.yaml",
+      "name": "Docker Release Workflow",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "string",
+          "required": true,
+          "default": "mbround18/test",
+          "description": "Name of the image to be built"
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "required": false,
+          "default": ".",
+          "description": "Build context directory"
+        },
+        {
+          "name": "canary_label",
+          "type": "string",
+          "required": false,
+          "default": "canary",
+          "description": "Label to trigger canary pushes"
+        },
+        {
+          "name": "dockerfile",
+          "type": "string",
+          "required": false,
+          "default": "./Dockerfile",
+          "description": "Path to the Dockerfile relative to the context"
+        },
+        {
+          "name": "ghcr",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Release to GHCR?"
+        },
+        {
+          "name": "ghcr_username",
+          "type": "string",
+          "required": false,
+          "default": "mbround18",
+          "description": "Who to log into ghcr as.zs"
+        },
+        {
+          "name": "dockerhub_username",
+          "type": "string",
+          "required": false,
+          "default": "mbround18",
+          "description": "Who to log into dockerhub as."
+        },
+        {
+          "name": "semver_prefix",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Prefixer for semver, use this if you publish multiple artifacts like example-0.0.0"
+        },
+        {
+          "name": "prepend_target",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Prepend the target to the version tag (e.g., target-v0.0.0 instead of v0.0.0)"
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Target to build"
+        },
+        {
+          "name": "platforms",
+          "type": "string",
+          "required": false,
+          "default": "linux/amd64",
+          "description": "Comma separated list of target platforms (e.g., linux/amd64,linux/arm64)"
+        },
+        {
+          "name": "download_artifact",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Download a specific artifact to use within docker build"
+        },
+        {
+          "name": "download_artifact_destination",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "When downloading an artifact this helps it extract to a specific dir"
+        },
+        {
+          "name": "track_release_summary",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "When true on tag refs, create or update GitHub release notes with Docker publish details."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DOCKER_TOKEN",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "GHCR_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "DISCORD_WEBHOOK_URL",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "file": "enforce-labels.yaml",
+      "name": "Enforce PR Labels",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "required_labels_any",
+          "type": "string",
+          "required": false,
+          "default": "major,minor,patch,bug,dependencies,documentation,internal",
+          "description": "Comma-separated list of labels where at least one must be present."
+        },
+        {
+          "name": "required_labels_any_description",
+          "type": "string",
+          "required": false,
+          "default": "Select at least one label to categorize this PR.",
+          "description": "Error message shown when no required label is present."
+        },
+        {
+          "name": "banned_labels",
+          "type": "string",
+          "required": false,
+          "default": "banned",
+          "description": "Comma-separated list of labels that must not be present."
+        },
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner label."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "file": "publish.yaml",
+      "name": "Publish",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "target",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Publish target: node | rust-crate | helm-chart"
+        },
+        {
+          "name": "source",
+          "type": "string",
+          "required": false,
+          "default": ".",
+          "description": "Path to the source directory."
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Registry URL. Defaults: node → https://registry.npmjs.org, rust-crate → crates.io, helm-chart → oci://registry-1.docker.io/helm-charts"
+        },
+        {
+          "name": "chart",
+          "type": "string",
+          "required": false,
+          "default": ".",
+          "description": "Path to the Helm chart directory (helm-chart target only)."
+        },
+        {
+          "name": "tag",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "npm dist-tag (node target only, e.g. latest, next, beta)."
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Version override (must match version in manifest)."
+        },
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner label."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "NPM_TOKEN",
+          "required": false,
+          "description": "Token with publish access to the npm registry (node target)."
+        },
+        {
+          "name": "CARGO_REGISTRY_TOKEN",
+          "required": false,
+          "description": "Token with publish access to the Cargo registry (rust-crate target)."
+        },
+        {
+          "name": "HELM_USERNAME",
+          "required": false,
+          "description": "Username for the Helm OCI registry (helm-chart target)."
+        },
+        {
+          "name": "HELM_PASSWORD",
+          "required": false,
+          "description": "Password for the Helm OCI registry (helm-chart target)."
+        },
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "DISCORD_WEBHOOK_URL",
+          "required": false,
+          "description": "Discord webhook URL for publish notifications."
+        }
+      ]
+    },
+    {
+      "file": "rust-binary-release.yaml",
+      "name": "Rust Binary Release",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "build_command",
+          "type": "string",
+          "required": false,
+          "default": "cargo build --release",
+          "description": "Command used to build the Rust binaries."
+        },
+        {
+          "name": "binary_paths_csv",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Comma or space-separated paths to binaries to include in the release archive (e.g. 'target/release/foo,target/release/bar')."
+        },
+        {
+          "name": "archive_name",
+          "type": "string",
+          "required": false,
+          "default": "bundle.zip",
+          "description": "Name of the ZIP archive uploaded to the release."
+        },
+        {
+          "name": "toolchain",
+          "type": "string",
+          "required": false,
+          "default": "stable",
+          "description": "Rust toolchain to use."
+        },
+        {
+          "name": "components",
+          "type": "string",
+          "required": false,
+          "default": "clippy rustfmt",
+          "description": "Rust components to install."
+        },
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner label."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "GH_TOKEN",
+          "required": true,
+          "description": "GitHub token with write access to releases."
+        },
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "DISCORD_WEBHOOK_URL",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "file": "rust-build-n-test.yaml",
+      "name": "Rust Build and Test",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "toolchain",
+          "type": "string",
+          "required": false,
+          "default": "stable",
+          "description": "Rust toolchain to use (e.g., stable, nightly, beta)."
+        },
+        {
+          "name": "components",
+          "type": "string",
+          "required": false,
+          "default": "clippy rustfmt",
+          "description": "Comma-separated list of Rust components to install (e.g., rustfmt, clippy)."
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Comma-separated list of additional Rust compilation targets."
+        },
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner to use for this workflow."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "file": "tagger.yaml",
+      "name": "Reusable Tag Creation Workflow",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "prefix",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Optional app name prefix for semantic versioning"
+        },
+        {
+          "name": "force",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Force tag creation even if it already exists"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "GH_TOKEN",
+          "required": true,
+          "description": "GitHub token with permissions to push tags"
+        }
+      ]
+    },
+    {
+      "file": "update-readme.yaml",
+      "name": "Update README",
+      "triggers": ["workflow_call", "workflow_dispatch", "push"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner to use for this workflow."
+        }
+      ],
+      "secrets": []
+    }
+  ],
+  "internalWorkflows": [
+    {
+      "file": "ci.yaml",
+      "name": "CI",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "test-code-matrix.yaml",
+      "name": "Test | Code Matrix",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "test-docker-release.yaml",
+      "name": "Test | Docker Release Workflow",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "test-graphql-action.yaml",
+      "name": "Test | GraphQL Query Default Branch",
+      "triggers": ["push", "pull_request"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "test-install-cli.yaml",
+      "name": "Test | Install CLI Action",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "test-rust-build-n-test.yaml",
+      "name": "Test | Rust Build and Test Workflow",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "test-semver.yaml",
+      "name": "Test | Semver Action",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "test-setup-rust.yaml",
+      "name": "Test | Setup Rust",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    }
+  ],
+  "compositeActions": [
+    {
+      "dir": "dagger-run",
+      "name": "Dagger Run",
+      "description": "Warms the Dagger engine and executes a Dagger module function call.",
+      "inputs": [
+        {
+          "name": "call",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Dagger function call string (e.g. 'rust-build-and-test --source=.')"
+        },
+        {
+          "name": "module",
+          "type": "string",
+          "required": false,
+          "default": "github.com/mbround18/gh-reusable/packages/dagger-module@main",
+          "description": "Dagger module reference"
+        },
+        {
+          "name": "cloud-token",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Dagger Cloud token for caching"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "stdout",
+          "description": "Standard output from the Dagger function call"
+        }
+      ]
+    },
+    {
+      "dir": "discord-notify",
+      "name": "Discord Notify",
+      "description": "Sends a CI status notification to a Discord webhook.",
+      "inputs": [
+        {
+          "name": "webhook-url",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Discord webhook URL. Skipped silently if empty."
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Job status: success, failure, or cancelled."
+        },
+        {
+          "name": "workflow",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Workflow name shown in the embed title."
+        },
+        {
+          "name": "run-url",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "URL to the GitHub Actions run."
+        },
+        {
+          "name": "ref",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Branch or tag ref."
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "daggerFunctions": [
+    {
+      "camel": "ci",
+      "kebab": "ci",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        }
+      ]
+    },
+    {
+      "camel": "enforcePrLabels",
+      "kebab": "enforce-pr-labels",
+      "params": [
+        {
+          "name": "labelsCsv",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "requiredAnyCsv",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "bannedCsv",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "requiredAnyDescription",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "notifyDiscord",
+      "kebab": "notify-discord",
+      "params": [
+        {
+          "name": "webhookUrl",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "color",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "fieldsJson",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "footer",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "rustBuildAndTest",
+      "kebab": "rust-build-and-test",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "toolchain",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "components",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "audit",
+      "kebab": "audit",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "semgrepConfig",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "includeGitleaks",
+          "type": "boolean",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "publishNpm",
+      "kebab": "publish-npm",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "tag",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "discordWebhook",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "publishPnpm",
+      "kebab": "publish-pnpm",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "tag",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "discordWebhook",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "publishYarn",
+      "kebab": "publish-yarn",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "tag",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "discordWebhook",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "publishRustCrate",
+      "kebab": "publish-rust-crate",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "discordWebhook",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "publishHelmChart",
+      "kebab": "publish-helm-chart",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "chart",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "discordWebhook",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "dockerRelease",
+      "kebab": "docker-release",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "image",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "dockerfile",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "platforms",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "tagsCsv",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "registriesCsv",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "semverPrefix",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "semverIncrement",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "prependTarget",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "canaryLabel",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "dockerhubUsername",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "ghcrUsername",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "forcePush",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "dockerToken",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "ghcrToken",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "eventName",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "ref",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "refName",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "headRef",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "defaultBranch",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "sha",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "runUrl",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "runNumber",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "prLabelsCsv",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "discordWebhook",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "ensureRepository",
+      "kebab": "ensure-repository",
+      "params": [
+        {
+          "name": "expectedRepository",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "repository",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "graphqlQuery",
+      "kebab": "graphql-query",
+      "params": [
+        {
+          "name": "query",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "args",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "installCli",
+      "kebab": "install-cli",
+      "params": [
+        {
+          "name": "repository",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "asset",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "overrideName",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "setupRust",
+      "kebab": "setup-rust",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "toolchain",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "components",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "crates",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "setupNode",
+      "kebab": "setup-node",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "nodeVersion",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "packageManager",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "installDeps",
+          "type": "boolean",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "setupGo",
+      "kebab": "setup-go",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "goVersion",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "setupRuby",
+      "kebab": "setup-ruby",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "rubyVersion",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "bundleInstall",
+          "type": "boolean",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "setupJava",
+      "kebab": "setup-java",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "javaVersion",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "distribution",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "setupTerraform",
+      "kebab": "setup-terraform",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "terraformVersion",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "useOpentofu",
+          "type": "boolean",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "setupPulumi",
+      "kebab": "setup-pulumi",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "pulumiVersion",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "runtime",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "rustBinaryRelease",
+      "kebab": "rust-binary-release",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "binaryPathsCsv",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "tag",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "ghToken",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "buildCommand",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "archiveName",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "toolchain",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "components",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "repository",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "discordWebhook",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "computeSemver",
+      "kebab": "compute-semver",
+      "params": [
+        {
+          "name": "tagsCsv",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "base",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "prefix",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "increment",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "prLabelsCsv",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "branchName",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "majorLabel",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "minorLabel",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "patchLabel",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "dockerFacts",
+      "kebab": "docker-facts",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "image",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "registries",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "dockerfile",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "canaryLabel",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "forcePush",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "withLatest",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "prependTarget",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "eventName",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "ref",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "defaultBranch",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "prLabelsCsv",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "codeMatrix",
+      "kebab": "code-matrix",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        }
+      ]
+    }
+  ]
+}

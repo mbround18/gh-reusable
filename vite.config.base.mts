@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from "vite";
 
 export type ActionViteConfigOptions = {
   entry: string;
@@ -10,16 +10,16 @@ export function createActionViteConfig(options: ActionViteConfigOptions) {
   return defineConfig({
     build: {
       emptyOutDir: true,
-      outDir: options.outDir ?? 'dist',
+      outDir: options.outDir ?? "dist",
       sourcemap: true,
-      target: options.target ?? 'node24',
+      target: options.target ?? "node24",
       ssr: options.entry,
       rollupOptions: {
         output: {
-          entryFileNames: 'index.js',
-          format: 'cjs'
-        }
-      }
-    }
+          entryFileNames: "index.js",
+          format: "cjs",
+        },
+      },
+    },
   });
 }

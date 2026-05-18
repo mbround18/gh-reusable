@@ -1,7 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml } from "yaml";
 
 export interface DockerFactsInputs {
   readonly image: string;
@@ -56,15 +56,24 @@ export interface DockerFactsResult {
   readonly buildArgs: Readonly<Record<string, string>>;
 }
 
-const COMPOSE_PATHS = ['docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml'] as const;
+const COMPOSE_PATHS = [
+  "docker-compose.yml",
+  "docker-compose.yaml",
+  "compose.yml",
+  "compose.yaml",
+] as const;
 
 export function resolveDockerFacts(
   inputs: DockerFactsInputs,
-  github: DockerFactsGithubContext
+  github: DockerFactsGithubContext,
 ): DockerFactsResult {
   const explicitTarget = inputs.target;
   let contextAbsolute = resolvePath(github.workspace, inputs.context);
-  let dockerfileAbsolute = findDockerfile(github.workspace, inputs.dockerfile, inputs.context);
+  let dockerfileAbsolute = findDockerfile(
+    github.workspace,
+    inputs.dockerfile,
+    inputs.context,
+  );
   let target = explicitTarget;
   let buildArgs: Readonly<Record<string, string>> = {};
 
@@ -76,16 +85,34 @@ export function resolveDockerFacts(
       if (composeData.context) {
         const composeContext = path.join(inputs.context, composeData.context);
         contextAbsolute = resolvePath(github.workspace, composeContext);
-        const composeDockerfile = path.join(composeContext, composeData.dockerfile);
-        dockerfileAbsolute = findDockerfile(github.workspace, composeDockerfile, contextAbsolute);
+        const composeDockerfile = path.join(
+          composeContext,
+          composeData.dockerfile,
+        );
+        dockerfileAbsolute = findDockerfile(
+          github.workspace,
+          composeDockerfile,
+          contextAbsolute,
+        );
       } else {
-        const composeDockerfile = path.join(inputs.context, composeData.dockerfile);
-        dockerfileAbsolute = findDockerfile(github.workspace, composeDockerfile, contextAbsolute);
+        const composeDockerfile = path.join(
+          inputs.context,
+          composeData.dockerfile,
+        );
+        dockerfileAbsolute = findDockerfile(
+          github.workspace,
+          composeDockerfile,
+          contextAbsolute,
+        );
       }
     } else if (composeData.context) {
       const composeContext = path.join(inputs.context, composeData.context);
       contextAbsolute = resolvePath(github.workspace, composeContext);
-      dockerfileAbsolute = findDockerfile(github.workspace, inputs.dockerfile, contextAbsolute);
+      dockerfileAbsolute = findDockerfile(
+        github.workspace,
+        inputs.dockerfile,
+        contextAbsolute,
+      );
     }
 
     if (composeData.target && explicitTarget.length === 0) {
@@ -105,7 +132,7 @@ export function resolveDockerFacts(
       defaultBranch: github.defaultBranch,
       canaryLabel: inputs.canaryLabel,
       forcePush: inputs.forcePush,
-      eventPath: github.eventPath
+      eventPath: github.eventPath,
     }),
     tags: generateTags({
       image: inputs.image,
@@ -114,15 +141,19 @@ export function resolveDockerFacts(
       withLatest: inputs.withLatest,
       ref: github.ref,
       target,
-      prependTarget: inputs.prependTarget
+      prependTarget: inputs.prependTarget,
     }),
-    buildArgs
+    buildArgs,
   };
 }
 
-export function resolvePath(workspace: string, value: string, toRelative = false): string {
+export function resolvePath(
+  workspace: string,
+  value: string,
+  toRelative = false,
+): string {
   if (value.length === 0) {
-    return '';
+    return "";
   }
 
   const normalizedWorkspace = path.resolve(workspace);
@@ -130,7 +161,7 @@ export function resolvePath(workspace: string, value: string, toRelative = false
     const absoluteValue = path.resolve(value);
     if (absoluteValue.startsWith(normalizedWorkspace)) {
       const relativePath = path.relative(normalizedWorkspace, absoluteValue);
-      return relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+      return relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
     }
     return value;
   }
@@ -139,16 +170,22 @@ export function resolvePath(workspace: string, value: string, toRelative = false
     return path.normalize(value);
   }
 
-  return path.normalize(path.join(normalizedWorkspace, value.replace(/^[./]+/, '')));
+  return path.normalize(
+    path.join(normalizedWorkspace, value.replace(/^[./]+/, "")),
+  );
 }
 
-export function findDockerfile(workspace: string, dockerfilePath: string, contextPath: string): string {
+export function findDockerfile(
+  workspace: string,
+  dockerfilePath: string,
+  contextPath: string,
+): string {
   const absoluteDockerfile = resolvePath(workspace, dockerfilePath);
   const absoluteContext = resolvePath(workspace, contextPath);
   const possiblePaths = [
     absoluteDockerfile,
     path.join(absoluteContext, path.basename(dockerfilePath)),
-    path.join(absoluteContext, dockerfilePath.replace(/^[./]+/, ''))
+    path.join(absoluteContext, dockerfilePath.replace(/^[./]+/, "")),
   ];
 
   for (const candidate of [...new Set(possiblePaths)]) {
@@ -159,7 +196,10 @@ export function findDockerfile(workspace: string, dockerfilePath: string, contex
   return absoluteDockerfile;
 }
 
-export function findDockerCompose(workspace: string, contextPath?: string): string | undefined {
+export function findDockerCompose(
+  workspace: string,
+  contextPath?: string,
+): string | undefined {
   const normalizedWorkspace = path.resolve(workspace);
   for (const composePath of COMPOSE_PATHS) {
     const candidate = path.join(normalizedWorkspace, composePath);
@@ -168,7 +208,7 @@ export function findDockerCompose(workspace: string, contextPath?: string): stri
     }
   }
 
-  if (contextPath && contextPath !== '.' && contextPath !== './') {
+  if (contextPath && contextPath !== "." && contextPath !== "./") {
     const absoluteContext = resolvePath(normalizedWorkspace, contextPath);
     if (absoluteContext !== normalizedWorkspace) {
       for (const composePath of COMPOSE_PATHS) {
@@ -183,16 +223,19 @@ export function findDockerCompose(workspace: string, contextPath?: string): stri
   return undefined;
 }
 
-export function parseDockerCompose(filePath: string, imageName: string): ParseDockerComposeResult {
+export function parseDockerCompose(
+  filePath: string,
+  imageName: string,
+): ParseDockerComposeResult {
   const fallback: ParseDockerComposeResult = {
     dockerfile: null,
     context: null,
     buildArgs: {},
-    target: null
+    target: null,
   };
 
   try {
-    const raw = readFileSync(filePath, 'utf8');
+    const raw = readFileSync(filePath, "utf8");
     const compose = parseYaml(raw) as DockerComposeRecord | null;
     if (!compose?.services) {
       return fallback;
@@ -204,7 +247,7 @@ export function parseDockerCompose(filePath: string, imageName: string): ParseDo
       }
 
       const build = service.build;
-      if (typeof build === 'string') {
+      if (typeof build === "string") {
         return { ...fallback, context: build };
       }
       if (!isRecord(build)) {
@@ -213,10 +256,15 @@ export function parseDockerCompose(filePath: string, imageName: string): ParseDo
 
       const buildRecord = build as DockerComposeBuildRecord;
       return {
-        dockerfile: typeof buildRecord.dockerfile === 'string' ? buildRecord.dockerfile : null,
-        context: typeof buildRecord.context === 'string' ? buildRecord.context : null,
-        target: typeof buildRecord.target === 'string' ? buildRecord.target : null,
-        buildArgs: parseBuildArgs(buildRecord.args)
+        dockerfile:
+          typeof buildRecord.dockerfile === "string"
+            ? buildRecord.dockerfile
+            : null,
+        context:
+          typeof buildRecord.context === "string" ? buildRecord.context : null,
+        target:
+          typeof buildRecord.target === "string" ? buildRecord.target : null,
+        buildArgs: parseBuildArgs(buildRecord.args),
       };
     }
   } catch {
@@ -239,11 +287,14 @@ export function shouldPushImage(input: ShouldPushImageInput): boolean {
   if (input.forcePush) {
     return true;
   }
-  if (input.ref === `refs/heads/${input.defaultBranch}` || input.ref.startsWith('refs/tags/')) {
+  if (
+    input.ref === `refs/heads/${input.defaultBranch}` ||
+    input.ref.startsWith("refs/tags/")
+  ) {
     return true;
   }
 
-  if (input.eventName === 'pull_request') {
+  if (input.eventName === "pull_request") {
     const labels = getPullRequestLabels(loadEventData(input.eventPath));
     return labels.includes(input.canaryLabel);
   }
@@ -262,13 +313,18 @@ interface GenerateTagsInput {
 }
 
 export function generateTags(input: GenerateTagsInput): readonly string[] {
-  const targetPrefix = input.prependTarget && input.target.length > 0 ? `${input.target}-` : '';
-  const versionTag = input.version.startsWith('v')
+  const targetPrefix =
+    input.prependTarget && input.target.length > 0 ? `${input.target}-` : "";
+  const versionTag = input.version.startsWith("v")
     ? `${targetPrefix}${input.version}`
     : `${targetPrefix}v${input.version}`;
 
   const baseTags = [`${input.image}:${versionTag}`];
-  if (input.withLatest && input.ref.startsWith('refs/tags/') && !isPreReleaseVersion(input.version)) {
+  if (
+    input.withLatest &&
+    input.ref.startsWith("refs/tags/") &&
+    !isPreReleaseVersion(input.version)
+  ) {
     baseTags.push(`${input.image}:${targetPrefix}latest`);
   }
 
@@ -276,8 +332,10 @@ export function generateTags(input: GenerateTagsInput): readonly string[] {
   const output: string[] = [];
   for (const baseTag of baseTags) {
     output.push(baseTag);
-    const [, tagValue = 'latest'] = baseTag.split(':');
-    for (const registry of input.registries.filter((value) => value.length > 0)) {
+    const [, tagValue = "latest"] = baseTag.split(":");
+    for (const registry of input.registries.filter(
+      (value) => value.length > 0,
+    )) {
       output.push(`${registry}/${imageWithoutRegistry}:${tagValue}`);
     }
   }
@@ -289,26 +347,35 @@ function parseBuildArgs(args: unknown): Readonly<Record<string, string>> {
     return Object.fromEntries(
       Object.entries(args)
         .filter(([, value]) => value !== undefined)
-        .map(([key, value]) => [key, String(value)])
+        .map(([key, value]) => [key, String(value)]),
     );
   }
 
   if (Array.isArray(args)) {
     return Object.fromEntries(
       args
-        .filter((value): value is string => typeof value === 'string' && value.includes('='))
+        .filter(
+          (value): value is string =>
+            typeof value === "string" && value.includes("="),
+        )
         .map((pair) => {
-          const [name, ...rest] = pair.split('=');
-          return [name, rest.join('=')];
-        })
+          const [name, ...rest] = pair.split("=");
+          return [name, rest.join("=")];
+        }),
     );
   }
 
   return {};
 }
 
-function serviceMatchesImage(service: DockerComposeServiceRecord, imageName: string): boolean {
-  return typeof service.image === 'string' && service.image.startsWith(`${imageName}:`);
+function serviceMatchesImage(
+  service: DockerComposeServiceRecord,
+  imageName: string,
+): boolean {
+  return (
+    typeof service.image === "string" &&
+    service.image.startsWith(`${imageName}:`)
+  );
 }
 
 function loadEventData(eventPath?: string): unknown {
@@ -316,38 +383,52 @@ function loadEventData(eventPath?: string): unknown {
     return {};
   }
   try {
-    return JSON.parse(readFileSync(eventPath, 'utf8')) as unknown;
+    return JSON.parse(readFileSync(eventPath, "utf8")) as unknown;
   } catch {
     return {};
   }
 }
 
 function getPullRequestLabels(eventData: unknown): readonly string[] {
-  if (!isRecord(eventData) || !isRecord(eventData.pull_request) || !Array.isArray(eventData.pull_request.labels)) {
+  if (
+    !isRecord(eventData) ||
+    !isRecord(eventData.pull_request) ||
+    !Array.isArray(eventData.pull_request.labels)
+  ) {
     return [];
   }
 
   return eventData.pull_request.labels
-    .filter((label): label is { name: string } => isRecord(label) && typeof label.name === 'string')
+    .filter(
+      (label): label is { name: string } =>
+        isRecord(label) && typeof label.name === "string",
+    )
     .map((label) => label.name);
 }
 
 function stripRegistry(image: string): string {
-  if (!image.includes('/')) {
+  if (!image.includes("/")) {
     return image;
   }
-  const parts = image.split('/');
-  const first = parts[0] ?? '';
-  if (first.includes('.') || first === 'localhost' || first === 'ghcr' || first === 'docker') {
-    return parts.slice(1).join('/');
+  const parts = image.split("/");
+  const first = parts[0] ?? "";
+  if (
+    first.includes(".") ||
+    first === "localhost" ||
+    first === "ghcr" ||
+    first === "docker"
+  ) {
+    return parts.slice(1).join("/");
   }
   return image;
 }
 
 function isPreReleaseVersion(version: string): boolean {
-  return ['alpha', 'beta', 'rc', 'dev'].some((token) => version.includes(token));
+  return ["alpha", "beta", "rc", "dev"].some((token) =>
+    version.includes(token),
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === "object" && value !== null;
 }

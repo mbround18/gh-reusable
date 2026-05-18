@@ -33,7 +33,7 @@ jobs:
 | Name          | Description                                                             | Required | Default |
 | ------------- | ----------------------------------------------------------------------- | -------- | ------- |
 | `base`        | Base version to start from. If not provided, the last tag will be used. | No       | `""`    |
-| `increment`   | Increment value (major, minor, patch). Empty infers from labels.        | No       | `""` |
+| `increment`   | Increment value (major, minor, patch). Empty infers from labels.        | No       | `""`    |
 | `major-label` | Label to identify a major increment.                                    | No       | `major` |
 | `minor-label` | Label to identify a minor increment.                                    | No       | `minor` |
 | `patch-label` | Label to identify a patch increment.                                    | No       | `patch` |
@@ -49,6 +49,7 @@ If the `base` input is not provided, the action will look up the last tag in the
 The action increments by `major`, `minor`, or `patch`.
 
 When `increment` is empty, inference order is:
+
 1. PR labels (for `pull_request` events)
 2. Labels on the associated PR for the pushed commit (for `push` events)
 3. Branch-name heuristics:

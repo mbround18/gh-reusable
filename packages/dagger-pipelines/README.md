@@ -20,29 +20,35 @@ Minimal Dagger TypeScript module for reproducible local/CI pipelines driven by J
 ## Example
 
 ```ts
-import { connect } from '@dagger.io/dagger';
-import { buildAndPush, ci } from '@gh-reusable/dagger-pipelines';
+import { connect } from "@dagger.io/dagger";
+import { buildAndPush, ci } from "@gh-reusable/dagger-pipelines";
 
 await connect(async (client) => {
   await ci(client, {
-    source: { path: '.', exclude: ['**/node_modules'] },
-    install: { packageManager: 'pnpm' },
-    lint: [{ name: 'lint', args: ['pnpm', '-r', '--if-present', 'run', 'lint'] }],
-    test: [{ name: 'test', args: ['pnpm', '-r', '--if-present', 'run', 'test'] }]
+    source: { path: ".", exclude: ["**/node_modules"] },
+    install: { packageManager: "pnpm" },
+    lint: [
+      { name: "lint", args: ["pnpm", "-r", "--if-present", "run", "lint"] },
+    ],
+    test: [
+      { name: "test", args: ["pnpm", "-r", "--if-present", "run", "test"] },
+    ],
   });
 
   await buildAndPush(client, {
-    source: { path: '.', exclude: ['**/node_modules'] },
-    install: { packageManager: 'pnpm' },
-    build: [{ name: 'build', args: ['pnpm', '-r', '--if-present', 'run', 'build'] }],
+    source: { path: ".", exclude: ["**/node_modules"] },
+    install: { packageManager: "pnpm" },
+    build: [
+      { name: "build", args: ["pnpm", "-r", "--if-present", "run", "build"] },
+    ],
     publish: {
-      address: 'docker.io/example/gh-reusable:latest',
+      address: "docker.io/example/gh-reusable:latest",
       auth: {
-        address: 'docker.io/example/gh-reusable:latest',
-        username: 'example',
-        passwordEnv: 'DOCKER_TOKEN'
-      }
-    }
+        address: "docker.io/example/gh-reusable:latest",
+        username: "example",
+        passwordEnv: "DOCKER_TOKEN",
+      },
+    },
   });
 });
 ```

@@ -1,4 +1,4 @@
-export type PipelineStepStatus = 'success' | 'failure' | 'skipped';
+export type PipelineStepStatus = "success" | "failure" | "skipped";
 
 export interface PipelineReportMetadata {
   readonly pipelineName: string;
@@ -97,33 +97,50 @@ export class PipelineReporter {
       pipelineName: options.pipelineName,
       startTimestamp: new Date().toISOString(),
       endTimestamp: new Date().toISOString(),
-      gitCommit: environment.GITHUB_SHA ?? '',
-      branch: environment.GITHUB_REF_NAME ?? environment.GITHUB_HEAD_REF ?? '',
-      tag: environment.GITHUB_REF?.startsWith('refs/tags/') ? environment.GITHUB_REF.slice('refs/tags/'.length) : '',
-      daggerEngineVersion: environment.DAGGER_VERSION ?? environment.DAGGER_ENGINE_VERSION ?? ''
+      gitCommit: environment.GITHUB_SHA ?? "",
+      branch: environment.GITHUB_REF_NAME ?? environment.GITHUB_HEAD_REF ?? "",
+      tag: environment.GITHUB_REF?.startsWith("refs/tags/")
+        ? environment.GITHUB_REF.slice("refs/tags/".length)
+        : "",
+      daggerEngineVersion:
+        environment.DAGGER_VERSION ?? environment.DAGGER_ENGINE_VERSION ?? "",
     };
     this.inputs = {
       sourceDir: options.sourceDir,
       version: options.version,
       registryUrls: options.registryUrls ?? [],
-      credentials: options.credentials ?? {}
+      credentials: options.credentials ?? {},
     };
   }
 
-  startStep(name: string, details: Pick<ReportStepDraft, 'containerImage' | 'command'> = {}): ReportStepDraft {
+  startStep(
+    name: string,
+    details: Pick<ReportStepDraft, "containerImage" | "command"> = {},
+  ): ReportStepDraft {
     const startedAt = new Date();
     return {
       name,
       startedAt,
       endedAt: startedAt,
       success: false,
-      stdoutSummary: '',
-      stderrSummary: '',
-      ...details
+      stdoutSummary: "",
+      stderrSummary: "",
+      ...details,
     };
   }
 
-  endStep(step: ReportStepDraft, result: Pick<ReportStepDraft, 'stdout' | 'stderr' | 'stdoutSummary' | 'stderrSummary' | 'exitCode' | 'success'>): void {
+  endStep(
+    step: ReportStepDraft,
+    result: Pick<
+      ReportStepDraft,
+      | "stdout"
+      | "stderr"
+      | "stdoutSummary"
+      | "stderrSummary"
+      | "exitCode"
+      | "success"
+    >,
+  ): void {
     const endedAt = new Date();
     this.steps.push({
       name: step.name,
@@ -132,12 +149,12 @@ export class PipelineReporter {
       durationMs: Math.max(0, endedAt.getTime() - step.startedAt.getTime()),
       containerImage: step.containerImage,
       command: step.command,
-      stdout: result.stdout ?? '',
-      stderr: result.stderr ?? '',
+      stdout: result.stdout ?? "",
+      stderr: result.stderr ?? "",
       stdoutSummary: result.stdoutSummary,
       stderrSummary: result.stderrSummary,
       success: result.success,
-      exitCode: result.exitCode
+      exitCode: result.exitCode,
     });
   }
 
@@ -147,8 +164,8 @@ export class PipelineReporter {
       step,
       exitCode,
       stderrSnippet: message || stderrSnippet,
-      rawLog: typeof error === 'string' ? error : message || stderrSnippet,
-      recommendedFix
+      rawLog: typeof error === "string" ? error : message || stderrSnippet,
+      recommendedFix,
     });
   }
 
@@ -156,7 +173,10 @@ export class PipelineReporter {
     this.warnings.push(message);
   }
 
-  setOutput<K extends keyof PipelineReportOutputs>(key: K, value: PipelineReportOutputs[K]): void {
+  setOutput<K extends keyof PipelineReportOutputs>(
+    key: K,
+    value: PipelineReportOutputs[K],
+  ): void {
     (this.outputs as Record<string, unknown>)[key] = value;
   }
 
@@ -170,23 +190,34 @@ export class PipelineReporter {
       outputs: this.outputs,
       errors: this.errors,
       warnings: this.warnings,
-      markdown: renderPipelineReportMarkdown(metadata, this.inputs, this.steps, this.outputs, this.errors, this.warnings)
+      markdown: renderPipelineReportMarkdown(
+        metadata,
+        this.inputs,
+        this.steps,
+        this.outputs,
+        this.errors,
+        this.warnings,
+      ),
     };
   }
 }
 
-export function normalizeError(error: unknown): { message: string; exitCode?: number; stderrSnippet: string } {
+export function normalizeError(error: unknown): {
+  message: string;
+  exitCode?: number;
+  stderrSnippet: string;
+} {
   if (error instanceof Error) {
     return {
       message: error.message,
       exitCode: extractExitCode(error.message),
-      stderrSnippet: error.message
+      stderrSnippet: error.message,
     };
   }
 
   return {
     message: String(error),
-    stderrSnippet: String(error)
+    stderrSnippet: String(error),
   };
 }
 
@@ -196,35 +227,40 @@ export function renderPipelineReportMarkdown(
   steps: readonly PipelineReportStep[],
   outputs: PipelineReportOutputs,
   errors: readonly PipelineReportError[],
-  warnings: readonly string[] = []
+  warnings: readonly string[] = [],
 ): string {
-  const statusIcon = errors.length > 0 ? '❌' : '✅';
+  const statusIcon = errors.length > 0 ? "❌" : "✅";
   const lines: string[] = [
     `${statusIcon} **${metadata.pipelineName}**`,
-    '',
-    '| Field | Value |',
-    '| --- | --- |',
+    "",
+    "| Field | Value |",
+    "| --- | --- |",
     `| Start | \`${metadata.startTimestamp}\` |`,
     `| End | \`${metadata.endTimestamp}\` |`,
-    `| Commit | \`${metadata.gitCommit || 'n/a'}\` |`,
-    `| Branch | \`${metadata.branch || 'n/a'}\` |`,
-    `| Tag | \`${metadata.tag || 'n/a'}\` |`,
-    `| Dagger engine | \`${metadata.daggerEngineVersion || 'n/a'}\` |`,
+    `| Commit | \`${metadata.gitCommit || "n/a"}\` |`,
+    `| Branch | \`${metadata.branch || "n/a"}\` |`,
+    `| Tag | \`${metadata.tag || "n/a"}\` |`,
+    `| Dagger engine | \`${metadata.daggerEngineVersion || "n/a"}\` |`,
     `| Source | \`${inputs.sourceDir}\` |`,
-    `| Version | \`${inputs.version || 'n/a'}\` |`,
-    `| Registries | \`${inputs.registryUrls.length > 0 ? inputs.registryUrls.join(', ') : 'n/a'}\` |`,
-    `| Credentials used | \`${Object.entries(inputs.credentials).filter(([, used]) => used).map(([key]) => key).join(', ') || 'none'}\` |`,
-    ''
+    `| Version | \`${inputs.version || "n/a"}\` |`,
+    `| Registries | \`${inputs.registryUrls.length > 0 ? inputs.registryUrls.join(", ") : "n/a"}\` |`,
+    `| Credentials used | \`${
+      Object.entries(inputs.credentials)
+        .filter(([, used]) => used)
+        .map(([key]) => key)
+        .join(", ") || "none"
+    }\` |`,
+    "",
   ];
 
-  lines.push('### Steps');
+  lines.push("### Steps");
   if (steps.length === 0) {
-    lines.push('- (none)');
+    lines.push("- (none)");
   } else {
     for (const step of steps) {
-      const icon = step.success ? '✅' : '❌';
+      const icon = step.success ? "✅" : "❌";
       lines.push(
-        `- ${icon} **${step.name}** (${step.durationMs}ms)${step.command ? ` — \`${step.command}\`` : ''}${step.containerImage ? ` [${step.containerImage}]` : ''}`
+        `- ${icon} **${step.name}** (${step.durationMs}ms)${step.command ? ` — \`${step.command}\`` : ""}${step.containerImage ? ` [${step.containerImage}]` : ""}`,
       );
       if (step.stdoutSummary) {
         lines.push(`  - stdout: ${truncate(step.stdoutSummary, 240)}`);
@@ -235,38 +271,51 @@ export function renderPipelineReportMarkdown(
     }
   }
 
-  lines.push('', '### Outputs');
+  lines.push("", "### Outputs");
   const outputPairs: Array<[string, string | undefined]> = [
-    ['Published version', outputs.publishedVersion],
-    ['Registry URLs', outputs.registryUrls?.join(', ')],
-    ['Artifact digests', outputs.artifactDigests ? JSON.stringify(outputs.artifactDigests) : undefined],
-    ['Package metadata', outputs.packageMetadata ? JSON.stringify(outputs.packageMetadata) : undefined],
-    ['Scan findings', outputs.scanFindings ? JSON.stringify(outputs.scanFindings) : undefined],
-    ['Cache backend', outputs.cacheBackend],
-    ['Cache key', outputs.cacheKey]
+    ["Published version", outputs.publishedVersion],
+    ["Registry URLs", outputs.registryUrls?.join(", ")],
+    [
+      "Artifact digests",
+      outputs.artifactDigests
+        ? JSON.stringify(outputs.artifactDigests)
+        : undefined,
+    ],
+    [
+      "Package metadata",
+      outputs.packageMetadata
+        ? JSON.stringify(outputs.packageMetadata)
+        : undefined,
+    ],
+    [
+      "Scan findings",
+      outputs.scanFindings ? JSON.stringify(outputs.scanFindings) : undefined,
+    ],
+    ["Cache backend", outputs.cacheBackend],
+    ["Cache key", outputs.cacheKey],
   ];
   for (const [label, value] of outputPairs) {
-    lines.push(`| ${label} | \`${value || 'n/a'}\` |`);
+    lines.push(`| ${label} | \`${value || "n/a"}\` |`);
   }
 
-  lines.push('', '### Errors');
+  lines.push("", "### Errors");
   if (errors.length === 0) {
-    lines.push('- (none)');
+    lines.push("- (none)");
   } else {
     for (const error of errors) {
       lines.push(
-        `- ❌ **${error.step}**${error.exitCode !== undefined ? ` (exit ${error.exitCode})` : ''}: ${truncate(error.stderrSnippet, 280)}`
+        `- ❌ **${error.step}**${error.exitCode !== undefined ? ` (exit ${error.exitCode})` : ""}: ${truncate(error.stderrSnippet, 280)}`,
       );
       lines.push(`  - fix: ${error.recommendedFix}`);
       if (error.rawLog) {
-        lines.push(renderLogDetails('raw log', error.rawLog));
+        lines.push(renderLogDetails("raw log", error.rawLog));
       }
     }
   }
 
-  lines.push('', '### Warnings');
+  lines.push("", "### Warnings");
   if (warnings.length === 0) {
-    lines.push('- (none)');
+    lines.push("- (none)");
   } else {
     for (const warning of warnings) {
       lines.push(`- ⚠️ ${warning}`);
@@ -275,23 +324,25 @@ export function renderPipelineReportMarkdown(
 
   const failedSteps = steps.filter((step) => !step.success);
   if (failedSteps.length > 0) {
-    lines.push('', '### Failure logs');
+    lines.push("", "### Failure logs");
     for (const step of failedSteps) {
-      lines.push(`- ❌ **${step.name}**${step.exitCode !== undefined ? ` (exit ${step.exitCode})` : ''}`);
+      lines.push(
+        `- ❌ **${step.name}**${step.exitCode !== undefined ? ` (exit ${step.exitCode})` : ""}`,
+      );
       if (step.stdout) {
-        lines.push(renderLogDetails('stdout', step.stdout));
+        lines.push(renderLogDetails("stdout", step.stdout));
       }
       if (step.stderr) {
-        lines.push(renderLogDetails('stderr', step.stderr));
+        lines.push(renderLogDetails("stderr", step.stderr));
       }
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 export function summarizeText(text: string, limit = 200): string {
-  return truncate(text.trim().replace(/\s+/g, ' '), limit);
+  return truncate(text.trim().replace(/\s+/g, " "), limit);
 }
 
 export function shellQuote(value: string): string {
@@ -313,17 +364,17 @@ function extractExitCode(message: string): number | undefined {
 function renderLogDetails(label: string, value: string): string {
   return [
     `<details><summary>${escapeHtml(label)}</summary>`,
-    '',
+    "",
     `<pre>${escapeHtml(value)}</pre>`,
-    '</details>'
-  ].join('\n');
+    "</details>",
+  ].join("\n");
 }
 
 function escapeHtml(value: string): string {
   return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
