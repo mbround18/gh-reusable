@@ -107,7 +107,7 @@ const DEFAULT_INSTALL_COMMANDS: Record<PackageManager, CommandArgs> = {
 export function createBaseContainer(client: Client, config: BaseContainerConfig = {}): Container {
   const container = client
     .container()
-    .from(config.image ?? 'node:22-bookworm-slim')
+    .from(config.image ?? 'node:24-bookworm-slim')
     .withWorkdir(config.workdir ?? '/workspace')
     .withEnvVariable('CI', 'true');
 

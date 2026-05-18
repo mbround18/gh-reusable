@@ -1,5 +1,5 @@
-name: "Setup Rust"
-description: "Returns a Rust Dagger container with source mounted, toolchain installed, and optional crates."
+name: "Setup Node"
+description: "Returns a Node.js Dagger container with source mounted and corepack enabled."
 author: "mbround18"
 
 inputs:
@@ -7,22 +7,18 @@ inputs:
     description: "Path to the source directory."
     required: false
     default: "."
-  toolchain:
-    description: "Rust toolchain (e.g. 'stable', 'nightly', 'beta'). Defaults to stable."
+  node-version:
+    description: "Node.js version (e.g. '24'). Defaults to 24."
     required: false
-    default: "stable"
-  components:
-    description: "Space or comma-separated Rust components to install (e.g. 'clippy rustfmt')."
+    default: "24"
+  package-manager:
+    description: "Package manager: auto, npm, pnpm, or yarn."
     required: false
-    default: "clippy rustfmt"
-  target:
-    description: "Comma-separated additional compilation targets."
+    default: "auto"
+  install-deps:
+    description: "Run install after setting up the container."
     required: false
-    default: ""
-  crates:
-    description: "Comma-separated CLI crates to install (e.g. 'trunk,wasm-bindgen-cli')."
-    required: false
-    default: ""
+    default: "false"
   cloud-token:
     description: "Dagger Cloud token for telemetry."
     required: false
@@ -30,7 +26,7 @@ inputs:
 
 outputs:
   version:
-    description: "rustc version string reported by the container."
+    description: "Node.js version string reported by the container."
     value: ${{ steps.run.outputs.stdout }}
 
 runs:
@@ -42,7 +38,7 @@ runs:
         engine_image="registry.dagger.io/engine:v0.20.8"
         docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
 
-    - name: Setup Rust via Dagger
+    - name: Setup Node via Dagger
       id: run
       uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # v8.4.1
       env:
@@ -51,12 +47,11 @@ runs:
         version: v0.20.8
         module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
         call: >-
-          setup-rust
+          setup-node
           --source=${{ inputs.source }}
-          --toolchain=${{ inputs.toolchain }}
-          --components=${{ inputs.components }}
-          --target=${{ inputs.target }}
-          --crates=${{ inputs.crates }}
-          with-exec --args=rustc,--version
+          --node-version=${{ inputs.node-version }}
+          --package-manager=${{ inputs.package-manager }}
+          --install-deps=${{ inputs.install-deps }}
+          with-exec --args=node,--version
           stdout
         cloud-token: ${{ inputs.cloud-token }}

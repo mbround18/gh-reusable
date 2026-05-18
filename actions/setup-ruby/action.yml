@@ -1,0 +1,52 @@
+name: "Setup Ruby"
+description: "Returns a Ruby Dagger container with source mounted."
+author: "mbround18"
+
+inputs:
+  source:
+    description: "Path to the source directory."
+    required: false
+    default: "."
+  ruby-version:
+    description: "Ruby version (e.g. '3.4'). Defaults to 3.4."
+    required: false
+    default: "3.4"
+  bundle-install:
+    description: "Run 'bundle install' after setting up the container."
+    required: false
+    default: "false"
+  cloud-token:
+    description: "Dagger Cloud token for telemetry."
+    required: false
+    default: ""
+
+outputs:
+  version:
+    description: "Ruby version string reported by the container."
+    value: ${{ steps.run.outputs.stdout }}
+
+runs:
+  using: composite
+  steps:
+    - name: Warm Dagger engine image
+      shell: bash
+      run: |
+        engine_image="registry.dagger.io/engine:v0.20.8"
+        docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+
+    - name: Setup Ruby via Dagger
+      id: run
+      uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # v8.4.1
+      env:
+        DAGGER_NO_NAG: "1"
+      with:
+        version: v0.20.8
+        module: github.com/mbround18/gh-reusable/packages/dagger-module@dagger/io
+        call: >-
+          setup-ruby
+          --source=${{ inputs.source }}
+          --ruby-version=${{ inputs.ruby-version }}
+          --bundle-install=${{ inputs.bundle-install }}
+          with-exec --args=ruby,--version
+          stdout
+        cloud-token: ${{ inputs.cloud-token }}

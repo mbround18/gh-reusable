@@ -211,7 +211,7 @@ export class PipelineCache {
   }
 
   private bucket(): string {
-    return (this.inputs.environment ?? process.env).S3_BUCKET?.trim() || "viki-dagger-cache"
+    return (this.inputs.environment ?? process.env).S3_BUCKET?.trim() || "dagger-cache"
   }
 
   private region(): string {
@@ -249,7 +249,7 @@ export class PipelineCache {
     const canonicalRequest = [
       method,
       endpoint.pathname,
-      endpoint.searchParams.toString() ? `?${endpoint.searchParams.toString()}` : "",
+      endpoint.searchParams.toString(),
       canonicalHeaders,
       signedHeaders,
       payloadHash

@@ -1,5 +1,7 @@
 import { dag, Container, Directory, Platform, object, func } from "@dagger.io/dagger"
 import * as semver from "semver"
+import { parse as parseGraphql, type TypeNode, type VariableDefinitionNode } from "graphql"
+import { parse as parseYaml } from "yaml"
 import {
   type PipelineReport,
   PipelineReporter,
@@ -72,31 +74,8 @@ export class GhReusablePipelines {
     components: string = "clippy rustfmt",
     target: string = ""
   ): Promise<string> {
-    const componentList = components
-      .replaceAll(",", " ")
-      .split(/\s+/)
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0)
-    const targetList = target
-      .replaceAll(",", " ")
-      .split(/\s+/)
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0)
-
-    let container = dag
-      .container()
-      .from("rust:1.89-bookworm")
-      .withMountedDirectory("/src", source)
-      .withWorkdir("/src")
-      .withExec(["rustup", "toolchain", "install", toolchain, "--profile", "minimal"])
-      .withExec(["rustup", "default", toolchain])
-
-    for (const component of componentList) {
-      container = container.withExec(["rustup", "component", "add", "--toolchain", toolchain, component])
-    }
-    for (const rustTarget of targetList) {
-      container = container.withExec(["rustup", "target", "add", rustTarget])
-    }
+    const targetList = this.splitCsv(target)
+    let container = await this.buildRustContainer(source, toolchain, components, target, "")
 
     container = container
       .withExec(["cargo", "fmt", "--", "--check"])
@@ -285,7 +264,7 @@ export class GhReusablePipelines {
     })
     const manifest = await this.readRequiredText(source, "Cargo.toml")
     const crate = this.parseCargoManifest(manifest)
-    const resolvedVersion = this.withVersioning(crate.version, version, "Cargo.toml")
+    const resolvedVersion = this.withVersioning(crate.version, version)
     reporter.setOutput("publishedVersion", resolvedVersion)
     reporter.setOutput("registryUrls", [registry])
     reporter.setOutput("packageMetadata", { name: crate.name, manifest: "Cargo.toml" })
@@ -406,7 +385,7 @@ export class GhReusablePipelines {
     const chartSource = source.directory(chart)
     const chartYaml = await this.readRequiredText(chartSource, "Chart.yaml")
     const chartMeta = this.parseChartYaml(chartYaml)
-    const resolvedVersion = this.withVersioning(chartMeta.version, version, "Chart.yaml")
+    const resolvedVersion = this.withVersioning(chartMeta.version, version)
     const normalizedRegistry = registry.startsWith("oci://") ? registry : `oci://${registry}`
     const chartRef = `${normalizedRegistry.replace(/\/$/, "")}/${chartMeta.name}`
     const registryHost = this.ociRegistryHost(normalizedRegistry)
@@ -530,7 +509,7 @@ export class GhReusablePipelines {
     })
     const packageJson = await this.readRequiredText(source, "package.json")
     const manifest = this.parsePackageJson(packageJson)
-    const resolvedVersion = this.withVersioning(manifest.version, options.version, "package.json")
+    const resolvedVersion = this.withVersioning(manifest.version, options.version)
     reporter.setOutput("publishedVersion", resolvedVersion)
     reporter.setOutput("registryUrls", [options.registry])
     reporter.setOutput("packageMetadata", { name: manifest.name, manifest: "package.json" })
@@ -743,11 +722,8 @@ export class GhReusablePipelines {
     return { container: executed, stdout, stderr, exitCode }
   }
 
-  private withVersioning(manifestVersion: string, requestedVersion: string, manifestName: string): string {
-    if (requestedVersion && requestedVersion !== manifestVersion) {
-      throw new Error(`Version mismatch for ${manifestName}: expected ${manifestVersion}, got ${requestedVersion}`)
-    }
-    return manifestVersion
+  private withVersioning(manifestVersion: string, requestedVersion: string): string {
+    return requestedVersion || manifestVersion
   }
 
   private async detectNodePackageManager(source: Directory): Promise<NodePackageManager> {
@@ -864,8 +840,8 @@ export class GhReusablePipelines {
     semverIncrement: string = "patch",
     prependTarget: boolean = false,
     canaryLabel: string = "canary",
-    dockerhubUsername: string = "mbround18",
-    ghcrUsername: string = "mbround18",
+    dockerhubUsername: string = "",
+    ghcrUsername: string = "",
     forcePush: boolean = false,
     dockerToken: string = "",
     ghcrToken: string = "",
@@ -925,6 +901,9 @@ export class GhReusablePipelines {
     const resolvedGhcrToken = ghcrToken.trim() || process.env.GHCR_TOKEN?.trim() || ""
 
     if (registries.includes("docker.io") && resolvedDockerToken) {
+      if (!dockerhubUsername) {
+        throw new Error("dockerhubUsername is required when publishing to docker.io")
+      }
       publishContainer = publishContainer.withRegistryAuth(
         "docker.io",
         dockerhubUsername,
@@ -932,6 +911,9 @@ export class GhReusablePipelines {
       )
     }
     if (registries.includes("ghcr.io") && resolvedGhcrToken) {
+      if (!ghcrUsername) {
+        throw new Error("ghcrUsername is required when publishing to ghcr.io")
+      }
       publishContainer = publishContainer.withRegistryAuth(
         "ghcr.io",
         ghcrUsername,
@@ -1132,5 +1114,720 @@ export class GhReusablePipelines {
     lines.push("", "**Planned addresses**", plannedAddresses, "", "**Published refs**", publishedRefs)
 
     return lines.join("\n")
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // ensure-repository
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async ensureRepository(
+    expectedRepository: string,
+    repository: string = ""
+  ): Promise<string> {
+    const actual = repository.trim() || process.env.GITHUB_REPOSITORY?.trim() || ""
+    if (!actual) {
+      throw new Error("repository must be provided or GITHUB_REPOSITORY must be set")
+    }
+    if (actual !== expectedRepository) {
+      throw new Error(
+        `Repository mismatch: this workflow is not intended for use outside of "${expectedRepository}" (running in "${actual}")`
+      )
+    }
+    return actual
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // graphql
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async graphqlQuery(
+    query: string,
+    args: string = "",
+    token: string = "",
+    url: string = "https://api.github.com/graphql"
+  ): Promise<string> {
+    const resolvedToken = token.trim() || process.env.GITHUB_TOKEN?.trim() || ""
+
+    const variables: Record<string, string> = {}
+    if (args.trim()) {
+      for (const pair of args.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean)) {
+        const idx = pair.indexOf("=")
+        if (idx > 0) {
+          variables[pair.slice(0, idx).trim()] = pair.slice(idx + 1).trim()
+        }
+      }
+    }
+
+    const coerced = this.coerceGraphqlVariables(query, variables)
+
+    const headers: Record<string, string> = { "Content-Type": "application/json" }
+    if (resolvedToken) {
+      headers["Authorization"] = `Bearer ${resolvedToken}`
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ query, variables: coerced })
+    })
+
+    const data = await response.json()
+    return JSON.stringify(data)
+  }
+
+  private coerceGraphqlVariables(
+    query: string,
+    variables: Record<string, string>
+  ): Record<string, string | number | boolean> {
+    try {
+      const ast = parseGraphql(query)
+      let varDefs: ReadonlyArray<VariableDefinitionNode> = []
+      for (const def of ast.definitions) {
+        if (def.kind === "OperationDefinition" && def.variableDefinitions) {
+          varDefs = def.variableDefinitions
+          break
+        }
+      }
+      const result: Record<string, string | number | boolean> = { ...variables }
+      for (const varDef of varDefs) {
+        const name = varDef.variable.name.value
+        const typeName = this.graphqlNamedType(varDef.type)
+        if (result[name] !== undefined && typeof result[name] === "string") {
+          if (typeName === "Int") result[name] = parseInt(result[name] as string, 10)
+          else if (typeName === "Float") result[name] = parseFloat(result[name] as string)
+          else if (typeName === "Boolean") result[name] = (result[name] as string).toLowerCase() === "true"
+        }
+      }
+      return result
+    } catch {
+      return variables as Record<string, string | number | boolean>
+    }
+  }
+
+  private graphqlNamedType(typeNode: TypeNode): string | null {
+    if (typeNode.kind === "NamedType") return typeNode.name.value
+    if (typeNode.kind === "NonNullType" || typeNode.kind === "ListType") return this.graphqlNamedType(typeNode.type)
+    return null
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // install-cli
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async installCli(
+    repository: string,
+    asset: string,
+    version: string = "latest",
+    overrideName: string = "",
+    token: string = ""
+  ): Promise<Directory> {
+    const resolvedToken = token.trim() || process.env.GITHUB_TOKEN?.trim() || ""
+    const parts = repository.split("/")
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      throw new Error(`Invalid repository format: "${repository}" — expected "owner/repo"`)
+    }
+    const [owner, repo] = parts
+
+    let resolvedVersion = version.trim() || "latest"
+    if (resolvedVersion === "latest") {
+      const headers: Record<string, string> = { Accept: "application/vnd.github+json" }
+      if (resolvedToken) headers["Authorization"] = `Bearer ${resolvedToken}`
+      const resp = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, { headers })
+      const data = await resp.json() as { tag_name?: string }
+      if (!data.tag_name) throw new Error(`Could not resolve latest version for ${repository}`)
+      resolvedVersion = data.tag_name
+    }
+
+    const resolvedAsset = asset.replace(/%VERSION%/g, resolvedVersion)
+    const downloadUrl = `https://github.com/${owner}/${repo}/releases/download/${resolvedVersion}/${resolvedAsset}`
+
+    const script = [
+      "set -euo pipefail",
+      "mkdir -p /tmp/cli-staging /tmp/cli-bin",
+      `curl -fsSL "${downloadUrl}" -o /tmp/cli-staging/asset`,
+      `asset="${resolvedAsset}"`,
+      'if [[ "$asset" == *.tar.gz ]] || [[ "$asset" == *.tgz ]]; then',
+      "  tar -xzf /tmp/cli-staging/asset -C /tmp/cli-bin",
+      'elif [[ "$asset" == *.tar ]]; then',
+      "  tar -xf /tmp/cli-staging/asset -C /tmp/cli-bin",
+      'elif [[ "$asset" == *.zip ]]; then',
+      "  unzip -q /tmp/cli-staging/asset -d /tmp/cli-bin",
+      "else",
+      `  cp /tmp/cli-staging/asset /tmp/cli-bin/${overrideName || resolvedAsset}`,
+      "fi",
+      "find /tmp/cli-bin -mindepth 2 -type f -exec mv -t /tmp/cli-bin {} +",
+      "find /tmp/cli-bin -type d -empty -delete",
+      ...(overrideName
+        ? [
+            `bin_file=$(find /tmp/cli-bin -maxdepth 1 -type f | head -n1)`,
+            `if [ -n "$bin_file" ] && [ "$(basename "$bin_file")" != "${overrideName}" ]; then`,
+            `  mv "$bin_file" "/tmp/cli-bin/${overrideName}"`,
+            `fi`
+          ]
+        : []),
+      "chmod +x /tmp/cli-bin/*"
+    ].join("\n")
+
+    return dag
+      .container()
+      .from("alpine:3.21")
+      .withExec(["apk", "add", "--no-cache", "curl", "tar", "unzip", "bash"])
+      .withExec(["bash", "-c", script])
+      .directory("/tmp/cli-bin")
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // setup-rust (standalone — also underpins rustBuildAndTest)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async setupRust(
+    source: Directory,
+    toolchain: string = "stable",
+    components: string = "clippy rustfmt",
+    target: string = "",
+    crates: string = ""
+  ): Promise<Container> {
+    return this.buildRustContainer(source, toolchain, components, target, crates)
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // setup-node
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async setupNode(
+    source: Directory,
+    nodeVersion: string = "24",
+    packageManager: string = "auto",
+    installDeps: boolean = false
+  ): Promise<Container> {
+    const pm = packageManager === "auto"
+      ? await this.detectNodePm(source)
+      : packageManager
+
+    let c = dag
+      .container()
+      .from(`node:${nodeVersion}-bookworm-slim`)
+      .withMountedDirectory("/src", source)
+      .withWorkdir("/src")
+      .withExec(["corepack", "enable"])
+
+    if (installDeps) {
+      if (pm === "pnpm") c = c.withExec(["pnpm", "install", "--frozen-lockfile"])
+      else if (pm === "yarn") c = c.withExec(["yarn", "install", "--frozen-lockfile"])
+      else c = c.withExec(["npm", "ci"])
+    }
+    return c
+  }
+
+  private async detectNodePm(source: Directory): Promise<string> {
+    const entries = await source.entries()
+    if (entries.includes("pnpm-lock.yaml")) return "pnpm"
+    if (entries.includes("yarn.lock")) return "yarn"
+    return "npm"
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // setup-go
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async setupGo(
+    source: Directory,
+    goVersion: string = "1.24"
+  ): Promise<Container> {
+    return dag
+      .container()
+      .from(`golang:${goVersion}-bookworm`)
+      .withMountedDirectory("/src", source)
+      .withWorkdir("/src")
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // setup-ruby
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async setupRuby(
+    source: Directory,
+    rubyVersion: string = "3.4",
+    bundleInstall: boolean = false
+  ): Promise<Container> {
+    let c = dag
+      .container()
+      .from(`ruby:${rubyVersion}-bookworm`)
+      .withMountedDirectory("/src", source)
+      .withWorkdir("/src")
+    if (bundleInstall) {
+      c = c.withExec(["bundle", "install"])
+    }
+    return c
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // setup-java
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async setupJava(
+    source: Directory,
+    javaVersion: string = "21",
+    distribution: string = "temurin"
+  ): Promise<Container> {
+    const imageMap: Record<string, string> = {
+      temurin: `eclipse-temurin:${javaVersion}-jdk-bookworm`,
+      corretto: `amazoncorretto:${javaVersion}`,
+      zulu: `azul/zulu-openjdk-debian:${javaVersion}`,
+      liberica: `bellsoft/liberica-openjdk-debian:${javaVersion}`,
+    }
+    const image = imageMap[distribution] ?? imageMap["temurin"]
+    return dag
+      .container()
+      .from(image)
+      .withMountedDirectory("/src", source)
+      .withWorkdir("/src")
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // setup-terraform
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async setupTerraform(
+    source: Directory,
+    terraformVersion: string = "latest",
+    useOpentofu: boolean = false
+  ): Promise<Container> {
+    const version = terraformVersion === "latest" ? "latest" : terraformVersion
+    const image = useOpentofu
+      ? `ghcr.io/opentofu/opentofu:${version}`
+      : `hashicorp/terraform:${version}`
+    return dag
+      .container()
+      .from(image)
+      .withEntrypoint([])
+      .withMountedDirectory("/src", source)
+      .withWorkdir("/src")
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // setup-pulumi
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async setupPulumi(
+    source: Directory,
+    pulumiVersion: string = "latest",
+    runtime: string = "nodejs"
+  ): Promise<Container> {
+    const tag = pulumiVersion === "latest" ? "latest" : `v${pulumiVersion}`
+    const runtimeImageMap: Record<string, string> = {
+      nodejs: `pulumi/pulumi-nodejs:${tag}`,
+      python: `pulumi/pulumi-python:${tag}`,
+      go: `pulumi/pulumi-go:${tag}`,
+      dotnet: `pulumi/pulumi-dotnet:${tag}`,
+    }
+    const image = runtimeImageMap[runtime] ?? `pulumi/pulumi:${tag}`
+    return dag
+      .container()
+      .from(image)
+      .withMountedDirectory("/src", source)
+      .withWorkdir("/src")
+  }
+
+  private async buildRustContainer(
+    source: Directory,
+    toolchain: string,
+    components: string,
+    target: string,
+    crates: string
+  ): Promise<Container> {
+    const componentList = this.splitCsv(components)
+    const targetList = this.splitCsv(target)
+    const crateList = this.splitCsv(crates)
+
+    let container = dag
+      .container()
+      .from("rust:1.89-bookworm")
+      .withMountedDirectory("/src", source)
+      .withWorkdir("/src")
+      .withExec(["rustup", "toolchain", "install", toolchain, "--profile", "minimal"])
+      .withExec(["rustup", "default", toolchain])
+
+    for (const component of componentList) {
+      container = container.withExec(["rustup", "component", "add", "--toolchain", toolchain, component])
+    }
+    for (const rustTarget of targetList) {
+      container = container.withExec(["rustup", "target", "add", rustTarget])
+    }
+    for (const crate of crateList) {
+      container = container.withExec(["cargo", "install", crate])
+    }
+
+    return container
+  }
+
+  private splitCsv(value: string): string[] {
+    return value
+      .replaceAll(",", " ")
+      .split(/\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // semver (standalone with label + branch-name inference)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async computeSemver(
+    tagsCsv: string = "",
+    base: string = "",
+    prefix: string = "",
+    increment: string = "",
+    prLabelsCsv: string = "",
+    branchName: string = "",
+    majorLabel: string = "major",
+    minorLabel: string = "minor",
+    patchLabel: string = "patch"
+  ): Promise<string> {
+    const resolvedIncrement = increment.trim() ||
+      this.inferIncrement(prLabelsCsv, branchName, majorLabel, minorLabel, patchLabel)
+
+    const currentVersion = base.trim() ||
+      this.csv(tagsCsv)
+        .filter((t) => t.startsWith(prefix))
+        .map((t) => t.slice(prefix.length))
+        .filter((t) => semver.valid(t))
+        .sort(semver.rcompare)[0] ||
+      null
+
+    if (!currentVersion) {
+      if (resolvedIncrement === "major") return `${prefix}1.0.0`
+      if (resolvedIncrement === "minor") return `${prefix}0.1.0`
+      return `${prefix}0.0.1`
+    }
+
+    const normalizedIncrement = resolvedIncrement === "major" || resolvedIncrement === "minor" ? resolvedIncrement : "patch"
+    const next = semver.inc(currentVersion, normalizedIncrement)
+    if (!next) throw new Error(`Unable to increment semver "${currentVersion}" by "${normalizedIncrement}"`)
+    return `${prefix}${next}`
+  }
+
+  private inferIncrement(
+    prLabelsCsv: string,
+    branchName: string,
+    majorLabel: string,
+    minorLabel: string,
+    patchLabel: string
+  ): string {
+    const labels = this.csv(prLabelsCsv)
+    if (labels.includes(majorLabel)) return "major"
+    if (labels.includes(minorLabel)) return "minor"
+    if (labels.includes(patchLabel)) return "patch"
+
+    if (branchName) {
+      const branchRules: Array<{ increment: string; patterns: RegExp[] }> = [
+        {
+          increment: "major",
+          patterns: [/(^|[/-])(major|breaking)([/-]|$)/i, /(^|[/-])breaking-change([/-]|$)/i]
+        },
+        {
+          increment: "minor",
+          patterns: [/(^|[/-])(feat|feature|minor)([/-]|$)/i, /^release\/.+/i]
+        },
+        {
+          increment: "patch",
+          patterns: [/(^|[/-])(fix|patch|hotfix|bugfix|chore|docs|refactor|test|ci|perf)([/-]|$)/i]
+        }
+      ]
+      for (const rule of branchRules) {
+        if (rule.patterns.some((p) => p.test(branchName))) return rule.increment
+      }
+    }
+
+    return "patch"
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // docker-facts (full compose-resolution equivalent of the docker-facts action)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async dockerFacts(
+    source: Directory,
+    image: string,
+    version: string,
+    registries: string = "",
+    dockerfile: string = "./Dockerfile",
+    context: string = ".",
+    canaryLabel: string = "canary",
+    forcePush: boolean = false,
+    withLatest: boolean = false,
+    target: string = "",
+    prependTarget: boolean = false,
+    eventName: string = "",
+    ref: string = "",
+    defaultBranch: string = "main",
+    prLabelsCsv: string = ""
+  ): Promise<string> {
+    const resolvedEventName = eventName || process.env.GITHUB_EVENT_NAME || ""
+    const resolvedRef = ref || process.env.GITHUB_REF || ""
+    const resolvedDefaultBranch = defaultBranch || process.env.GITHUB_DEFAULT_BRANCH || "main"
+
+    const composePaths = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"]
+    let resolvedDockerfile = dockerfile
+    let resolvedContext = context
+    let resolvedTarget = target
+    let buildArgs: Record<string, string> = {}
+
+    for (const composePath of composePaths) {
+      let composeRaw: string | null = null
+      try {
+        composeRaw = await source.file(composePath).contents()
+      } catch {
+        continue
+      }
+      if (composeRaw) {
+        const parsed = this.parseDockerComposeYaml(composeRaw, image)
+        if (parsed.dockerfile) {
+          resolvedDockerfile = parsed.context
+            ? `${parsed.context}/${parsed.dockerfile}`
+            : `${context}/${parsed.dockerfile}`
+        }
+        if (parsed.context) {
+          resolvedContext = `${context}/${parsed.context}`.replace(/\/\.$/, "").replace(/^\.\//, "")
+        }
+        if (parsed.target && !target) {
+          resolvedTarget = parsed.target
+        }
+        buildArgs = parsed.buildArgs
+        break
+      }
+    }
+
+    const push = this.resolveDockerFactsPush({
+      eventName: resolvedEventName,
+      ref: resolvedRef,
+      defaultBranch: resolvedDefaultBranch,
+      canaryLabel,
+      forcePush,
+      prLabelsCsv
+    })
+
+    const targetPrefix = prependTarget && resolvedTarget ? `${resolvedTarget}-` : ""
+    const versionTag = version.startsWith("v") ? `${targetPrefix}${version}` : `${targetPrefix}v${version}`
+    const refIsTag = resolvedRef.startsWith("refs/tags/")
+    const baseTags: string[] = [`${image}:${versionTag}`]
+    if (withLatest && refIsTag && !this.isPreRelease(version)) {
+      baseTags.push(`${image}:${targetPrefix}latest`)
+    }
+
+    const imageWithoutRegistry = this.stripDockerRegistry(image)
+    const tags: string[] = []
+    for (const baseTag of baseTags) {
+      tags.push(baseTag)
+      const [, tagValue = "latest"] = baseTag.split(":")
+      for (const registry of this.csv(registries)) {
+        tags.push(`${registry}/${imageWithoutRegistry}:${tagValue}`)
+      }
+    }
+
+    return JSON.stringify({
+      context: resolvedContext,
+      dockerfile: resolvedDockerfile,
+      target: resolvedTarget,
+      push,
+      tags,
+      tagsCsv: tags.join(","),
+      buildArgs
+    })
+  }
+
+  private parseDockerComposeYaml(
+    raw: string,
+    imageName: string
+  ): { dockerfile: string | null; context: string | null; target: string | null; buildArgs: Record<string, string> } {
+    const fallback = { dockerfile: null, context: null, target: null, buildArgs: {} }
+    try {
+      const compose = parseYaml(raw) as { services?: Record<string, { image?: unknown; build?: unknown }> } | null
+      if (!compose?.services) return fallback
+      for (const service of Object.values(compose.services)) {
+        if (typeof service.image !== "string" || !service.image.startsWith(`${imageName}:`)) continue
+        const build = service.build
+        if (typeof build === "string") return { ...fallback, context: build }
+        if (typeof build !== "object" || !build) return fallback
+        const b = build as Record<string, unknown>
+        return {
+          dockerfile: typeof b["dockerfile"] === "string" ? b["dockerfile"] : null,
+          context: typeof b["context"] === "string" ? b["context"] : null,
+          target: typeof b["target"] === "string" ? b["target"] : null,
+          buildArgs: this.parseDockerBuildArgs(b["args"])
+        }
+      }
+    } catch {
+      return fallback
+    }
+    return fallback
+  }
+
+  private parseDockerBuildArgs(args: unknown): Record<string, string> {
+    if (args && typeof args === "object" && !Array.isArray(args)) {
+      return Object.fromEntries(
+        Object.entries(args as Record<string, unknown>)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => [k, String(v)])
+      )
+    }
+    if (Array.isArray(args)) {
+      return Object.fromEntries(
+        (args as unknown[])
+          .filter((v): v is string => typeof v === "string" && v.includes("="))
+          .map((pair) => {
+            const [name, ...rest] = pair.split("=")
+            return [name, rest.join("=")]
+          })
+      )
+    }
+    return {}
+  }
+
+  private resolveDockerFactsPush(input: {
+    eventName: string
+    ref: string
+    defaultBranch: string
+    canaryLabel: string
+    forcePush: boolean
+    prLabelsCsv: string
+  }): boolean {
+    if (input.forcePush) return true
+    if (input.ref === `refs/heads/${input.defaultBranch}` || input.ref.startsWith("refs/tags/")) return true
+    if (input.eventName === "pull_request") {
+      return this.csv(input.prLabelsCsv).includes(input.canaryLabel)
+    }
+    return false
+  }
+
+  private stripDockerRegistry(image: string): string {
+    if (!image.includes("/")) return image
+    const parts = image.split("/")
+    const first = parts[0] ?? ""
+    if (first.includes(".") || first === "localhost" || first === "ghcr" || first === "docker") {
+      return parts.slice(1).join("/")
+    }
+    return image
+  }
+
+  private isPreRelease(version: string): boolean {
+    return ["alpha", "beta", "rc", "dev"].some((token) => version.includes(token))
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // code-matrix
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @func()
+  async codeMatrix(source: Directory): Promise<string> {
+    const has = async (pattern: string) => (await source.glob(pattern)).length > 0
+
+    const hasPnpmLock    = await has("pnpm-lock.yaml")
+    const hasYarnLock    = await has("yarn.lock")
+    const hasPackageLock = await has("package-lock.json")
+    const hasPackageJson = await has("package.json")
+    const hasCargoToml   = await has("Cargo.toml")
+    const hasCargoLock   = await has("Cargo.lock")
+    const hasPyproject   = await has("pyproject.toml")
+    const hasRequirements= await has("requirements.txt")
+    const hasGoMod       = await has("go.mod")
+    const hasChartYaml   = await has("Chart.yaml") || await has("*/Chart.yaml")
+    const hasDockerfile  = await has("Dockerfile") || await has("Dockerfile.*")
+    const hasCompose     = await has("docker-compose.yml") || await has("docker-compose.yaml") ||
+                           await has("compose.yml") || await has("compose.yaml")
+    const isMonorepo     = await has("pnpm-workspace.yaml") || await has("lerna.json") || await has("nx.json")
+    const hasTsConfig    = await has("tsconfig.json") || await has("tsconfig.*.json")
+
+    const languages: string[] = []
+    if (hasPackageJson || hasPnpmLock || hasYarnLock || hasPackageLock) {
+      languages.push(hasTsConfig ? "typescript" : "javascript")
+    }
+    if (hasCargoToml)              languages.push("rust")
+    if (hasPyproject || hasRequirements) languages.push("python")
+    if (hasGoMod)                  languages.push("go")
+
+    const packageManagers: string[] = []
+    if (hasPnpmLock)               packageManagers.push("pnpm")
+    if (hasYarnLock)               packageManagers.push("yarn")
+    if (hasPackageLock)            packageManagers.push("npm")
+    if (hasCargoToml)              packageManagers.push("cargo")
+    if (hasPyproject || hasRequirements) packageManagers.push("pip")
+    if (hasGoMod)                  packageManagers.push("go")
+
+    const nodePackageManager = hasPnpmLock ? "pnpm" : hasYarnLock ? "yarn" : (hasPackageJson || hasPackageLock) ? "npm" : ""
+
+    const publishTargets: string[] = []
+    if (nodePackageManager)        publishTargets.push(nodePackageManager)
+    if (hasCargoToml)              publishTargets.push("rust-crate")
+    if (hasChartYaml)              publishTargets.push("helm-chart")
+
+    const manifests: string[] = []
+    if (hasPackageJson)  manifests.push("package.json")
+    if (hasCargoToml)    manifests.push("Cargo.toml")
+    if (hasPyproject)    manifests.push("pyproject.toml")
+    if (hasGoMod)        manifests.push("go.mod")
+    if (hasChartYaml)    manifests.push("Chart.yaml")
+
+    const lockfiles: string[] = []
+    if (hasPnpmLock)     lockfiles.push("pnpm-lock.yaml")
+    if (hasYarnLock)     lockfiles.push("yarn.lock")
+    if (hasPackageLock)  lockfiles.push("package-lock.json")
+    if (hasCargoLock)    lockfiles.push("Cargo.lock")
+
+    const markdown = this.renderCodeMatrixMarkdown({
+      languages, packageManagers, nodePackageManager,
+      hasDocker: hasDockerfile, hasHelm: hasChartYaml,
+      hasCompose, isMonorepo, manifests, lockfiles, publishTargets
+    })
+
+    return JSON.stringify({
+      languages, packageManagers, nodePackageManager,
+      hasDocker: hasDockerfile, hasHelm: hasChartYaml,
+      hasCompose, isMonorepo, manifests, lockfiles, publishTargets, markdown
+    })
+  }
+
+  private renderCodeMatrixMarkdown(r: {
+    languages: string[]
+    packageManagers: string[]
+    nodePackageManager: string
+    hasDocker: boolean
+    hasHelm: boolean
+    hasCompose: boolean
+    isMonorepo: boolean
+    manifests: string[]
+    lockfiles: string[]
+    publishTargets: string[]
+  }): string {
+    const bool = (v: boolean) => v ? "✅" : "❌"
+    const list = (arr: string[]) => arr.length > 0 ? arr.map((s) => `\`${s}\``).join(", ") : "_(none)_"
+    return [
+      "### Code Matrix",
+      "",
+      "| Field | Value |",
+      "| --- | --- |",
+      `| Languages | ${list(r.languages)} |`,
+      `| Package managers | ${list(r.packageManagers)} |`,
+      `| Node package manager | ${r.nodePackageManager ? `\`${r.nodePackageManager}\`` : "_(none)_"} |`,
+      `| Publish targets | ${list(r.publishTargets)} |`,
+      `| Manifests | ${list(r.manifests)} |`,
+      `| Lockfiles | ${list(r.lockfiles)} |`,
+      `| Docker | ${bool(r.hasDocker)} |`,
+      `| Helm | ${bool(r.hasHelm)} |`,
+      `| Docker Compose | ${bool(r.hasCompose)} |`,
+      `| Monorepo | ${bool(r.isMonorepo)} |`,
+    ].join("\n")
   }
 }
