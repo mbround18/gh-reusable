@@ -31,6 +31,8 @@ on:
     secrets:
       DAGGER_CLOUD_TOKEN:
         required: false
+      DISCORD_WEBHOOK_URL:
+        required: false
 
 permissions:
   contents: write
@@ -218,3 +220,13 @@ jobs:
               release_id: release.id,
               body: newBody,
             })
+
+      - name: Notify Discord
+        if: ${{ always() }}
+        uses: mbround18/gh-reusable/.github/actions/discord-notify@main
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ job.status }}
+          workflow: ${{ github.workflow }}
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ref: ${{ github.ref_name }}

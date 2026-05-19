@@ -26,6 +26,8 @@ on:
     secrets:
       DAGGER_CLOUD_TOKEN:
         required: false
+      DISCORD_WEBHOOK_URL:
+        required: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}
@@ -45,3 +47,11 @@ jobs:
             --banned-csv="${{ inputs.banned_labels }}"
             --required-any-description="${{ inputs.required_labels_any_description }}"
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+      - if: always()
+        uses: mbround18/gh-reusable/.github/actions/discord-notify@main
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ job.status }}
+          workflow: ${{ github.workflow }}
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ref: ${{ github.ref_name }}

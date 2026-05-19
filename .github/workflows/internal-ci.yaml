@@ -20,6 +20,14 @@ jobs:
           module: ./packages/dagger-module
           call: ci --source=.
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+      - if: always()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ job.status }}
+          workflow: ${{ github.workflow }}
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ref: ${{ github.ref_name }}
 
   build-and-push:
     if: github.event_name == 'push'
@@ -56,3 +64,11 @@ jobs:
             --run-url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             --run-number=${{ github.run_number }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+      - if: always()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ job.status }}
+          workflow: ${{ github.workflow }}
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ref: ${{ github.ref_name }}
