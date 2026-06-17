@@ -13,10 +13,11 @@ import {
   isDaggerRuntimeUnavailable,
   parsePipelineOutput,
   repositoryRoot,
+  shouldSkipDaggerSmokeTests,
 } from "./dagger-smoke-utils";
 
 const pnpmPipelineTest =
-  process.env.DAGGER_PNPM_PIPELINE === "1" ? test.skip : test;
+  shouldSkipDaggerSmokeTests() ? test.skip : test;
 
 pnpmPipelineTest("runs the pnpm pipeline against the repo root", async () => {
   const binary = ensureDaggerBinary();

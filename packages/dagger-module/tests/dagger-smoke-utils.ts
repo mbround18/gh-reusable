@@ -14,6 +14,17 @@ const dirname = path.dirname(filename);
 export const repositoryRoot = path.resolve(dirname, "../../../");
 const daggerBinDir = path.join(repositoryRoot, "bin");
 
+export function shouldSkipDaggerSmokeTests(): boolean {
+  if (process.env.DAGGER_PNPM_PIPELINE === "1") {
+    return true;
+  }
+  // Nested Dagger sessions in CI commonly lack an image driver for child sessions.
+  if (process.env.DAGGER_SESSION_PORT || process.env.DAGGER_SESSION_TOKEN) {
+    return true;
+  }
+  return false;
+}
+
 function isExecutableBinary(candidate: string): boolean {
   if (!existsSync(candidate)) {
     return false;

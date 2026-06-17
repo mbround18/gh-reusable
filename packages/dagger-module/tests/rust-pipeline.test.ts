@@ -6,10 +6,11 @@ import {
   isDaggerRuntimeUnavailable,
   parsePipelineOutput,
   repositoryRoot,
+  shouldSkipDaggerSmokeTests,
 } from "./dagger-smoke-utils";
 
 const daggerSmokeTest =
-  process.env.DAGGER_PNPM_PIPELINE === "1" ? test.skip : test;
+  shouldSkipDaggerSmokeTests() ? test.skip : test;
 
 daggerSmokeTest("runs the Rust build pipeline against the hello-world crate", async () => {
   const binary = ensureDaggerBinary();
