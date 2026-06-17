@@ -1,8 +1,4 @@
 import {
-  accessSync,
-  chmodSync,
-  constants as fsConstants,
-  existsSync,
   mkdtempSync,
   rmSync,
   writeFileSync,
@@ -10,106 +6,14 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 
 import { expect, test } from "vitest";
-
-const filename = fileURLToPath(import.meta.url);
-const dirname = path.dirname(filename);
-const repositoryRoot = path.resolve(dirname, "../../../");
-const daggerBinary = path.join(repositoryRoot, "bin", "dagger");
-const nestedDaggerBinary = path.join(repositoryRoot, "bin", "bin", "dagger");
-
-function resolveDaggerBinaryPath(): string | undefined {
-  if (isExecutableBinary(daggerBinary)) {
-    return daggerBinary;
-  }
-  if (isExecutableBinary(nestedDaggerBinary)) {
-    return nestedDaggerBinary;
-  }
-  return undefined;
-}
-
-function isExecutableBinary(candidate: string): boolean {
-  if (!existsSync(candidate)) {
-    return false;
-  }
-  try {
-    accessSync(candidate, fsConstants.X_OK);
-    return true;
-  } catch {
-    try {
-      chmodSync(candidate, 0o755);
-      accessSync(candidate, fsConstants.X_OK);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-}
-
-function ensureDaggerBinary(): string {
-  const existingBinary = resolveDaggerBinaryPath();
-  if (existingBinary) {
-    return existingBinary;
-  }
-
-  const result = spawnSync(
-    "sh",
-    [
-      "-lc",
-      [
-        "set -eu",
-        "mkdir -p bin",
-        "cd bin",
-        "curl -fsSL https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION=v0.20.8 sh",
-      ].join("\n"),
-    ],
-    {
-      cwd: repositoryRoot,
-      encoding: "utf8",
-      maxBuffer: 10 * 1024 * 1024,
-    },
-  );
-
-  if (result.error) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    throw new Error(
-      `Failed to install matching Dagger CLI:\n${result.stdout}\n${result.stderr}`,
-    );
-  }
-
-  const installedBinary = resolveDaggerBinaryPath();
-  if (!installedBinary) {
-    throw new Error(
-      `Dagger CLI install finished but no binary found at ${daggerBinary} or ${nestedDaggerBinary}`,
-    );
-  }
-  return installedBinary;
-}
-
-function parsePipelineOutput(stdout: string, stderr: string): Record<string, unknown> {
-  const output = `${stdout}\n${stderr}`.trim();
-  const jsonLine = output
-    .split(/\r?\n/)
-    .reverse()
-    .find((line) => line.trim().startsWith("{"));
-  if (!jsonLine) {
-    throw new Error(`Did not find JSON output in Dagger response:\n${output}`);
-  }
-  return JSON.parse(jsonLine) as Record<string, unknown>;
-}
-
-function isDaggerRuntimeUnavailable(stdout: string, stderr: string): boolean {
-  const output = `${stdout}\n${stderr}`;
-  return (
-    output.includes('driver for scheme "image" was not available') ||
-    output.includes("Cannot connect to the Docker daemon") ||
-    output.includes("start engine:")
-  );
-}
+import {
+  ensureDaggerBinary,
+  isDaggerRuntimeUnavailable,
+  parsePipelineOutput,
+  repositoryRoot,
+} from "./dagger-smoke-utils";
 
 const pnpmPipelineTest =
   process.env.DAGGER_PNPM_PIPELINE === "1" ? test.skip : test;
