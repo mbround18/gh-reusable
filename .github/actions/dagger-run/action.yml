@@ -25,7 +25,7 @@ runs:
     - name: Warm Dagger engine
       shell: bash
       run: |
-        engine_image="registry.dagger.io/engine:v0.20.8"
+        engine_image="registry.dagger.io/engine:v0.21.5"
         docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
 
     - name: Run Dagger call
@@ -34,7 +34,7 @@ runs:
       env:
         DAGGER_NO_NAG: "1"
       with:
-        version: v0.20.8
+        version: v0.21.5
         module: ${{ inputs.module }}
         call: ${{ inputs.call }}
         cloud-token: ${{ inputs.cloud-token }}

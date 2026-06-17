@@ -36,11 +36,36 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
 
       - name: Run Dagger workflow parity
+        id: dagger
         uses: ./.github/actions/dagger-run
         with:
           module: ./packages/dagger-module
           call: rust-build-and-test --source=. --toolchain=stable --components=clippy,rustfmt
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+      - if: always()
+        uses: actions/github-script@v7
+        env:
+          REPORT_JSON: ${{ steps.dagger.outputs.stdout }}
+        with:
+          script: |
+            const fs = require('node:fs')
+            const raw = process.env.REPORT_JSON || '{}'
+            let report = {}
+            try {
+              report = JSON.parse(raw)
+            } catch (error) {
+              core.warning(`Unable to parse Rust pipeline report: ${error.message}`)
+            }
+
+            const payload = report.report || report
+            const markdown = report.reportMarkdown || report.markdown || payload.markdown || '_No summary produced._'
+            fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
+            fs.writeFileSync('report.md', markdown)
+            if ((payload.errors || report.errors || []).length > 0) {
+              core.setFailed('Pipeline report contains errors')
+            }
+            await core.summary.addRaw(markdown).write()
 
       - if: always()
         uses: ./.github/actions/discord-notify

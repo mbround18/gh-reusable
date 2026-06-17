@@ -131,10 +131,7 @@ describe("tag.js", () => {
       const response = {
         repository: {
           refs: {
-            nodes: [
-              { name: "v2.0.0" },
-              { name: "v1.9.0" },
-            ],
+            nodes: [{ name: "v2.0.0" }, { name: "v1.9.0" }],
           },
         },
       };

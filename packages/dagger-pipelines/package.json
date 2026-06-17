@@ -27,11 +27,12 @@
     "dagger:workflow": "node dist/cli.js workflow"
   },
   "dependencies": {
-    "@dagger.io/dagger": "^0.20.8",
+    "@dagger.io/dagger": "catalog:",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9",
+    "@vitest/coverage-v8": "^4.1.9"
   }
 }

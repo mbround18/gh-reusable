@@ -138,7 +138,8 @@ describe("Dagger Module Integration", () => {
     });
 
     test("should detect CI environment", () => {
-      const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
+      const isCI =
+        process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
       expect(typeof isCI).toBe("boolean");
     });
 
@@ -159,17 +160,22 @@ describe("Dagger Module Integration", () => {
     });
 
     test("should handle missing required fields", () => {
-      const validateRequired = (obj: Record<string, unknown>, fields: string[]) => {
+      const validateRequired = (
+        obj: Record<string, unknown>,
+        fields: string[],
+      ) => {
         const missing = fields.filter((field) => !obj[field]);
         return missing.length === 0;
       };
-      expect(
-        validateRequired({ name: "test" }, ["name", "version"]),
-      ).toBe(false);
+      expect(validateRequired({ name: "test" }, ["name", "version"])).toBe(
+        false,
+      );
     });
 
     test("should provide meaningful error messages", () => {
-      const error = new Error("Failed to build Docker image: permission denied");
+      const error = new Error(
+        "Failed to build Docker image: permission denied",
+      );
       expect(error.message).toContain("Failed to build");
       expect(error.message).toContain("permission denied");
     });
@@ -243,7 +249,9 @@ describe("Dagger Module Integration", () => {
   describe("Notification configuration", () => {
     test("should validate Discord webhook format", () => {
       const webhook = "https://discordapp.com/api/webhooks/123/abc";
-      const isValid = webhook.startsWith("https://discordapp.com/api/webhooks/");
+      const isValid = webhook.startsWith(
+        "https://discordapp.com/api/webhooks/",
+      );
       expect(isValid).toBe(true);
     });
 

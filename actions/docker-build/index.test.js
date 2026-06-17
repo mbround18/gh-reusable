@@ -84,7 +84,11 @@ describe("docker-build action", () => {
 
     test("should deduplicate tags", () => {
       const { deduplicateTags } = require("./index.test-helpers.js");
-      const tags = deduplicateTags(["myimage:v1", "myimage:v1", "myimage:latest"]);
+      const tags = deduplicateTags([
+        "myimage:v1",
+        "myimage:v1",
+        "myimage:latest",
+      ]);
       expect(tags).toHaveLength(2);
       expect(new Set(tags).size).toBe(2);
     });
@@ -124,7 +128,9 @@ describe("docker-build action", () => {
 
       const combined = combineBuildArgs("INPUT_ARG=inputvalue", process.env);
       expect(combined).toContain("INPUT_ARG=inputvalue");
-      expect(combined.some((arg) => arg.includes("ENV_VAR=envvalue"))).toBe(true);
+      expect(combined.some((arg) => arg.includes("ENV_VAR=envvalue"))).toBe(
+        true,
+      );
 
       delete process.env.BUILD_ARG_ENV_VAR;
     });

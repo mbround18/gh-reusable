@@ -1,3 +1,15 @@
 packages:
   - actions/*
   - packages/*
+
+allowBuilds:
+  esbuild: true
+  protobufjs: true
+
+catalog:
+  "@dagger.io/dagger": "0.21.5"
+
+overrides:
+  "glob": "13.x.x"
+  "node-domexception": "2.x.x"
+  "uuid": "14.x.x"

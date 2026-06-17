@@ -146,6 +146,11 @@ export class GhReusablePipelines {
     name: string = "",
   ): Promise<string> {
     const targetList = this.splitCsv(target);
+    const reporter = this.createReporter("rust-build-and-test", {
+      sourceDir: ".",
+      registryUrls: [],
+      credentials: {},
+    });
     let container = await this.buildRustContainer(
       source,
       toolchain,
@@ -158,28 +163,147 @@ export class GhReusablePipelines {
       container = container.withEnvVariable("NAME", resolvedName);
     }
 
-    container = container
-      .withExec(["cargo", "fmt", "--", "--check"])
-      .withExec(["cargo", "clippy"])
-      .withExec(["cargo", "build", "--verbose"])
-      .withExec(["cargo", "test", "--verbose"]);
+    const runStep = async (
+      stepName: string,
+      command: readonly [string, ...string[]],
+    ): Promise<StepResult | null> => {
+      const step = reporter.startStep(stepName, {
+        command: command.join(" "),
+      });
+      const result = await this.runCapturedStep(container, stepName, command);
+      reporter.endStep(step, {
+        success: result.exitCode === 0,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        stdoutSummary: summarizeText(result.stdout),
+        stderrSummary: summarizeText(result.stderr),
+        exitCode: result.exitCode,
+      });
+      container = result.container;
+      if (result.exitCode !== 0) {
+        reporter.recordError(
+          stepName,
+          result.stderr || result.stdout,
+          `Fix ${stepName} failures before continuing`,
+        );
+        return null;
+      }
+      return result;
+    };
+
+    if (!(await runStep("cargo fmt", ["cargo", "fmt", "--", "--check"]))) {
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+    if (!(await runStep("cargo clippy", ["cargo", "clippy"]))) {
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+    if (!(await runStep("cargo build", ["cargo", "build", "--verbose"]))) {
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+    if (!(await runStep("cargo test", ["cargo", "test", "--verbose"]))) {
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
 
     for (const rustTarget of targetList) {
-      container = container
-        .withExec(["cargo", "build", "--verbose", "--target", rustTarget])
-        .withExec([
+      if (
+        !(await runStep(`cargo build (${rustTarget})`, [
+          "cargo",
+          "build",
+          "--verbose",
+          "--target",
+          rustTarget,
+        ]))
+      ) {
+        const report = reporter.finalize();
+        return JSON.stringify({
+          success: false,
+          markdown: report.markdown,
+          report,
+          reportMarkdown: report.markdown,
+        });
+      }
+      if (
+        !(await runStep(`cargo test (${rustTarget})`, [
           "cargo",
           "test",
           "--verbose",
           "--target",
           rustTarget,
           "--no-run",
-        ]);
+        ]))
+      ) {
+        const report = reporter.finalize();
+        return JSON.stringify({
+          success: false,
+          markdown: report.markdown,
+          report,
+          reportMarkdown: report.markdown,
+        });
+      }
     }
 
-    return container
-      .withExec(["cargo", "build", "--verbose", "--release"])
-      .stdout();
+    const releaseStep = reporter.startStep("cargo release build", {
+      command: "cargo build --verbose --release",
+    });
+    const releaseResult = await this.runCapturedStep(
+      container,
+      "cargo release build",
+      ["cargo", "build", "--verbose", "--release"],
+    );
+    reporter.endStep(releaseStep, {
+      success: releaseResult.exitCode === 0,
+      stdout: releaseResult.stdout,
+      stderr: releaseResult.stderr,
+      stdoutSummary: summarizeText(releaseResult.stdout),
+      stderrSummary: summarizeText(releaseResult.stderr),
+      exitCode: releaseResult.exitCode,
+    });
+    if (releaseResult.exitCode !== 0) {
+      reporter.recordError(
+        "cargo release build",
+        releaseResult.stderr || releaseResult.stdout,
+        "Fix release build failures before continuing",
+      );
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+
+    const report = reporter.finalize();
+    return JSON.stringify({
+      success: true,
+      markdown: report.markdown,
+      report,
+      reportMarkdown: report.markdown,
+    });
   }
 
   @func()
@@ -727,9 +851,10 @@ export class GhReusablePipelines {
         dag.setSecret("helm-password", password),
       );
     const script = [
-      "set -euo pipefail",
+      "set -eu",
       `package_file="/tmp/chart-out/${chartMeta.name}-${resolvedVersion}.tgz"`,
-      `digest="sha256:$(sha256sum "$package_file" | awk '{print $1}')"`,
+      'digest_hash="$(sha256sum "$package_file")"',
+      'digest="sha256:${digest_hash%% *}"',
       `helm registry login "${registryHost}" --username "$HELM_USERNAME" --password "$HELM_PASSWORD"`,
       `helm push "$package_file" "${normalizedRegistry}"`,
       'printf "%s" "$digest"',
@@ -979,7 +1104,7 @@ export class GhReusablePipelines {
       NPM_TOKEN: options.token,
     });
     const publishScript = [
-      "set -euo pipefail",
+      "set -eu",
       `registry=${shellQuote(options.registry)}`,
       `printf '//%s/:_authToken=%s\\n' "$(node -e 'const u = new URL(process.argv[1]); process.stdout.write(u.host + (u.pathname === "/" ? "" : u.pathname.replace(/\\/$/, "")))' "$registry")" "$NPM_TOKEN" > .npmrc`,
       `npm publish --registry "$registry"${options.tag ? ` --tag ${options.tag}` : ""}`,
@@ -987,7 +1112,7 @@ export class GhReusablePipelines {
     const publishResult = await this.runCapturedStep(
       taggedContainer,
       `${options.manager} publish`,
-      ["sh", "-lc", publishScript],
+      ["sh", "-c", publishScript],
     );
     reporter.endStep(publishStep, {
       success: publishResult.exitCode === 0,
@@ -1077,7 +1202,8 @@ export class GhReusablePipelines {
       .container()
       .from("rust:1.89-bookworm")
       .withMountedDirectory("/src", source)
-      .withWorkdir("/src");
+      .withWorkdir("/src")
+      .withEnvVariable("PATH", this.rustPath());
   }
 
   private withHelmEnv(source: Directory): Container {
@@ -1182,7 +1308,7 @@ export class GhReusablePipelines {
   ): Promise<StepResult> {
     const stepDir = `/tmp/dagger-report-${this.slugify(name)}`;
     const script = [
-      "set -euo pipefail",
+      "set -eu",
       `rm -rf ${shellQuote(stepDir)}`,
       `mkdir -p ${shellQuote(stepDir)}`,
       `started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"`,
@@ -1200,7 +1326,7 @@ export class GhReusablePipelines {
       "exit 0",
     ].join("\n");
 
-    const executed = await container.withExec(["sh", "-lc", script]);
+    const executed = await container.withExec(["sh", "-c", script]);
     const stdout = await executed.file(`${stepDir}/stdout`).contents();
     const stderr = await executed.file(`${stepDir}/stderr`).contents();
     const exitCode = Number.parseInt(
@@ -2170,7 +2296,7 @@ export class GhReusablePipelines {
 
     // Upload via gh CLI
     const uploadScript = [
-      "set -euo pipefail",
+      "set -eu",
       `gh release upload ${shellQuote(tag)} ${shellQuote(`${archiveDir}/${archiveName}`)} --clobber --repo ${shellQuote(resolvedRepository)}`,
     ].join("\n");
 
@@ -2184,7 +2310,7 @@ export class GhReusablePipelines {
     const uploadResult = await this.runCapturedStep(
       uploadContainer,
       "gh release upload",
-      ["sh", "-lc", uploadScript],
+      ["sh", "-c", uploadScript],
     );
     reporter.endStep(uploadStep, {
       success: uploadResult.exitCode === 0,
@@ -2253,6 +2379,7 @@ export class GhReusablePipelines {
       .from("rust:1.89-bookworm")
       .withMountedDirectory("/src", source)
       .withWorkdir("/src")
+      .withEnvVariable("PATH", this.rustPath())
       .withExec([
         "rustup",
         "toolchain",
@@ -2289,6 +2416,19 @@ export class GhReusablePipelines {
       .split(/\s+/)
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
+  }
+
+  private rustPath(): string {
+    return [
+      "/usr/local/cargo/bin",
+      "/usr/local/rustup/bin",
+      "/usr/local/sbin",
+      "/usr/local/bin",
+      "/usr/sbin",
+      "/usr/bin",
+      "/sbin",
+      "/bin",
+    ].join(":");
   }
 
   // ──────────────────────────────────────────────────────────────────────────

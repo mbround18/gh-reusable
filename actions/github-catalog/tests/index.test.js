@@ -4,10 +4,13 @@ describe("github-catalog action", () => {
   describe("getInputPadding", () => {
     test("should calculate padding based on longest key-value combination", () => {
       const getInputPadding = (obj, additionalPadding = 0) => {
-        const longest = Object.entries(obj).reduce((maxLength, [key, value]) => {
-          const combinedLength = `${key}${value?.default ?? ""}`.length;
-          return Math.max(maxLength, combinedLength);
-        }, 0);
+        const longest = Object.entries(obj).reduce(
+          (maxLength, [key, value]) => {
+            const combinedLength = `${key}${value?.default ?? ""}`.length;
+            return Math.max(maxLength, combinedLength);
+          },
+          0,
+        );
         return longest + additionalPadding;
       };
 
@@ -21,10 +24,13 @@ describe("github-catalog action", () => {
 
     test("should handle empty inputs object", () => {
       const getInputPadding = (obj, additionalPadding = 0) => {
-        const longest = Object.entries(obj).reduce((maxLength, [key, value]) => {
-          const combinedLength = `${key}${value?.default ?? ""}`.length;
-          return Math.max(maxLength, combinedLength);
-        }, 0);
+        const longest = Object.entries(obj).reduce(
+          (maxLength, [key, value]) => {
+            const combinedLength = `${key}${value?.default ?? ""}`.length;
+            return Math.max(maxLength, combinedLength);
+          },
+          0,
+        );
         return longest + additionalPadding;
       };
 
@@ -33,10 +39,13 @@ describe("github-catalog action", () => {
 
     test("should add additional padding", () => {
       const getInputPadding = (obj, additionalPadding = 0) => {
-        const longest = Object.entries(obj).reduce((maxLength, [key, value]) => {
-          const combinedLength = `${key}${value?.default ?? ""}`.length;
-          return Math.max(maxLength, combinedLength);
-        }, 0);
+        const longest = Object.entries(obj).reduce(
+          (maxLength, [key, value]) => {
+            const combinedLength = `${key}${value?.default ?? ""}`.length;
+            return Math.max(maxLength, combinedLength);
+          },
+          0,
+        );
         return longest + additionalPadding;
       };
 
@@ -48,10 +57,13 @@ describe("github-catalog action", () => {
 
     test("should handle undefined defaults", () => {
       const getInputPadding = (obj, additionalPadding = 0) => {
-        const longest = Object.entries(obj).reduce((maxLength, [key, value]) => {
-          const combinedLength = `${key}${value?.default ?? ""}`.length;
-          return Math.max(maxLength, combinedLength);
-        }, 0);
+        const longest = Object.entries(obj).reduce(
+          (maxLength, [key, value]) => {
+            const combinedLength = `${key}${value?.default ?? ""}`.length;
+            return Math.max(maxLength, combinedLength);
+          },
+          0,
+        );
         return longest + additionalPadding;
       };
 

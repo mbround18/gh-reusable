@@ -259,11 +259,7 @@ function enforcePrLabelsLogic(
 
 describe("enforcePrLabels — label validation", () => {
   test("passes with required label present", () => {
-    const result = enforcePrLabelsLogic(
-      "major,bug",
-      "major,minor,patch",
-      "",
-    );
+    const result = enforcePrLabelsLogic("major,bug", "major,minor,patch", "");
     expect(result.pass).toBe(true);
     expect(result.labels).toEqual(["major", "bug"]);
     expect(result.matched).toEqual(["major"]);
@@ -277,9 +273,9 @@ describe("enforcePrLabels — label validation", () => {
   });
 
   test("fails when required label is missing", () => {
-    expect(() =>
-      enforcePrLabelsLogic("bug", "major,minor,patch", ""),
-    ).toThrow("Select at least one required label");
+    expect(() => enforcePrLabelsLogic("bug", "major,minor,patch", "")).toThrow(
+      "Select at least one required label",
+    );
   });
 
   test("fails with custom error message when required label missing", () => {

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "description": "Workspace bootstrap for reusable actions.",
-  "packageManager": "pnpm@10.15.1",
+  "packageManager": "pnpm@11.7.0+sha512.19cc852c120c7125760f2443ee6be0ca5b40f9f50598de1a09a1f177503e010e57c23c77646e01e761de59bf874fb22a3398c33ab9691fc13eb946b6f0f4d620",
   "scripts": {
     "build": "pnpm -r --if-present run build",
     "test": "pnpm -r --if-present run test",
@@ -12,12 +12,12 @@
     "generate:ci-skill": "tsx scripts/generate-ci-skill.ts"
   },
   "devDependencies": {
-    "@types/node": "^24.12.4",
-    "@vitest/coverage-v8": "^3.2.4",
-    "tsx": "^4.19.4",
-    "typescript": "^5.9.3",
-    "vite": "^7.3.3",
-    "vitest": "^3.2.4",
-    "yaml": "^2.8.0"
+    "@types/node": "^25.9.2",
+    "@vitest/coverage-v8": "^4.1.9",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9",
+    "yaml": "^2.9.0"
   }
 }
