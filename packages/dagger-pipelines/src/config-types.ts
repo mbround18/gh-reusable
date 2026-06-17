@@ -9,6 +9,7 @@ export type Toolchain =
   | "pnpm"
   | "npm"
   | "cargo"
+  | "python"
   | "docker-buildx"
   | "github-cli"
   | "shell";
@@ -25,12 +26,16 @@ export type ActionId =
 
 export type WorkflowFile =
   | "docker-release.yaml"
+  | "pnpm-build-n-test.yaml"
+  | "python-build-n-test.yml"
   | "rust-build-n-test.yml"
   | "tagger.yaml"
   | "test-docker-release.yaml"
   | "test-ensure-repository.yml"
   | "test-graphql-action.yaml"
   | "test-install-cli.yaml"
+  | "test-pnpm-build-n-test.yaml"
+  | "test-python-build-n-test.yml"
   | "test-rust-build-n-test.yml"
   | "test-semver.yaml"
   | "test-setup-rust.yaml"

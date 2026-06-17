@@ -20,12 +20,16 @@ export const ACTION_IDS = [
 
 export const WORKFLOW_FILES = [
   "docker-release.yaml",
+  "pnpm-build-n-test.yaml",
+  "python-build-n-test.yml",
   "rust-build-n-test.yml",
   "tagger.yaml",
   "test-docker-release.yaml",
   "test-ensure-repository.yml",
   "test-graphql-action.yaml",
   "test-install-cli.yaml",
+  "test-pnpm-build-n-test.yaml",
+  "test-python-build-n-test.yml",
   "test-rust-build-n-test.yml",
   "test-semver.yaml",
   "test-setup-rust.yaml",
@@ -60,6 +64,20 @@ export const COMMAND_PRESETS = [
     toolchain: "pnpm",
     description: "Run workspace type checks.",
     command: ["pnpm", "-r", "--if-present", "run", "typecheck"],
+  },
+  {
+    id: "pnpm-run-build",
+    task: "build",
+    toolchain: "pnpm",
+    description: "Run the root package build script.",
+    command: ["pnpm", "run", "build"],
+  },
+  {
+    id: "pnpm-run-test",
+    task: "test",
+    toolchain: "pnpm",
+    description: "Run the root package test script.",
+    command: ["pnpm", "run", "test"],
   },
   {
     id: "npm-ci",
@@ -130,6 +148,27 @@ export const COMMAND_PRESETS = [
     toolchain: "cargo",
     description: "Build Rust release artifacts.",
     command: ["cargo", "build", "--verbose", "--release"],
+  },
+  {
+    id: "uv-sync-all-groups-frozen",
+    task: "install",
+    toolchain: "python",
+    description: "Sync Python dependencies from uv.lock.",
+    command: ["uv", "sync", "--all-groups", "--frozen"],
+  },
+  {
+    id: "uv-build",
+    task: "build",
+    toolchain: "python",
+    description: "Build Python source distributions and wheels.",
+    command: ["uv", "build"],
+  },
+  {
+    id: "uv-run-pytest",
+    task: "test",
+    toolchain: "python",
+    description: "Run Python tests with pytest through uv.",
+    command: ["uv", "run", "pytest"],
   },
   {
     id: "docker-buildx-build",
@@ -273,6 +312,26 @@ const WORKFLOWS: Readonly<Record<WorkflowFile, WorkflowCoverageEntry>> = {
       build: ["cargo-build-verbose", "cargo-build-release-verbose"],
     },
   },
+  "python-build-n-test.yml": {
+    file: "python-build-n-test.yml",
+    path: ".github/workflows/python-build-n-test.yml",
+    actionCoverage: [],
+    presets: {
+      install: ["uv-sync-all-groups-frozen"],
+      build: ["uv-build"],
+      test: ["uv-run-pytest"],
+    },
+  },
+  "pnpm-build-n-test.yaml": {
+    file: "pnpm-build-n-test.yaml",
+    path: ".github/workflows/pnpm-build-n-test.yaml",
+    actionCoverage: [],
+    presets: {
+      install: ["pnpm-install-frozen-lockfile"],
+      build: ["pnpm-run-build"],
+      test: ["pnpm-run-test"],
+    },
+  },
   "tagger.yaml": {
     file: "tagger.yaml",
     path: ".github/workflows/tagger.yaml",
@@ -316,6 +375,26 @@ const WORKFLOWS: Readonly<Record<WorkflowFile, WorkflowCoverageEntry>> = {
     actionCoverage: ["ensure-repository", "install-cli"],
     presets: {
       test: ["shell-verify-repository"],
+    },
+  },
+  "test-pnpm-build-n-test.yaml": {
+    file: "test-pnpm-build-n-test.yaml",
+    path: ".github/workflows/test-pnpm-build-n-test.yaml",
+    actionCoverage: [],
+    presets: {
+      install: ["pnpm-install-frozen-lockfile"],
+      build: ["pnpm-run-build"],
+      test: ["pnpm-run-test"],
+    },
+  },
+  "test-python-build-n-test.yml": {
+    file: "test-python-build-n-test.yml",
+    path: ".github/workflows/test-python-build-n-test.yml",
+    actionCoverage: [],
+    presets: {
+      install: ["uv-sync-all-groups-frozen"],
+      build: ["uv-build"],
+      test: ["uv-run-pytest"],
     },
   },
   "test-rust-build-n-test.yml": {

@@ -16,6 +16,17 @@ function getCiWorkflowCommands(
   return definition.config.test.map((command) => command.args.join(" "));
 }
 
+function getCiWorkflowInstallCommand(
+  workflowId: keyof typeof WORKFLOW_DEFINITIONS,
+): string {
+  const definition = WORKFLOW_DEFINITIONS[workflowId];
+  if (definition.kind !== "ci") {
+    throw new Error(`${workflowId} must be a ci workflow for this test`);
+  }
+
+  return definition.config.install.command?.args.join(" ") ?? "";
+}
+
 test("workflow definitions remain valid", () => {
   expect(validateWorkflowDefinitions()).toEqual([]);
 });
@@ -46,4 +57,38 @@ test("tier1 workflows use executable parity flows instead of shallow checks", ()
   expect(installCli).toContain("schollz/croc");
   expect(installCli).toContain("astral-sh/uv");
   expect(installCli).toContain("jqlang/jq");
+
+  const pythonBuildAndTest = getCiWorkflowCommands("python-build-n-test").join(
+    "\n",
+  );
+  expect(getCiWorkflowInstallCommand("python-build-n-test")).toContain(
+    "uv sync --all-groups --frozen",
+  );
+  expect(pythonBuildAndTest).toContain("uv build");
+  expect(pythonBuildAndTest).toContain("uv run pytest");
+
+  const pythonParity = getCiWorkflowCommands("test-python-build-n-test").join(
+    "\n",
+  );
+  expect(getCiWorkflowInstallCommand("test-python-build-n-test")).toContain(
+    "uv sync --all-groups --frozen",
+  );
+  expect(pythonParity).toContain("uv build");
+  expect(pythonParity).toContain("uv run pytest");
+
+  const pnpmBuildAndTest = getCiWorkflowCommands("pnpm-build-n-test").join(
+    "\n",
+  );
+  expect(getCiWorkflowInstallCommand("pnpm-build-n-test")).toContain(
+    "pnpm install --frozen-lockfile",
+  );
+  expect(pnpmBuildAndTest).toContain("pnpm run build");
+  expect(pnpmBuildAndTest).toContain("pnpm run test");
+
+  const pnpmParity = getCiWorkflowCommands("test-pnpm-build-n-test").join("\n");
+  expect(getCiWorkflowInstallCommand("test-pnpm-build-n-test")).toContain(
+    "pnpm install --frozen-lockfile",
+  );
+  expect(pnpmParity).toContain("pnpm run build");
+  expect(pnpmParity).toContain("pnpm run test");
 });

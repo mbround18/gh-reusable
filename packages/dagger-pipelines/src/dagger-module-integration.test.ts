@@ -59,6 +59,8 @@ test("dagger module exposes expected integration entrypoints", () => {
       "publishPnpm",
       "publishRustCrate",
       "publishYarn",
+      "pnpmBuildAndTest",
+      "pythonBuildAndTest",
       "rustBuildAndTest",
     ]),
   );

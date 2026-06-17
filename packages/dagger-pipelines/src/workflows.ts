@@ -20,12 +20,16 @@ import { resolveDockerReleasePublishAddress } from "./docker-release-semver.js";
 
 export type WorkflowId =
   | "docker-release"
+  | "pnpm-build-n-test"
+  | "python-build-n-test"
   | "rust-build-n-test"
   | "tagger"
   | "test-docker-release"
   | "test-ensure-repository"
   | "test-graphql-action"
   | "test-install-cli"
+  | "test-pnpm-build-n-test"
+  | "test-python-build-n-test"
   | "test-rust-build-n-test"
   | "test-semver"
   | "test-setup-rust"
@@ -189,6 +193,51 @@ function createRustTargetBuildAndTestCommand(
   };
 }
 
+function createPythonSyncCommand(name: string): WorkflowCommandConfig {
+  return {
+    name,
+    args: ["uv", "sync", "--all-groups", "--frozen"],
+    workdir: "packages/python-testing",
+  };
+}
+
+function createPythonBuildCommand(name: string): WorkflowCommandConfig {
+  return {
+    name,
+    args: ["uv", "build"],
+    workdir: "packages/python-testing",
+  };
+}
+
+function createPythonTestCommand(name: string): WorkflowCommandConfig {
+  return {
+    name,
+    args: ["uv", "run", "pytest"],
+    workdir: "packages/python-testing",
+  };
+}
+
+function createPnpmInstallCommand(name: string): WorkflowCommandConfig {
+  return {
+    name,
+    args: ["pnpm", "install", "--frozen-lockfile"],
+  };
+}
+
+function createPnpmBuildCommand(name: string): WorkflowCommandConfig {
+  return {
+    name,
+    args: ["pnpm", "run", "build"],
+  };
+}
+
+function createPnpmTestCommand(name: string): WorkflowCommandConfig {
+  return {
+    name,
+    args: ["pnpm", "run", "test"],
+  };
+}
+
 export const WORKFLOW_DEFINITIONS = {
   "test-ensure-repository": {
     kind: "ci",
@@ -227,6 +276,42 @@ export const WORKFLOW_DEFINITIONS = {
           fi
           `,
         ),
+      ],
+    },
+  },
+  "test-python-build-n-test": {
+    kind: "ci",
+    config: {
+      container: {
+        image: "astral/uv:python3.12-bookworm-slim",
+      },
+      install: {
+        packageManager: "npm",
+        cacheKey: "workflow-test-python-build-n-test",
+        command: createPythonSyncCommand("uv sync"),
+      },
+      lint: [],
+      test: [
+        createPythonBuildCommand("uv build"),
+        createPythonTestCommand("uv run pytest"),
+      ],
+    },
+  },
+  "pnpm-build-n-test": {
+    kind: "ci",
+    config: {
+      source: {
+        path: ".",
+      },
+      install: {
+        packageManager: "pnpm",
+        cacheKey: "workflow-pnpm-build-n-test",
+        command: createPnpmInstallCommand("pnpm install"),
+      },
+      lint: [],
+      test: [
+        createPnpmBuildCommand("pnpm run build"),
+        createPnpmTestCommand("pnpm run test"),
       ],
     },
   },
@@ -275,6 +360,24 @@ export const WORKFLOW_DEFINITIONS = {
           name: "cargo release build",
           args: ["cargo", "build", "--verbose", "--release"],
         },
+      ],
+    },
+  },
+  "test-pnpm-build-n-test": {
+    kind: "ci",
+    config: {
+      source: {
+        path: ".",
+      },
+      install: {
+        packageManager: "pnpm",
+        cacheKey: "workflow-test-pnpm-build-n-test",
+        command: createPnpmInstallCommand("pnpm install"),
+      },
+      lint: [],
+      test: [
+        createPnpmBuildCommand("pnpm run build"),
+        createPnpmTestCommand("pnpm run test"),
       ],
     },
   },
@@ -380,6 +483,24 @@ export const WORKFLOW_DEFINITIONS = {
           name: "cargo release build",
           args: ["cargo", "build", "--verbose", "--release"],
         },
+      ],
+    },
+  },
+  "python-build-n-test": {
+    kind: "ci",
+    config: {
+      container: {
+        image: "astral/uv:python3.12-bookworm-slim",
+      },
+      install: {
+        packageManager: "npm",
+        cacheKey: "workflow-python-build-n-test",
+        command: createPythonSyncCommand("uv sync"),
+      },
+      lint: [],
+      test: [
+        createPythonBuildCommand("uv build"),
+        createPythonTestCommand("uv run pytest"),
       ],
     },
   },
@@ -838,6 +959,18 @@ export async function rustBuildAndTestWorkflow(
   return ci(client, toCiConfig(getCiWorkflow("rust-build-n-test")));
 }
 
+export async function pnpmBuildAndTestWorkflow(
+  client: Client,
+): Promise<CiResult> {
+  return ci(client, toCiConfig(getCiWorkflow("pnpm-build-n-test")));
+}
+
+export async function pythonBuildAndTestWorkflow(
+  client: Client,
+): Promise<CiResult> {
+  return ci(client, toCiConfig(getCiWorkflow("python-build-n-test")));
+}
+
 export async function taggerWorkflow(client: Client): Promise<CiResult> {
   return ci(client, toCiConfig(getCiWorkflow("tagger")));
 }
@@ -866,6 +999,18 @@ export async function testInstallCliWorkflow(
   return ci(client, toCiConfig(getCiWorkflow("test-install-cli")));
 }
 
+export async function testPnpmBuildAndTestWorkflow(
+  client: Client,
+): Promise<CiResult> {
+  return ci(client, toCiConfig(getCiWorkflow("test-pnpm-build-n-test")));
+}
+
+export async function testPythonBuildAndTestWorkflow(
+  client: Client,
+): Promise<CiResult> {
+  return ci(client, toCiConfig(getCiWorkflow("test-python-build-n-test")));
+}
+
 export async function testRustBuildAndTestWorkflow(
   client: Client,
 ): Promise<CiResult> {
@@ -886,12 +1031,16 @@ export async function updateReadmeWorkflow(client: Client): Promise<CiResult> {
 
 export const workflowFunctions = {
   "docker-release": dockerReleaseWorkflow,
+  "pnpm-build-n-test": pnpmBuildAndTestWorkflow,
+  "python-build-n-test": pythonBuildAndTestWorkflow,
   "rust-build-n-test": rustBuildAndTestWorkflow,
   tagger: taggerWorkflow,
   "test-docker-release": testDockerReleaseWorkflow,
   "test-ensure-repository": testEnsureRepositoryWorkflow,
   "test-graphql-action": testGraphqlActionWorkflow,
   "test-install-cli": testInstallCliWorkflow,
+  "test-pnpm-build-n-test": testPnpmBuildAndTestWorkflow,
+  "test-python-build-n-test": testPythonBuildAndTestWorkflow,
   "test-rust-build-n-test": testRustBuildAndTestWorkflow,
   "test-semver": testSemverWorkflow,
   "test-setup-rust": testSetupRustWorkflow,

@@ -57,6 +57,146 @@ export class GhReusablePipelines {
       .stdout();
   }
 
+  @func()
+  async pnpmBuildAndTest(source: Directory): Promise<string> {
+    const reporter = this.createReporter("pnpm-build-and-test", {
+      sourceDir: ".",
+      registryUrls: [],
+      credentials: {},
+    });
+
+    const packageJson = await this.readRequiredText(source, "package.json");
+    const manifest = this.parsePackageJsonWithScripts(packageJson);
+    const missingScripts = ["build", "test"].filter(
+      (script) => !manifest.scripts[script],
+    );
+    if (missingScripts.length > 0) {
+      reporter.recordError(
+        "package.json validation",
+        `Missing required script(s): ${missingScripts.join(", ")}`,
+        "Add build and test scripts to the root package.json",
+      );
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+
+    const installStep = reporter.startStep("pnpm install", {
+      containerImage: "node:24-bookworm",
+      command: "pnpm install --frozen-lockfile",
+    });
+    let container = this.withNodeEnv(source, "pnpm");
+    const installResult = await this.runCapturedStep(
+      container,
+      "pnpm install",
+      this.nodeInstallCommand("pnpm"),
+    );
+    reporter.endStep(installStep, {
+      success: installResult.exitCode === 0,
+      stdout: installResult.stdout,
+      stderr: installResult.stderr,
+      stdoutSummary: summarizeText(installResult.stdout),
+      stderrSummary: summarizeText(installResult.stderr),
+      exitCode: installResult.exitCode,
+    });
+    if (installResult.exitCode !== 0) {
+      reporter.recordError(
+        "pnpm install",
+        installResult.stderr || installResult.stdout,
+        "Fix dependency installation before continuing",
+      );
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+    container = installResult.container;
+
+    const buildStep = reporter.startStep("pnpm build", {
+      containerImage: "node:24-bookworm",
+      command: "pnpm run build",
+    });
+    const buildResult = await this.runCapturedStep(
+      container,
+      "pnpm build",
+      this.nodeBuildCommand("pnpm"),
+    );
+    reporter.endStep(buildStep, {
+      success: buildResult.exitCode === 0,
+      stdout: buildResult.stdout,
+      stderr: buildResult.stderr,
+      stdoutSummary: summarizeText(buildResult.stdout),
+      stderrSummary: summarizeText(buildResult.stderr),
+      exitCode: buildResult.exitCode,
+    });
+    if (buildResult.exitCode !== 0) {
+      reporter.recordError(
+        "pnpm build",
+        buildResult.stderr || buildResult.stdout,
+        "Fix build failures before continuing",
+      );
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+    container = buildResult.container;
+
+    const testContainer = container.withEnvVariable(
+      "DAGGER_PNPM_PIPELINE",
+      "1",
+    );
+    const testStep = reporter.startStep("pnpm test", {
+      containerImage: "node:24-bookworm",
+      command: "pnpm test",
+    });
+    const testResult = await this.runCapturedStep(
+      testContainer,
+      "pnpm test",
+      this.nodeTestCommand("pnpm"),
+    );
+    reporter.endStep(testStep, {
+      success: testResult.exitCode === 0,
+      stdout: testResult.stdout,
+      stderr: testResult.stderr,
+      stdoutSummary: summarizeText(testResult.stdout),
+      stderrSummary: summarizeText(testResult.stderr),
+      exitCode: testResult.exitCode,
+    });
+    if (testResult.exitCode !== 0) {
+      reporter.recordError(
+        "pnpm test",
+        testResult.stderr || testResult.stdout,
+        "Fix failing tests before continuing",
+      );
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+
+    const report = reporter.finalize();
+    return JSON.stringify({
+      success: true,
+      markdown: report.markdown,
+      report,
+      reportMarkdown: report.markdown,
+    });
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   // enforce-pr-labels
   // ──────────────────────────────────────────────────────────────────────────
@@ -1193,6 +1333,7 @@ export class GhReusablePipelines {
       .from("node:24-bookworm")
       .withMountedDirectory("/src", source)
       .withWorkdir("/src")
+      .withEnvVariable("CI", "true")
       .withExec(["corepack", "enable"])
       .withEnvVariable("PACKAGE_MANAGER", manager);
   }
@@ -1204,6 +1345,17 @@ export class GhReusablePipelines {
       .withMountedDirectory("/src", source)
       .withWorkdir("/src")
       .withEnvVariable("PATH", this.rustPath());
+  }
+
+  private withPythonEnv(
+    source: Directory,
+    pythonVersion: string,
+  ): Container {
+    return dag
+      .container()
+      .from(`astral/uv:python${pythonVersion}-bookworm-slim`)
+      .withMountedDirectory("/src", source)
+      .withWorkdir("/src");
   }
 
   private withHelmEnv(source: Directory): Container {
@@ -1409,6 +1561,27 @@ export class GhReusablePipelines {
       throw new Error("package.json must define name and version");
     }
     return { name: parsed.name, version: parsed.version };
+  }
+
+  private parsePackageJsonWithScripts(raw: string): {
+    name: string;
+    version: string;
+    scripts: Record<string, string>;
+  } {
+    const parsed = JSON.parse(raw) as {
+      name?: string;
+      version?: string;
+      scripts?: Record<string, unknown>;
+    };
+    if (!parsed.name || !parsed.version) {
+      throw new Error("package.json must define name and version");
+    }
+    const scripts = Object.fromEntries(
+      Object.entries(parsed.scripts ?? {}).filter(([, value]) =>
+        typeof value === "string",
+      ),
+    ) as Record<string, string>;
+    return { name: parsed.name, version: parsed.version, scripts };
   }
 
   private parseCargoManifest(raw: string): NamedVersion {
@@ -2040,6 +2213,85 @@ export class GhReusablePipelines {
       target,
       crates,
     );
+  }
+
+  @func()
+  async pythonBuildAndTest(
+    source: Directory,
+    pythonVersion: string = "3.12",
+  ): Promise<string> {
+    const reporter = this.createReporter("python-build-and-test", {
+      sourceDir: ".",
+      registryUrls: [],
+      credentials: {},
+    });
+    let container = this.withPythonEnv(source, pythonVersion);
+
+    const runStep = async (
+      stepName: string,
+      command: readonly [string, ...string[]],
+    ): Promise<boolean> => {
+      const step = reporter.startStep(stepName, {
+        command: command.join(" "),
+      });
+      const result = await this.runCapturedStep(container, stepName, command);
+      reporter.endStep(step, {
+        success: result.exitCode === 0,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        stdoutSummary: summarizeText(result.stdout),
+        stderrSummary: summarizeText(result.stderr),
+        exitCode: result.exitCode,
+      });
+      container = result.container;
+      if (result.exitCode !== 0) {
+        reporter.recordError(
+          stepName,
+          result.stderr || result.stdout,
+          `Fix ${stepName} failures before continuing`,
+        );
+        return false;
+      }
+      return true;
+    };
+
+    if (!(await runStep("uv sync", ["uv", "sync", "--all-groups", "--frozen"]))) {
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+
+    if (!(await runStep("uv build", ["uv", "build"]))) {
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+
+    if (!(await runStep("uv run pytest", ["uv", "run", "pytest"]))) {
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+
+    const report = reporter.finalize();
+    return JSON.stringify({
+      success: true,
+      markdown: report.markdown,
+      report,
+      reportMarkdown: report.markdown,
+    });
   }
 
   // ──────────────────────────────────────────────────────────────────────────

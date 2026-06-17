@@ -60,7 +60,10 @@ function parsePipelineOutput(
   return JSON.parse(jsonLine) as Record<string, unknown>;
 }
 
-test("runs the Rust build pipeline against the hello-world crate", async () => {
+const daggerSmokeTest =
+  process.env.DAGGER_PNPM_PIPELINE === "1" ? test.skip : test;
+
+daggerSmokeTest("runs the Rust build pipeline against the hello-world crate", async () => {
   const binary = ensureDaggerBinary();
   const result = spawnSync(
     binary,
