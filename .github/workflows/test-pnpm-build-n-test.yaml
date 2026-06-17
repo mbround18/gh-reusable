@@ -1,0 +1,91 @@
+name: "Test | pnpm Build and Test Workflow"
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "packages/**"
+      - "actions/**"
+      - "packages/dagger-module/**"
+      - "packages/dagger-pipelines/**"
+      - ".github/actions/dagger-run/**"
+      - ".github/workflows/pnpm-build-n-test.yaml"
+      - ".github/workflows/test-pnpm-build-n-test.yaml"
+      - "**/*.ts"
+      - "**/*.js"
+      - "**/*.json"
+  push:
+    tags:
+      - "*"
+    branches:
+      - main
+    paths:
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "packages/**"
+      - "actions/**"
+      - "packages/dagger-module/**"
+      - "packages/dagger-pipelines/**"
+      - ".github/actions/dagger-run/**"
+      - ".github/workflows/pnpm-build-n-test.yaml"
+      - ".github/workflows/test-pnpm-build-n-test.yaml"
+      - "**/*.ts"
+      - "**/*.js"
+      - "**/*.json"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}
+  cancel-in-progress: true
+
+jobs:
+  call_build_and_test_workflow:
+    name: pnpm Build and Test Workflow (Dagger)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+
+      - name: Run Dagger workflow parity
+        id: dagger
+        uses: ./.github/actions/dagger-run
+        with:
+          module: ./packages/dagger-module
+          call: pnpm-build-and-test --source=.
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+      - if: always()
+        uses: actions/github-script@v7
+        env:
+          REPORT_JSON: ${{ steps.dagger.outputs.stdout }}
+        with:
+          script: |
+            const fs = require('node:fs')
+            const raw = process.env.REPORT_JSON || '{}'
+            let report = {}
+            try {
+              report = JSON.parse(raw)
+            } catch (error) {
+              core.warning(`Unable to parse pnpm pipeline report: ${error.message}`)
+            }
+
+            const payload = report.report || report
+            const markdown = report.reportMarkdown || report.markdown || payload.markdown || '_No summary produced._'
+            fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
+            fs.writeFileSync('report.md', markdown)
+            if ((payload.errors || report.errors || []).length > 0) {
+              core.setFailed('Pipeline report contains errors')
+            }
+            await core.summary.addRaw(markdown).write()
+
+      - if: always()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          status: ${{ job.status }}
+          workflow: ${{ github.workflow }}
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ref: ${{ github.ref_name }}
