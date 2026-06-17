@@ -1,4 +1,4 @@
-name: "Test | Rust Build and Test Workflow"
+name: "Parity | Rust Build & Test"
 
 on:
   pull_request:
@@ -29,8 +29,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  call_build_and_test_workflow:
-    name: Rust Build and Test Workflow (Dagger)
+  parity-rust-build-and-test:
+    name: "Parity | Rust Build & Test (Dagger)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest

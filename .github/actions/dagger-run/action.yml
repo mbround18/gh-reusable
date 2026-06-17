@@ -13,6 +13,14 @@ inputs:
     description: "Dagger Cloud token for caching"
     required: false
     default: ""
+  dagger-version:
+    description: "Dagger CLI version to execute"
+    required: false
+    default: "v0.21.5"
+  engine-version:
+    description: "Dagger engine image version to prewarm"
+    required: false
+    default: "v0.21.5"
 
 outputs:
   stdout:
@@ -22,19 +30,50 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Validate Docker runtime
+      shell: bash
+      run: |
+        set -euo pipefail
+        if ! command -v docker >/dev/null 2>&1; then
+          echo "::error title=Missing Docker CLI::docker is required by dagger-run but was not found on PATH."
+          exit 1
+        fi
+        if ! docker info >/dev/null 2>&1; then
+          echo "::error title=Docker daemon unavailable::docker info failed; ensure the runner has a running Docker daemon."
+          exit 1
+        fi
+
     - name: Warm Dagger engine
       shell: bash
       run: |
-        engine_image="registry.dagger.io/engine:v0.21.5"
-        docker image inspect "$engine_image" >/dev/null 2>&1 || docker pull "$engine_image"
+        set -euo pipefail
+        engine_image="registry.dagger.io/engine:${{ inputs.engine-version }}"
+        if docker image inspect "$engine_image" >/dev/null 2>&1; then
+          exit 0
+        fi
+
+        for attempt in 1 2 3; do
+          if docker pull "$engine_image"; then
+            exit 0
+          fi
+          if [ "$attempt" -lt 3 ]; then
+            echo "Retrying engine pull ($attempt/3) ..."
+            sleep $((attempt * 2))
+          fi
+        done
+
+        echo "::error title=Failed to prewarm Dagger engine::Unable to pull $engine_image after 3 attempts."
+        exit 1
 
     - name: Run Dagger call
       id: dagger
       uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
       env:
         DAGGER_NO_NAG: "1"
+        GH_REUSABLE_NESTED_DAGGER: "1"
+        DAGGER_PNPM_PIPELINE: "1"
       with:
-        version: v0.21.5
+        version: ${{ inputs.dagger-version }}
         module: ${{ inputs.module }}
         call: ${{ inputs.call }}
         cloud-token: ${{ inputs.cloud-token }}

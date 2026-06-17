@@ -18,6 +18,9 @@ export function shouldSkipDaggerSmokeTests(): boolean {
   if (process.env.DAGGER_PNPM_PIPELINE === "1") {
     return true;
   }
+  if (process.env.GH_REUSABLE_NESTED_DAGGER === "1") {
+    return true;
+  }
   // Nested Dagger sessions in CI commonly lack an image driver for child sessions.
   if (process.env.DAGGER_SESSION_PORT || process.env.DAGGER_SESSION_TOKEN) {
     return true;

@@ -49,6 +49,7 @@ export class GhReusablePipelines {
       .from("node:24-bookworm")
       .withMountedDirectory("/src", source)
       .withWorkdir("/src")
+      .withEnvVariable("DAGGER_PNPM_PIPELINE", "1")
       .withExec(["corepack", "enable"])
       .withExec(["pnpm", "install", "--frozen-lockfile"])
       .withExec(["pnpm", "run", "build"])

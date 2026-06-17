@@ -27,6 +27,18 @@ function findActionYmlPaths(rootDir: string): string[] {
   return result;
 }
 
+function updateInputDefaultVersion(
+  actionYml: string,
+  inputName: string,
+  daggerVersion: string,
+): string {
+  const pattern = new RegExp(
+    `(^\\s*${inputName}:\\s*\\n(?:\\s{2,}.+\\n)*?\\s*default:\\s*"?)(v[\\d.]+)("?)`,
+    "m",
+  );
+  return actionYml.replace(pattern, `$1v${daggerVersion}$3`);
+}
+
 // get the latest dagger version via catalog key in pnpm-workspace.yaml
 const pnpmWorkspaceYamlPath = join(__dirname, "..", "pnpm-workspace.yaml");
 const pnpmWorkspaceYaml = readFileSync(pnpmWorkspaceYamlPath, "utf-8");
@@ -48,12 +60,24 @@ const actionYmlPaths = findActionYmlPaths(repoRoot);
 // Update dagger engine image and dagger-for-github version input in action files.
 for (const actionYmlPath of actionYmlPaths) {
   const actionYml = readFileSync(actionYmlPath, "utf-8");
-  const updatedActionYml = actionYml
+  let updatedActionYml = actionYml
     .replace(
       /registry\.dagger\.io\/engine:v[\d.]+/g,
       `registry.dagger.io/engine:v${daggerVersion}`,
     )
     .replace(/(\bversion:\s*)v[\d.]+/g, `$1v${daggerVersion}`);
+
+  // Keep dagger-run input defaults aligned with the workspace override source of truth.
+  updatedActionYml = updateInputDefaultVersion(
+    updatedActionYml,
+    "dagger-version",
+    daggerVersion,
+  );
+  updatedActionYml = updateInputDefaultVersion(
+    updatedActionYml,
+    "engine-version",
+    daggerVersion,
+  );
 
   if (updatedActionYml !== actionYml) {
     writeFileSync(actionYmlPath, updatedActionYml, "utf-8");
