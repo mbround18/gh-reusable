@@ -11,10 +11,22 @@ const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
 const repositoryRoot = path.resolve(dirname, "../../../");
 const daggerBinary = path.join(repositoryRoot, "bin", "dagger");
+const nestedDaggerBinary = path.join(repositoryRoot, "bin", "bin", "dagger");
 
-function ensureDaggerBinary(): string {
+function resolveDaggerBinaryPath(): string | undefined {
   if (existsSync(daggerBinary)) {
     return daggerBinary;
+  }
+  if (existsSync(nestedDaggerBinary)) {
+    return nestedDaggerBinary;
+  }
+  return undefined;
+}
+
+function ensureDaggerBinary(): string {
+  const existingBinary = resolveDaggerBinaryPath();
+  if (existingBinary) {
+    return existingBinary;
   }
 
   const result = spawnSync(
@@ -44,7 +56,13 @@ function ensureDaggerBinary(): string {
     );
   }
 
-  return daggerBinary;
+  const installedBinary = resolveDaggerBinaryPath();
+  if (!installedBinary) {
+    throw new Error(
+      `Dagger CLI install finished but no binary found at ${daggerBinary} or ${nestedDaggerBinary}`,
+    );
+  }
+  return installedBinary;
 }
 
 function parsePipelineOutput(stdout: string, stderr: string): Record<string, unknown> {
