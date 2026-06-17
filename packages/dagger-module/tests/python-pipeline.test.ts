@@ -1,5 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import {
+  accessSync,
+  chmodSync,
+  constants as fsConstants,
+  existsSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,13 +17,31 @@ const daggerBinary = path.join(repositoryRoot, "bin", "dagger");
 const nestedDaggerBinary = path.join(repositoryRoot, "bin", "bin", "dagger");
 
 function resolveDaggerBinaryPath(): string | undefined {
-  if (existsSync(daggerBinary)) {
+  if (isExecutableBinary(daggerBinary)) {
     return daggerBinary;
   }
-  if (existsSync(nestedDaggerBinary)) {
+  if (isExecutableBinary(nestedDaggerBinary)) {
     return nestedDaggerBinary;
   }
   return undefined;
+}
+
+function isExecutableBinary(candidate: string): boolean {
+  if (!existsSync(candidate)) {
+    return false;
+  }
+  try {
+    accessSync(candidate, fsConstants.X_OK);
+    return true;
+  } catch {
+    try {
+      chmodSync(candidate, 0o755);
+      accessSync(candidate, fsConstants.X_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 function ensureDaggerBinary(): string {
