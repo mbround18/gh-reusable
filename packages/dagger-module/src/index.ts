@@ -51,9 +51,25 @@ type PipelineDefaults = {
   debian: { version: string; codename: string };
 };
 
-const DEFAULTS = JSON.parse(
-  readFileSync(new URL("../../../defaults.json", import.meta.url), "utf8"),
-) as PipelineDefaults;
+const EMBEDDED_DEFAULTS: PipelineDefaults = {
+  node: { version: "24", debianImageSuffix: "trixie" },
+  rust: { toolchain: "1.95", debianImageSuffix: "trixie" },
+  python: { version: "3.12", debianImageSuffix: "trixie-slim" },
+  go: { version: "1.24", debianImageSuffix: "trixie" },
+  ruby: { version: "3.4", debianImageSuffix: "trixie" },
+  java: { version: "21", distribution: "temurin", debianImageSuffix: "trixie" },
+  debian: { version: "13", codename: "trixie" },
+};
+
+const DEFAULTS = (() => {
+  try {
+    return JSON.parse(
+      readFileSync(new URL("../../../defaults.json", import.meta.url), "utf8"),
+    ) as PipelineDefaults;
+  } catch {
+    return EMBEDDED_DEFAULTS;
+  }
+})();
 const DEFAULT_NODE_VERSION = DEFAULTS.node.version;
 const DEFAULT_NODE_IMAGE = `node:${DEFAULT_NODE_VERSION}-${DEFAULTS.node.debianImageSuffix}`;
 const DEFAULT_RUST_TOOLCHAIN = DEFAULTS.rust.toolchain;
