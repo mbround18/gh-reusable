@@ -105,7 +105,7 @@ jobs:
             if (failed) core.setFailed('Pipeline report indicates failure')
             await core.summary.addRaw(report.reportMarkdown || report.markdown || '').write()
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: publish-report
           path: |
@@ -145,7 +145,7 @@ jobs:
             if (failed) core.setFailed('Pipeline report indicates failure')
             await core.summary.addRaw(report.reportMarkdown || report.markdown || '').write()
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: publish-report
           path: |
@@ -187,7 +187,7 @@ jobs:
             if (failed) core.setFailed('Pipeline report indicates failure')
             await core.summary.addRaw(report.reportMarkdown || report.markdown || '').write()
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: publish-report
           path: |
