@@ -46,6 +46,7 @@ export interface PipelineReportOutputs {
   readonly registryUrls?: readonly string[];
   readonly packageMetadata?: Readonly<Record<string, string>>;
   readonly scanFindings?: Readonly<Record<string, number>>;
+  readonly auditSummary?: import("./audit-types").AuditSummary;
   readonly cacheBackend?: string;
   readonly cacheKey?: string;
 }
@@ -151,8 +152,8 @@ export class PipelineReporter {
       command: step.command,
       stdout: result.stdout ?? "",
       stderr: result.stderr ?? "",
-      stdoutSummary: result.stdoutSummary,
-      stderrSummary: result.stderrSummary,
+      stdoutSummary: result.stdoutSummary ?? "",
+      stderrSummary: result.stderrSummary ?? "",
       success: result.success,
       exitCode: result.exitCode,
     });
