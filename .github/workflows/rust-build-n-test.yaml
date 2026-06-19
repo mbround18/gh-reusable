@@ -44,7 +44,7 @@ jobs:
     name: "Pipeline | Rust Build & Test"
     runs-on: ${{ inputs.runs-on }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # de0fac2, https://github.com/actions/checkout/releases/latest
       - id: dagger
         uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         with:
