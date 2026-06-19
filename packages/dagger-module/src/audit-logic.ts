@@ -35,10 +35,7 @@ const SEVERITY_RANK: Record<TopFinding["severity"], number> = {
   info: 4,
 };
 
-const AUDIT_SCANNER_REGISTRY: readonly Omit<
-  ScannerConfig,
-  "shouldRun"
->[] = [
+const AUDIT_SCANNER_REGISTRY: readonly Omit<ScannerConfig, "shouldRun">[] = [
   {
     name: "semgrep",
     family: "cross-language",
@@ -73,7 +70,9 @@ export function detectLanguageFamilies(
     signals: ["(baseline)"],
   });
 
-  const nonGenericFamilies = families.filter((family) => family.family !== "generic");
+  const nonGenericFamilies = families.filter(
+    (family) => family.family !== "generic",
+  );
   const fallbackMode = !nonGenericFamilies.some(
     (family) => CONFIDENCE_RANK[family.confidence] >= CONFIDENCE_RANK.medium,
   );
@@ -139,12 +138,14 @@ export function aggregateAuditResults(
   detection: DetectionResult,
 ): AuditSummary {
   const scanners = sortScannerResults(scannerResults);
-  const runnableScanners = scanners.filter((scanner) => scanner.status !== "skipped");
+  const runnableScanners = scanners.filter(
+    (scanner) => scanner.status !== "skipped",
+  );
   const findingCount = runnableScanners.reduce((total, scanner) => {
-   if (scanner.status === "findings" || scanner.status === "pass") {
-     return total + scanner.findingsCount;
-   }
-   return total;
+    if (scanner.status === "findings" || scanner.status === "pass") {
+      return total + scanner.findingsCount;
+    }
+    return total;
   }, 0);
   const topFindings = runnableScanners
     .flatMap((scanner) => scanner.topFindings)
@@ -193,14 +194,15 @@ export function renderAuditIntelligenceSection(summary: AuditSummary): string {
       return `| ${scanner.name} | ${icon} \`${scanner.status}\` | ${scanner.findingsCount} | ${scanner.durationMs} | ${scanner.family} |`;
     })
     .join("\n");
-  const topFindings = summary.topFindings.length > 0
-    ? summary.topFindings
-        .map((finding, index) => {
-          const line = finding.line ? `:${finding.line}` : "";
-          return `${index + 1}. **${finding.severity.toUpperCase()}** \`${finding.scanner}\` · \`${finding.rule}\` · \`${finding.path}${line}\` — ${finding.message}`;
-        })
-        .join("\n")
-    : "- (none)";
+  const topFindings =
+    summary.topFindings.length > 0
+      ? summary.topFindings
+          .map((finding, index) => {
+            const line = finding.line ? `:${finding.line}` : "";
+            return `${index + 1}. **${finding.severity.toUpperCase()}** \`${finding.scanner}\` · \`${finding.rule}\` · \`${finding.path}${line}\` — ${finding.message}`;
+          })
+          .join("\n")
+      : "- (none)";
 
   return [
     "### Audit Intelligence",
@@ -259,38 +261,70 @@ function detectFamily(
 ): DetectedFamily {
   switch (family) {
     case "rust":
-      return detectWithSignals(family, signals, [
-        ["Cargo.toml", "medium"],
-        ["Cargo.lock", "low"],
-      ], [["Cargo.toml", "Cargo.lock"]]);
+      return detectWithSignals(
+        family,
+        signals,
+        [
+          ["Cargo.toml", "medium"],
+          ["Cargo.lock", "low"],
+        ],
+        [["Cargo.toml", "Cargo.lock"]],
+      );
     case "node":
-      return detectWithSignals(family, signals, [
-        ["package.json", "medium"],
-        ["pnpm-lock.yaml", "low"],
-        ["yarn.lock", "low"],
-        ["package-lock.json", "low"],
-      ], [["package.json", "pnpm-lock.yaml"], ["package.json", "yarn.lock"], ["package.json", "package-lock.json"]]);
+      return detectWithSignals(
+        family,
+        signals,
+        [
+          ["package.json", "medium"],
+          ["pnpm-lock.yaml", "low"],
+          ["yarn.lock", "low"],
+          ["package-lock.json", "low"],
+        ],
+        [
+          ["package.json", "pnpm-lock.yaml"],
+          ["package.json", "yarn.lock"],
+          ["package.json", "package-lock.json"],
+        ],
+      );
     case "python":
-      return detectWithSignals(family, signals, [
-        ["pyproject.toml", "medium"],
-        ["uv.lock", "low"],
-        ["poetry.lock", "low"],
-        ["requirements.txt", "medium"],
-        ["setup.py", "low"],
-      ], [["pyproject.toml", "uv.lock"], ["pyproject.toml", "poetry.lock"]]);
+      return detectWithSignals(
+        family,
+        signals,
+        [
+          ["pyproject.toml", "medium"],
+          ["uv.lock", "low"],
+          ["poetry.lock", "low"],
+          ["requirements.txt", "medium"],
+          ["setup.py", "low"],
+        ],
+        [
+          ["pyproject.toml", "uv.lock"],
+          ["pyproject.toml", "poetry.lock"],
+        ],
+      );
     case "go":
-      return detectWithSignals(family, signals, [
-        ["go.mod", "medium"],
-        ["go.sum", "low"],
-      ], [["go.mod", "go.sum"]]);
+      return detectWithSignals(
+        family,
+        signals,
+        [
+          ["go.mod", "medium"],
+          ["go.sum", "low"],
+        ],
+        [["go.mod", "go.sum"]],
+      );
     case "docker":
-      return detectWithSignals(family, signals, [
-        ["Dockerfile", "high"],
-        ["docker-compose.yml", "medium"],
-        ["docker-compose.yaml", "medium"],
-        ["compose.yml", "medium"],
-        ["compose.yaml", "medium"],
-      ], [["Dockerfile"]]);
+      return detectWithSignals(
+        family,
+        signals,
+        [
+          ["Dockerfile", "high"],
+          ["docker-compose.yml", "medium"],
+          ["docker-compose.yaml", "medium"],
+          ["compose.yml", "medium"],
+          ["compose.yaml", "medium"],
+        ],
+        [["Dockerfile"]],
+      );
     case "generic":
       return {
         family: "generic",
@@ -368,7 +402,8 @@ function sortScannerResults(
   scanners: readonly AuditScannerResult[],
 ): AuditScannerResult[] {
   return [...scanners].sort((left, right) => {
-    const statusRank = scannerStatusRank(left.status) - scannerStatusRank(right.status);
+    const statusRank =
+      scannerStatusRank(left.status) - scannerStatusRank(right.status);
     if (statusRank !== 0) {
       return statusRank;
     }
@@ -509,9 +544,7 @@ function normalizeGitleaksFinding(value: unknown): TopFinding | null {
       stringValue(record.rule_id) ||
       "gitleaks-rule",
     severity: normalizeSeverity(
-      stringValue(record.Severity) ||
-        stringValue(record.severity) ||
-        "high",
+      stringValue(record.Severity) || stringValue(record.severity) || "high",
     ),
     path,
     line:
@@ -529,9 +562,7 @@ function normalizeGitleaksFinding(value: unknown): TopFinding | null {
   };
 }
 
-function normalizeSeverity(
-  value: string | undefined,
-): TopFinding["severity"] {
+function normalizeSeverity(value: string | undefined): TopFinding["severity"] {
   switch ((value ?? "").toLowerCase()) {
     case "critical":
     case "error":

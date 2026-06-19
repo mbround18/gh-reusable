@@ -55,6 +55,7 @@ export interface DetectedFamily {
 ```
 
 **Validation rules**:
+
 - `signals` must be non-empty for any family with confidence > `none`.
 - `generic` always has `confidence: "high"` and `signals: ["(baseline)"]`.
 
@@ -83,10 +84,10 @@ The execution/result status of a single scanner run.
 
 ```typescript
 export type ScannerStatus =
-  | "pass"       // scanner ran, zero findings
-  | "findings"   // scanner ran, one or more findings returned
-  | "failed"     // scanner container threw / non-zero exit and unrecoverable
-  | "skipped";   // scanner excluded because no matching family detected
+  | "pass" // scanner ran, zero findings
+  | "findings" // scanner ran, one or more findings returned
+  | "failed" // scanner container threw / non-zero exit and unrecoverable
+  | "skipped"; // scanner excluded because no matching family detected
 ```
 
 - `skipped` is surfaced in the final audit intelligence table for scanners that were intentionally not run.
@@ -118,12 +119,12 @@ The outcome of one scanner execution, including timing and top findings.
 
 ```typescript
 export interface AuditScannerResult {
-  readonly name: string;             // e.g. "semgrep", "gitleaks"
+  readonly name: string; // e.g. "semgrep", "gitleaks"
   readonly family: LanguageFamily | "cross-language";
   readonly status: ScannerStatus;
   readonly findingsCount: number;
   readonly durationMs: number;
-  readonly failureReason?: string;   // present when status === "failed"
+  readonly failureReason?: string; // present when status === "failed"
   readonly topFindings: readonly TopFinding[];
 }
 ```
@@ -136,13 +137,14 @@ The rolled-up status of the entire audit run.
 
 ```typescript
 export type AuditOverallStatus =
-  | "pass"      // all scanners ran, zero findings
-  | "findings"  // all scanners ran, one or more findings
-  | "degraded"  // one or more scanners failed, remaining results preserved
-  | "failed";   // all scanners failed or detection produced no runnable scanners
+  | "pass" // all scanners ran, zero findings
+  | "findings" // all scanners ran, one or more findings
+  | "degraded" // one or more scanners failed, remaining results preserved
+  | "failed"; // all scanners failed or detection produced no runnable scanners
 ```
 
 **Derivation rules**:
+
 1. Start with `pass`.
 2. If any scanner has `status === "findings"` → `findings`.
 3. If any scanner has `status === "failed"` → `degraded` (unless all failed → `failed`).
@@ -157,12 +159,12 @@ The top-level smart audit summary embedded in `PipelineReportOutputs`.
 ```typescript
 export interface AuditSummary {
   readonly overallStatus: AuditOverallStatus;
-  readonly detectedFamilies: readonly string[];   // family names only
+  readonly detectedFamilies: readonly string[]; // family names only
   readonly detectionConfidence: DetectionConfidence; // lowest confidence across families
   readonly fallbackMode: boolean;
   readonly scanners: readonly AuditScannerResult[];
   readonly totalFindings: number;
-  readonly topFindings: readonly TopFinding[];    // merged, severity-sorted, capped at 10
+  readonly topFindings: readonly TopFinding[]; // merged, severity-sorted, capped at 10
 }
 ```
 
@@ -195,13 +197,13 @@ export interface PipelineReportOutputs {
 
 The `audit` function will write the following numeric keys to `scanFindings` (all pre-existing keys preserved):
 
-| Key                   | Value description                          |
-| --------------------- | ------------------------------------------ |
-| `semgrep`             | (existing) semgrep finding count           |
-| `gitleaks`            | (existing) gitleaks finding count          |
-| `total`               | (existing) sum of all findings             |
-| `detectedFamilyCount` | (new) number of detected families          |
-| `fallbackMode`        | (new) `1` if fallback active, else `0`     |
+| Key                   | Value description                             |
+| --------------------- | --------------------------------------------- |
+| `semgrep`             | (existing) semgrep finding count              |
+| `gitleaks`            | (existing) gitleaks finding count             |
+| `total`               | (existing) sum of all findings                |
+| `detectedFamilyCount` | (new) number of detected families             |
+| `fallbackMode`        | (new) `1` if fallback active, else `0`        |
 | `scannerFailureCount` | (new) number of scanners with `failed` status |
 
 ---
@@ -249,28 +251,28 @@ return JSON.stringify({ markdown: enrichedMarkdown, report, reportJson, reportMa
 
 ## Detection Signal Table
 
-| Family   | Signal file(s)                                              | Confidence |
-| -------- | ----------------------------------------------------------- | ---------- |
-| `rust`   | `Cargo.toml` + `Cargo.lock`                                 | high       |
-| `rust`   | `Cargo.toml` (no lock)                                      | medium     |
-| `node`   | `package.json` + (`pnpm-lock.yaml` or `yarn.lock` or `package-lock.json`) | high |
-| `node`   | `package.json` alone                                        | medium     |
-| `python` | `pyproject.toml` + (`uv.lock` or `poetry.lock`)             | high       |
-| `python` | `pyproject.toml` alone or `requirements.txt`                | medium     |
-| `python` | `setup.py` only                                             | low        |
-| `go`     | `go.mod` + `go.sum`                                         | high       |
-| `go`     | `go.mod` alone                                              | medium     |
-| `docker` | `Dockerfile`                                                | high       |
-| `docker` | `docker-compose.yml` (no Dockerfile)                        | medium     |
-| `generic`| (always present)                                            | high       |
+| Family    | Signal file(s)                                                            | Confidence |
+| --------- | ------------------------------------------------------------------------- | ---------- |
+| `rust`    | `Cargo.toml` + `Cargo.lock`                                               | high       |
+| `rust`    | `Cargo.toml` (no lock)                                                    | medium     |
+| `node`    | `package.json` + (`pnpm-lock.yaml` or `yarn.lock` or `package-lock.json`) | high       |
+| `node`    | `package.json` alone                                                      | medium     |
+| `python`  | `pyproject.toml` + (`uv.lock` or `poetry.lock`)                           | high       |
+| `python`  | `pyproject.toml` alone or `requirements.txt`                              | medium     |
+| `python`  | `setup.py` only                                                           | low        |
+| `go`      | `go.mod` + `go.sum`                                                       | high       |
+| `go`      | `go.mod` alone                                                            | medium     |
+| `docker`  | `Dockerfile`                                                              | high       |
+| `docker`  | `docker-compose.yml` (no Dockerfile)                                      | medium     |
+| `generic` | (always present)                                                          | high       |
 
 ---
 
 ## Scanner Registry (Initial)
 
-| Scanner   | Family           | Image                          | Scope                      |
-| --------- | ---------------- | ------------------------------ | -------------------------- |
-| `semgrep` | `cross-language` | `returntocorp/semgrep:1.81.0`  | All families; uses `semgrepConfig` |
-| `gitleaks`| `cross-language` | `zricethezav/gitleaks:v8.24.2` | All families; conditional on `includeGitleaks` |
+| Scanner    | Family           | Image                          | Scope                                          |
+| ---------- | ---------------- | ------------------------------ | ---------------------------------------------- |
+| `semgrep`  | `cross-language` | `returntocorp/semgrep:1.81.0`  | All families; uses `semgrepConfig`             |
+| `gitleaks` | `cross-language` | `zricethezav/gitleaks:v8.24.2` | All families; conditional on `includeGitleaks` |
 
 > **Note**: The registry is intentionally small for v1. The architecture allows adding family-scoped scanners (e.g. `cargo audit` for `rust`, `npm audit` for `node`) in subsequent iterations without changing the `audit` function signature.

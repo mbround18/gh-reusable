@@ -64,24 +64,13 @@ test("smart audit detects language families and emits additive scan findings", (
     "generic",
   ]);
   expect(detection.fallbackMode).toBe(false);
-  expect(detection.highConfidenceFamilies).toEqual([
-    "rust",
-    "node",
-    "python",
-  ]);
+  expect(detection.highConfidenceFamilies).toEqual(["rust", "node", "python"]);
 
   const summary = aggregateAuditResults(
     [
       scannerResult("semgrep", "findings", 2, [
         finding("semgrep", "high", "rule-a", "src/a.ts", "High issue", 12),
-        finding(
-          "semgrep",
-          "medium",
-          "rule-b",
-          "src/b.ts",
-          "Medium issue",
-          8,
-        ),
+        finding("semgrep", "medium", "rule-b", "src/b.ts", "Medium issue", 8),
       ]),
       scannerResult("gitleaks", "pass", 0),
     ],

@@ -15,10 +15,10 @@
 
 **Purpose**: Create the scaffolding and evidence files needed to implement and validate the feature safely.
 
-- [X] T001 Create feature validation log for audit test and typecheck evidence in specs/001-smart-audit-pipeline/checklists/validation-log.md
-- [X] T002 [P] Create downstream compatibility notes for unchanged workflow entrypoints in specs/001-smart-audit-pipeline/checklists/compatibility-notes.md
-- [X] T003 [P] Create audit-specific type module scaffold in packages/dagger-module/src/audit-types.ts
-- [X] T004 Create pure smart-audit helper module scaffold in packages/dagger-module/src/audit-logic.ts
+- [x] T001 Create feature validation log for audit test and typecheck evidence in specs/001-smart-audit-pipeline/checklists/validation-log.md
+- [x] T002 [P] Create downstream compatibility notes for unchanged workflow entrypoints in specs/001-smart-audit-pipeline/checklists/compatibility-notes.md
+- [x] T003 [P] Create audit-specific type module scaffold in packages/dagger-module/src/audit-types.ts
+- [x] T004 Create pure smart-audit helper module scaffold in packages/dagger-module/src/audit-logic.ts
 
 ---
 
@@ -28,9 +28,9 @@
 
 **⚠️ CRITICAL**: No user story work starts until this phase is complete.
 
-- [X] T005 Populate shared detection, scanner, and summary interfaces in packages/dagger-module/src/audit-types.ts
-- [X] T006 Add optional `auditSummary` output typing to `PipelineReportOutputs` in packages/dagger-module/src/reporting.ts
-- [X] T007 Add audit helper imports and private helper signatures in packages/dagger-module/src/index.ts
+- [x] T005 Populate shared detection, scanner, and summary interfaces in packages/dagger-module/src/audit-types.ts
+- [x] T006 Add optional `auditSummary` output typing to `PipelineReportOutputs` in packages/dagger-module/src/reporting.ts
+- [x] T007 Add audit helper imports and private helper signatures in packages/dagger-module/src/index.ts
 
 **Checkpoint**: Shared types and module seams are ready; user story work can begin.
 
@@ -44,16 +44,16 @@
 
 ### Tests for User Story 1
 
-- [X] T008 [P] [US1] Add fixture-based detection and fallback coverage in packages/dagger-pipelines/src/audit-smart.test.ts
+- [x] T008 [P] [US1] Add fixture-based detection and fallback coverage in packages/dagger-pipelines/src/audit-smart.test.ts
 
 ### Core for User Story 1
 
-- [X] T009 [P] [US1] Implement signal-table detection and fallback derivation helpers in packages/dagger-module/src/audit-logic.ts
-- [X] T010 [US1] Implement `Directory` probe bridging and `detectLanguageFamilies` in packages/dagger-module/src/index.ts
+- [x] T009 [P] [US1] Implement signal-table detection and fallback derivation helpers in packages/dagger-module/src/audit-logic.ts
+- [x] T010 [US1] Implement `Directory` probe bridging and `detectLanguageFamilies` in packages/dagger-module/src/index.ts
 
 ### Integration for User Story 1
 
-- [X] T011 [US1] Emit fallback warnings and additive detected-family `scanFindings` outputs in packages/dagger-module/src/index.ts
+- [x] T011 [US1] Emit fallback warnings and additive detected-family `scanFindings` outputs in packages/dagger-module/src/index.ts
 
 **Checkpoint**: User Story 1 is independently testable and preserves a usable fallback audit path.
 
@@ -67,17 +67,17 @@
 
 ### Tests for User Story 2
 
-- [X] T012 [P] [US2] Add aggregation, failure-isolation, and severity-ordering coverage in packages/dagger-pipelines/src/audit-smart.test.ts
+- [x] T012 [P] [US2] Add aggregation, failure-isolation, and severity-ordering coverage in packages/dagger-pipelines/src/audit-smart.test.ts
 
 ### Core for User Story 2
 
-- [X] T013 [P] [US2] Implement audit summary aggregation and top-finding sorting helpers in packages/dagger-module/src/audit-logic.ts
-- [X] T014 [US2] Implement non-throwing semgrep and gitleaks runner helpers in packages/dagger-module/src/index.ts
-- [X] T015 [US2] Implement `renderAuditIntelligenceSection` markdown enrichment in packages/dagger-module/src/index.ts
+- [x] T013 [P] [US2] Implement audit summary aggregation and top-finding sorting helpers in packages/dagger-module/src/audit-logic.ts
+- [x] T014 [US2] Implement non-throwing semgrep and gitleaks runner helpers in packages/dagger-module/src/index.ts
+- [x] T015 [US2] Implement `renderAuditIntelligenceSection` markdown enrichment in packages/dagger-module/src/index.ts
 
 ### Integration for User Story 2
 
-- [X] T016 [US2] Refactor the `audit` orchestration to use `Promise.allSettled` and publish additive `auditSummary`/`scanFindings` outputs in packages/dagger-module/src/index.ts
+- [x] T016 [US2] Refactor the `audit` orchestration to use `Promise.allSettled` and publish additive `auditSummary`/`scanFindings` outputs in packages/dagger-module/src/index.ts
 
 **Checkpoint**: User Story 2 is independently testable and preserves scanner results even when one scanner fails.
 
@@ -91,17 +91,17 @@
 
 ### Tests for User Story 3
 
-- [X] T017 [P] [US3] Strengthen reusable workflow compatibility assertions for unchanged audit inputs, permissions, and report steps in packages/dagger-pipelines/src/audit-workflow.test.ts
-- [X] T018 [P] [US3] Strengthen audit call-name and export alignment assertions in packages/dagger-pipelines/src/dagger-module-integration.test.ts
+- [x] T017 [P] [US3] Strengthen reusable workflow compatibility assertions for unchanged audit inputs, permissions, and report steps in packages/dagger-pipelines/src/audit-workflow.test.ts
+- [x] T018 [P] [US3] Strengthen audit call-name and export alignment assertions in packages/dagger-pipelines/src/dagger-module-integration.test.ts
 
 ### Core for User Story 3
 
-- [X] T019 [US3] Update additive output and failure-mode contract details in specs/001-smart-audit-pipeline/contracts/audit-function.md
+- [x] T019 [US3] Update additive output and failure-mode contract details in specs/001-smart-audit-pipeline/contracts/audit-function.md
 
 ### Integration for User Story 3
 
-- [X] T020 [US3] Update end-to-end validation scenarios and report surface expectations in specs/001-smart-audit-pipeline/quickstart.md
-- [X] T021 [US3] Record no-migration rollout and rollback guidance for downstream consumers in specs/001-smart-audit-pipeline/checklists/compatibility-notes.md
+- [x] T020 [US3] Update end-to-end validation scenarios and report surface expectations in specs/001-smart-audit-pipeline/quickstart.md
+- [x] T021 [US3] Record no-migration rollout and rollback guidance for downstream consumers in specs/001-smart-audit-pipeline/checklists/compatibility-notes.md
 
 **Checkpoint**: User Story 3 is independently testable and documents the backwards-compatible rollout surface.
 
@@ -111,9 +111,9 @@
 
 **Purpose**: Reconcile design docs with the implemented shape and capture final validation evidence.
 
-- [X] T022 [P] Reconcile design-decision notes with the final module boundaries in specs/001-smart-audit-pipeline/research.md
-- [X] T023 [P] Refresh `AuditSummary` and `scanFindings` state documentation in specs/001-smart-audit-pipeline/data-model.md
-- [X] T024 Run targeted smart-audit and compatibility test commands; record outcomes in specs/001-smart-audit-pipeline/checklists/validation-log.md
+- [x] T022 [P] Reconcile design-decision notes with the final module boundaries in specs/001-smart-audit-pipeline/research.md
+- [x] T023 [P] Refresh `AuditSummary` and `scanFindings` state documentation in specs/001-smart-audit-pipeline/data-model.md
+- [x] T024 Run targeted smart-audit and compatibility test commands; record outcomes in specs/001-smart-audit-pipeline/checklists/validation-log.md
 - [ ] T025 Run `pnpm --filter @gh-reusable/dagger-pipelines run test` and `pnpm run typecheck`; record final validation evidence in specs/001-smart-audit-pipeline/checklists/validation-log.md
 
 ---

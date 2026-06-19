@@ -14,14 +14,14 @@ All open design questions have been resolved through codebase analysis. No exter
 
 **Signal table** (confidence degrades from high → medium → low → baseline):
 
-| Family   | High-confidence signals           | Medium-confidence signals        |
-| -------- | --------------------------------- | -------------------------------- |
-| `rust`   | `Cargo.toml` + `Cargo.lock`       | `Cargo.toml` alone               |
-| `node`   | `package.json` + any lockfile     | `package.json` alone             |
-| `python` | `pyproject.toml` or `uv.lock`     | `requirements.txt` / `setup.py`  |
-| `go`     | `go.mod` + `go.sum`               | `go.mod` alone                   |
-| `docker` | `Dockerfile`                      | `docker-compose.yml` alone       |
-| `generic`| (always present as fallback)      | n/a                              |
+| Family    | High-confidence signals       | Medium-confidence signals       |
+| --------- | ----------------------------- | ------------------------------- |
+| `rust`    | `Cargo.toml` + `Cargo.lock`   | `Cargo.toml` alone              |
+| `node`    | `package.json` + any lockfile | `package.json` alone            |
+| `python`  | `pyproject.toml` or `uv.lock` | `requirements.txt` / `setup.py` |
+| `go`      | `go.mod` + `go.sum`           | `go.mod` alone                  |
+| `docker`  | `Dockerfile`                  | `docker-compose.yml` alone      |
+| `generic` | (always present as fallback)  | n/a                             |
 
 **Fallback rule**: If no family reaches `medium` or higher confidence, set `fallbackMode = true` and add a warning in the audit report. The `generic` family is always included so semgrep + gitleaks always run.
 
@@ -46,11 +46,13 @@ All open design questions have been resolved through codebase analysis. No exter
 ## Decision 3: Backwards-Compatible Output Envelope
 
 **Decision**: The JSON string returned by `audit` keeps its current envelope shape: `{ markdown, report, reportJson, reportMarkdown }`. The `report` field is a `PipelineReport`. New audit-specific data is added as:
+
 1. New keys in `report.outputs.scanFindings` record (additive, numeric).
 2. A new optional `auditSummary` field on `PipelineReportOutputs` (additive).
 3. A new `### Audit Intelligence` section appended to `report.markdown` (additive).
 
 **Rationale**: The `audit.yaml` workflow step already parses `DAGGER_STDOUT` as JSON and reads:
+
 - `report.report` or `report` for the payload
 - `report.reportMarkdown` or `report.markdown` for the PR comment body
 - `(payload.errors || report.errors || []).length > 0` for failure detection
@@ -96,13 +98,13 @@ None of these paths are broken by additive changes. The `scanFindings` type in `
 
 **Gap noted**: `.specify/memory/constitution.md` does not exist in this repository. The following conventions are inferred from `.github/copilot-instructions.md` and existing code:
 
-| Convention | Status |
-| --- | --- |
-| Thin workflows / Dagger-first logic | ✅ All new logic in `packages/dagger-module/src/` |
-| `@func()` names align with kebab-case call names | ✅ `audit` → `audit` unchanged |
-| Defaults sourced from `defaults.json` | ✅ No new scanner runtime deps exposed to defaults |
-| Permissions least-privilege | ✅ Existing `audit.yaml` permissions unchanged |
-| Backwards compat for workflow inputs | ✅ No new required inputs |
-| Tests in `packages/dagger-pipelines/src/` | ✅ New test file planned |
+| Convention                                       | Status                                             |
+| ------------------------------------------------ | -------------------------------------------------- |
+| Thin workflows / Dagger-first logic              | ✅ All new logic in `packages/dagger-module/src/`  |
+| `@func()` names align with kebab-case call names | ✅ `audit` → `audit` unchanged                     |
+| Defaults sourced from `defaults.json`            | ✅ No new scanner runtime deps exposed to defaults |
+| Permissions least-privilege                      | ✅ Existing `audit.yaml` permissions unchanged     |
+| Backwards compat for workflow inputs             | ✅ No new required inputs                          |
+| Tests in `packages/dagger-pipelines/src/`        | ✅ New test file planned                           |
 
 **Recommendation**: Create `.specify/memory/constitution.md` to codify these constraints formally for future `speckit.plan` runs.

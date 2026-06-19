@@ -14,10 +14,7 @@ import {
 } from "graphql";
 import { parse as parseYaml } from "yaml";
 import { existsSync, readFileSync } from "node:fs";
-import type {
-  AuditScannerResult,
-  RepositorySignals,
-} from "./audit-types";
+import type { AuditScannerResult, RepositorySignals } from "./audit-types";
 import {
   aggregateAuditResults,
   buildScanFindings,
@@ -1679,10 +1676,13 @@ export class GhReusablePipelines {
     ] as const;
 
     const entries = await Promise.all(
-      signalPaths.map(async (signal) => [
-        signal,
-        Boolean(await this.readOptionalText(source, signal)),
-      ] as const),
+      signalPaths.map(
+        async (signal) =>
+          [
+            signal,
+            Boolean(await this.readOptionalText(source, signal)),
+          ] as const,
+      ),
     );
 
     return Object.fromEntries(entries) as RepositorySignals;
@@ -1721,7 +1721,10 @@ export class GhReusablePipelines {
       "/tmp/semgrep.json",
     );
     const parsed = parseScannerFindings("semgrep", json);
-    const status = normalizeScannerStatus(result.exitCode, parsed.findingsCount);
+    const status = normalizeScannerStatus(
+      result.exitCode,
+      parsed.findingsCount,
+    );
     reporter.endStep(step, {
       success: status !== "failed",
       stdout: result.stdout,
@@ -1745,7 +1748,9 @@ export class GhReusablePipelines {
       findingsCount: parsed.findingsCount,
       durationMs: Date.now() - startedAt,
       failureReason:
-        status === "failed" ? result.stderr || result.stdout || "Semgrep execution failed" : undefined,
+        status === "failed"
+          ? result.stderr || result.stdout || "Semgrep execution failed"
+          : undefined,
       topFindings: parsed.topFindings,
     };
   }
@@ -1782,7 +1787,10 @@ export class GhReusablePipelines {
       "/tmp/gitleaks.json",
     );
     const parsed = parseScannerFindings("gitleaks", json);
-    const status = normalizeScannerStatus(result.exitCode, parsed.findingsCount);
+    const status = normalizeScannerStatus(
+      result.exitCode,
+      parsed.findingsCount,
+    );
     reporter.endStep(step, {
       success: status !== "failed",
       stdout: result.stdout,

@@ -22,15 +22,15 @@
 
 > ⚠️ **Gap**: `.specify/memory/constitution.md` does not exist. Constitution constraints inferred from `.github/copilot-instructions.md` and codebase conventions.
 
-| Convention | Gate | Status |
-| --- | --- | --- |
-| All execution logic lives in Dagger module, not workflow YAML | ERROR on violation | ✅ Pass — detection + aggregation in `index.ts` |
-| `@func()` names align with kebab-case workflow call values | ERROR on violation | ✅ Pass — `audit` → `audit` unchanged |
-| Defaults sourced from `defaults.json` where applicable | WARN on drift | ✅ Pass — no new scanner runtime defaults exposed |
-| Permissions are explicit and least-privilege | ERROR on escalation | ✅ Pass — `audit.yaml` permissions unchanged |
-| Reusable workflow inputs must be actually used in workflow body | ERROR on violation | ✅ Pass — no new inputs added |
-| No breaking changes to existing `@func()` signatures without explicit approval | ERROR on violation | ✅ Pass — `audit` signature gains no new required params |
-| New test coverage in `packages/dagger-pipelines/src/` | WARN if missing | ✅ Planned — `audit-smart.test.ts` |
+| Convention                                                                     | Gate                | Status                                                   |
+| ------------------------------------------------------------------------------ | ------------------- | -------------------------------------------------------- |
+| All execution logic lives in Dagger module, not workflow YAML                  | ERROR on violation  | ✅ Pass — detection + aggregation in `index.ts`          |
+| `@func()` names align with kebab-case workflow call values                     | ERROR on violation  | ✅ Pass — `audit` → `audit` unchanged                    |
+| Defaults sourced from `defaults.json` where applicable                         | WARN on drift       | ✅ Pass — no new scanner runtime defaults exposed        |
+| Permissions are explicit and least-privilege                                   | ERROR on escalation | ✅ Pass — `audit.yaml` permissions unchanged             |
+| Reusable workflow inputs must be actually used in workflow body                | ERROR on violation  | ✅ Pass — no new inputs added                            |
+| No breaking changes to existing `@func()` signatures without explicit approval | ERROR on violation  | ✅ Pass — `audit` signature gains no new required params |
+| New test coverage in `packages/dagger-pipelines/src/`                          | WARN if missing     | ✅ Planned — `audit-smart.test.ts`                       |
 
 **Recommendation**: Create `.specify/memory/constitution.md` to codify these constraints for future planning runs.
 
@@ -64,6 +64,7 @@ See `research.md` for full rationale. Key decisions:
 ## Work Breakdown
 
 ### 1. New types module
+
 **File**: `packages/dagger-module/src/audit-types.ts` (new)
 
 - Define `LanguageFamily`, `DetectionConfidence`, `DetectedFamily`, `DetectionResult`
@@ -76,6 +77,7 @@ See `research.md` for full rationale. Key decisions:
 ---
 
 ### 2. Extend `PipelineReportOutputs`
+
 **File**: `packages/dagger-module/src/reporting.ts`
 
 - Import `AuditSummary` from `audit-types.ts`
@@ -86,6 +88,7 @@ See `research.md` for full rationale. Key decisions:
 ---
 
 ### 3. Private detection method
+
 **File**: `packages/dagger-module/src/index.ts`
 
 Add private method to `GhReusablePipelines`:
@@ -95,6 +98,7 @@ private async detectLanguageFamilies(source: Directory): Promise<DetectionResult
 ```
 
 Implementation:
+
 - Probe the signal table (see `data-model.md`) using `readOptionalText` for each sentinel file
 - Assign confidence per family based on which signals are present
 - Always include `generic` family
@@ -106,6 +110,7 @@ Implementation:
 ---
 
 ### 4. Private scanner runner helpers
+
 **File**: `packages/dagger-module/src/index.ts`
 
 Add private methods:
@@ -116,6 +121,7 @@ private async runGitleaksScanner(source: Directory): Promise<AuditScannerResult>
 ```
 
 Each method:
+
 - Uses `runCapturedStep` internally (existing helper)
 - Parses scanner JSON output for finding count and top findings
 - Wraps errors and normalizes output into `AuditScannerResult`
@@ -135,6 +141,7 @@ private aggregateAuditResults(
 ---
 
 ### 5. Extend markdown renderer
+
 **File**: `packages/dagger-module/src/index.ts` (inline, not in `reporting.ts`)
 
 Add private method:
@@ -144,6 +151,7 @@ private renderAuditIntelligenceSection(summary: AuditSummary): string
 ```
 
 Appends to the base markdown:
+
 - `### Audit Intelligence` header
 - Detected language families (badges or list)
 - Fallback mode warning if active
@@ -155,9 +163,11 @@ Appends to the base markdown:
 ---
 
 ### 6. Refactor `audit` @func() body
+
 **File**: `packages/dagger-module/src/index.ts`
 
 Replace the current sequential semgrep→gitleaks body (lines 493–608) with:
+
 1. `detectLanguageFamilies(source)` → `detection`
 2. If `detection.fallbackMode` → `reporter.recordWarning()`
 3. Build scanner promise array from registry filtered by detected families
@@ -177,13 +187,16 @@ Replace the current sequential semgrep→gitleaks body (lines 493–608) with:
 ---
 
 ### 7. New test file
+
 **File**: `packages/dagger-pipelines/src/audit-smart.test.ts` (new)
 
 Fixture-based tests (no live containers, no Dagger SDK required):
+
 - Import `detectLanguageFamilies` logic via test-accessible helper OR test the aggregation/detection functions directly if they are extracted into a testable module
 - **Alternative approach** (preferred for testability): Extract detection and aggregation into a pure-function module `packages/dagger-module/src/audit-logic.ts` that takes plain file-presence maps instead of `Directory` objects. Tests import from `audit-logic.ts`. The `index.ts` bridges `Directory` to file maps.
 
 Test cases (see `quickstart.md` for full scenarios):
+
 - Single-language detection (Rust fixture)
 - Mixed-language detection (Node + Python + Rust fixture)
 - Fallback mode (no signals)
@@ -200,11 +213,13 @@ Test cases (see `quickstart.md` for full scenarios):
 ### 8. Ensure existing tests pass
 
 No changes needed to:
+
 - `audit-workflow.test.ts` — workflow YAML is unchanged
 - `dagger-module-integration.test.ts` — `audit` function name unchanged, no new `@func()` added
 - `security-workflows.test.ts` — `codeql.yaml` and `dependency-review.yaml` unchanged
 
 Run to confirm:
+
 ```bash
 pnpm --filter @gh-reusable/dagger-pipelines run test
 pnpm run typecheck
@@ -226,27 +241,27 @@ pnpm run typecheck
 
 ## Risks and Mitigations
 
-| Risk | Likelihood | Impact | Mitigation |
-| --- | --- | --- | --- |
-| Detection probe misses a family in monorepos with nested manifests | Medium | Low | Signal table probes root-level files only for v1; warn in research.md for future |
-| `Promise.allSettled` with Dagger containers behaves differently from sequential `await` | Low | High | The existing `detectNodePackageManager` and multi-step pipelines already use async/await with Dagger; validate with integration smoke test |
-| `PipelineReportOutputs.auditSummary` import creates circular dependency | Low | Medium | `audit-types.ts` has no imports from `reporting.ts`; `reporting.ts` imports from `audit-types.ts` one-way |
-| `audit-logic.ts` extraction (for testability) changes observable behavior | Low | Low | Pure functions — no side effects, no Dagger SDK calls; behavior identical |
-| `topFindings` extraction from scanner JSON requires schema assumptions | Medium | Low | Add try/catch with fallback to empty array; log warning but never throw |
+| Risk                                                                                    | Likelihood | Impact | Mitigation                                                                                                                                 |
+| --------------------------------------------------------------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Detection probe misses a family in monorepos with nested manifests                      | Medium     | Low    | Signal table probes root-level files only for v1; warn in research.md for future                                                           |
+| `Promise.allSettled` with Dagger containers behaves differently from sequential `await` | Low        | High   | The existing `detectNodePackageManager` and multi-step pipelines already use async/await with Dagger; validate with integration smoke test |
+| `PipelineReportOutputs.auditSummary` import creates circular dependency                 | Low        | Medium | `audit-types.ts` has no imports from `reporting.ts`; `reporting.ts` imports from `audit-types.ts` one-way                                  |
+| `audit-logic.ts` extraction (for testability) changes observable behavior               | Low        | Low    | Pure functions — no side effects, no Dagger SDK calls; behavior identical                                                                  |
+| `topFindings` extraction from scanner JSON requires schema assumptions                  | Medium     | Low    | Add try/catch with fallback to empty array; log warning but never throw                                                                    |
 
 ---
 
 ## Validation Matrix
 
-| Contract surface | Change | Validation |
-| --- | --- | --- |
-| `audit.yaml` inputs/permissions | None | `audit-workflow.test.ts` (existing, unchanged) |
-| Dagger `audit` function name | None | `dagger-module-integration.test.ts` (existing) |
-| `codeql.yaml` / `dependency-review.yaml` / `security.yaml` | None | `security-workflows.test.ts` (existing) |
-| `PipelineReportOutputs.auditSummary` type | New optional field | `pnpm run typecheck` |
-| Detection logic (all fixture shapes) | New | `audit-smart.test.ts` (new) |
-| Aggregation logic (all status paths) | New | `audit-smart.test.ts` (new) |
-| Scanner failure isolation | New | `audit-smart.test.ts` (new) |
-| Fallback mode warnings | New | `audit-smart.test.ts` (new) |
-| Output JSON envelope shape | Additive | `audit-smart.test.ts` (new) |
-| Markdown `### Audit Intelligence` section | New | `audit-smart.test.ts` (new) |
+| Contract surface                                           | Change             | Validation                                     |
+| ---------------------------------------------------------- | ------------------ | ---------------------------------------------- |
+| `audit.yaml` inputs/permissions                            | None               | `audit-workflow.test.ts` (existing, unchanged) |
+| Dagger `audit` function name                               | None               | `dagger-module-integration.test.ts` (existing) |
+| `codeql.yaml` / `dependency-review.yaml` / `security.yaml` | None               | `security-workflows.test.ts` (existing)        |
+| `PipelineReportOutputs.auditSummary` type                  | New optional field | `pnpm run typecheck`                           |
+| Detection logic (all fixture shapes)                       | New                | `audit-smart.test.ts` (new)                    |
+| Aggregation logic (all status paths)                       | New                | `audit-smart.test.ts` (new)                    |
+| Scanner failure isolation                                  | New                | `audit-smart.test.ts` (new)                    |
+| Fallback mode warnings                                     | New                | `audit-smart.test.ts` (new)                    |
+| Output JSON envelope shape                                 | Additive           | `audit-smart.test.ts` (new)                    |
+| Markdown `### Audit Intelligence` section                  | New                | `audit-smart.test.ts` (new)                    |

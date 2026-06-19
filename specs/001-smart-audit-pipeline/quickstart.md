@@ -27,6 +27,7 @@ pnpm --filter @gh-reusable/dagger-pipelines run test -- src/audit-workflow.test.
 ```
 
 **Expected**: All existing tests pass. Key assertions:
+
 - `audit.yaml` still exposes `create_alerts`, `track_release_summary`, `semgrep_config`, `include_gitleaks` inputs.
 - Permissions still include `security-events: write`, `contents: write`, `pull-requests: write`.
 - The dagger-run step still has `call` containing `"audit"`.
@@ -57,6 +58,7 @@ pnpm --filter @gh-reusable/dagger-pipelines run test -- src/audit-smart.test.ts
 **Expected outcomes per fixture:**
 
 ### 3a — Single-language repo (Rust)
+
 - Input fixture signals: `Cargo.toml`, `Cargo.lock`
 - `detectedFamilies` contains exactly `["rust", "generic"]`
 - `detectionConfidence` = `"high"`
@@ -65,6 +67,7 @@ pnpm --filter @gh-reusable/dagger-pipelines run test -- src/audit-smart.test.ts
 - Report markdown mentions `rust` family
 
 ### 3b — Mixed-language repo (Node + Python + Rust)
+
 - Input fixture signals: `Cargo.toml`, `package.json`, `pnpm-lock.yaml`, `pyproject.toml`, `uv.lock`
 - `detectedFamilies` contains `["rust", "node", "python", "generic"]`
 - All scanners listed in `auditSummary.scanners`
@@ -72,6 +75,7 @@ pnpm --filter @gh-reusable/dagger-pipelines run test -- src/audit-smart.test.ts
 - `topFindings` sorted by severity (critical first)
 
 ### 3c — Ambiguous/empty repo (no signals)
+
 - Input fixture signals: no manifest files
 - `detectedFamilies` = `["generic"]`
 - `fallbackMode` = `true`
@@ -80,6 +84,7 @@ pnpm --filter @gh-reusable/dagger-pipelines run test -- src/audit-smart.test.ts
 - Overall audit still completes with a report (not aborted)
 
 ### 3d — Scanner execution failure (one scanner fails)
+
 - Scanner fixture: semgrep returns exit code 0, gitleaks throws/rejects
 - `auditSummary.scanners` contains gitleaks entry with `status: "failed"`
 - `report.errors` has one entry for gitleaks
@@ -88,11 +93,13 @@ pnpm --filter @gh-reusable/dagger-pipelines run test -- src/audit-smart.test.ts
 - the workflow summary still renders successfully for the remaining scanners
 
 ### 3f — Audit intelligence remains additive
+
 - The reusable workflow entrypoint stays `.github/workflows/audit.yaml`
 - The human-readable summary appends `### Audit Intelligence`
 - Existing PR comment, artifact, and release-note surfaces continue to use the same consolidated markdown output
 
 ### 3e — All scanners fail
+
 - Both scanner fixtures reject
 - `auditSummary.overallStatus` = `"failed"`
 - `report.errors` has entries for both scanners
@@ -130,20 +137,26 @@ pnpm run typecheck
 The following can only be validated against a live GitHub repository run. They are included here for reference but are not part of the automated test suite.
 
 ### PR Comment
+
 After triggering a PR run of `audit.yaml`:
+
 1. A sticky comment with `<!-- gh-reusable:audit:status -->` marker appears (or is updated).
 2. The comment body includes the `### Audit Intelligence` section.
 3. Detected families are listed.
 4. If fallback mode was active, a `⚠️` warning is visible.
 
 ### Artifact
+
 Download the `audit-report` artifact:
+
 1. `report.json` contains `outputs.auditSummary` with a valid `AuditSummary` shape.
 2. `report.json` contains `outputs.scanFindings` with `detectedFamilyCount`, `fallbackMode`, `scannerFailureCount` keys.
 3. `report.md` contains the `### Audit Intelligence` section.
 
 ### Release Notes (tag-triggered)
+
 On a tag push with `track_release_summary: true`:
+
 1. Release notes contain the `<!-- gh-reusable:audit:summary:start -->` block.
 2. Block includes the enriched markdown with the `### Audit Intelligence` section.
 
