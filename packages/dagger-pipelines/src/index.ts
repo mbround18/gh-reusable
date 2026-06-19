@@ -101,9 +101,12 @@ type PipelineDefaults = {
   node: { version: string; debianImageSuffix: string };
 };
 
-const DEFAULTS = JSON.parse(
-  readFileSync(new URL("../../../defaults.json", import.meta.url), "utf8"),
-) as PipelineDefaults;
+const DEFAULTS_PATH = new URL("../../../defaults.json", import.meta.url);
+const DEFAULTS = existsSync(DEFAULTS_PATH)
+  ? (JSON.parse(readFileSync(DEFAULTS_PATH, "utf8")) as PipelineDefaults)
+  : ({
+      node: { version: "24", debianImageSuffix: "trixie" },
+    } as PipelineDefaults);
 const DEFAULT_NODE_BASE_IMAGE = `node:${DEFAULTS.node.version}-${DEFAULTS.node.debianImageSuffix}-slim`;
 
 const PACKAGE_MANAGER_CACHE_PATHS: Record<PackageManager, string> = {
