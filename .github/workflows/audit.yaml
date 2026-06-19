@@ -82,14 +82,14 @@ jobs:
 
       - name: Upload Semgrep SARIF
         if: ${{ inputs.create_alerts && hashFiles('.audit-reports/semgrep.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: .audit-reports/semgrep.sarif
           category: audit-semgrep
 
       - name: Upload Gitleaks SARIF
         if: ${{ inputs.create_alerts && inputs.include_gitleaks && hashFiles('.audit-reports/gitleaks.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: .audit-reports/gitleaks.sarif
           category: audit-gitleaks
