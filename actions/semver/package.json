@@ -20,5 +20,5 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
-  "packageManager": "pnpm@10.15.1"
+  "packageManager": "pnpm@10.34.4"
 }
