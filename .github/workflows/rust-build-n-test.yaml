@@ -55,6 +55,7 @@ jobs:
             --components=${{ inputs.components }}
             --target=${{ inputs.target }}
             --name=${{ inputs.name }}
+          module: github.com/mbround18/gh-reusable/packages/dagger-module@main
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
       - if: always()
         uses: actions/github-script@v7

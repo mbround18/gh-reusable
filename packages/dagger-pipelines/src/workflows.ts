@@ -1,5 +1,6 @@
 import type { Client } from "@dagger.io/dagger";
 import { readFileSync } from "node:fs";
+import type { ComplianceIssue, ComplianceResult } from "./config-types.js";
 
 import {
   buildAndPush,
@@ -868,6 +869,14 @@ export type WorkflowEnvironment = Readonly<Record<string, string | undefined>>;
 export function validateWorkflowDefinitions(
   definitions: WorkflowDefinitions = WORKFLOW_DEFINITIONS,
 ): readonly string[] {
+  return evaluateWorkflowDefinitionCompliance(definitions).map(
+    (issue) => issue.message,
+  );
+}
+
+export function evaluateWorkflowDefinitionCompliance(
+  definitions: WorkflowDefinitions = WORKFLOW_DEFINITIONS,
+): readonly ComplianceIssue[] {
   const errors: string[] = [];
 
   for (const [workflowId, definition] of Object.entries(
@@ -906,7 +915,10 @@ export function validateWorkflowDefinitions(
     }
   }
 
-  return errors;
+  return errors.map((message) => ({
+    code: "invalid-workflow-definition",
+    message,
+  }));
 }
 
 const workflowDefinitionValidationErrors =
@@ -1058,6 +1070,72 @@ export const workflowFunctions = {
   "test-setup-rust": testSetupRustWorkflow,
   "update-readme": updateReadmeWorkflow,
 } as const;
+
+export interface DaggerInvocationStep {
+  readonly workflowFile: string;
+  readonly jobName: string;
+  readonly uses: string;
+  readonly with?: Readonly<Record<string, unknown>>;
+  readonly requireExplicitModule?: boolean;
+}
+
+export function parseDaggerCallName(call: string): string {
+  return call.trim().split(/\s+/)[0] ?? "";
+}
+
+export function evaluateDaggerInvocationStep(
+  step: DaggerInvocationStep,
+): ComplianceResult {
+  const withSection = step.with ?? {};
+  const issues: ComplianceIssue[] = [];
+  const isDirect = step.uses.startsWith("dagger/dagger-for-github@");
+  const isComposite =
+    step.uses.endsWith(".github/actions/dagger-run") ||
+    step.uses === "./.github/actions/dagger-run";
+
+  if (!isDirect && !isComposite) {
+    return { status: "pass", issues };
+  }
+
+  const callValue = withSection.call;
+  const call = typeof callValue === "string" ? callValue.trim() : "";
+  if (call.length === 0) {
+    issues.push({
+      code: "missing-call",
+      message: `${step.workflowFile}:${step.jobName} must set with.call`,
+    });
+  }
+
+  if (withSection.verb !== undefined) {
+    issues.push({
+      code: "legacy-verb",
+      message: `${step.workflowFile}:${step.jobName} must not set with.verb`,
+    });
+  }
+  if (withSection.args !== undefined) {
+    issues.push({
+      code: "legacy-args",
+      message: `${step.workflowFile}:${step.jobName} must not set with.args`,
+    });
+  }
+
+  const moduleValue = withSection.module;
+  const moduleRef =
+    typeof moduleValue === "string" ? moduleValue.trim() : undefined;
+  if (isDirect || step.requireExplicitModule) {
+    if (!moduleRef) {
+      issues.push({
+        code: "missing-module",
+        message: `${step.workflowFile}:${step.jobName} must set with.module`,
+      });
+    }
+  }
+
+  return {
+    status: issues.length === 0 ? "pass" : "fail",
+    issues,
+  };
+}
 
 function getCiWorkflow(workflowId: WorkflowId): WorkflowCiConfig {
   const definition = WORKFLOW_DEFINITIONS[workflowId];

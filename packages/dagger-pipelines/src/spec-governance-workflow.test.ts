@@ -63,8 +63,13 @@ test("spec governance workflow enforces required artifact sections", () => {
   expect(script).toContain("specs/pipeline-changes/.*\\.md");
   expect(script).toContain("## Summary");
   expect(script).toContain("## Affected Contracts");
+  expect(script).toContain("## Compatibility Classification");
   expect(script).toContain("## Runtime and Defaults Impact");
   expect(script).toContain("## Security and Permissions Impact");
   expect(script).toContain("## Validation Plan");
+  expect(script).toContain("## Consumer Impact and Migration");
   expect(script).toContain("## Rollout and Rollback");
+  expect(script).toContain("## Exception Plan (if needed)");
+  expect(script).toContain("Classification:\\s*(compatible|breaking)");
+  expect(script).toContain("declares a breaking change");
 });

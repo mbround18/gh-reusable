@@ -113,3 +113,36 @@ test("publish workflow wires every publish entrypoint", () => {
     allSteps.some(({ step }) => step.uses?.includes("actions/github-script@")),
   ).toBe(true);
 });
+
+test("publish workflow interface remains backward compatible", () => {
+  const workflow = getWorkflow();
+  const inputNames = Object.keys(
+    workflow.on?.workflow_call?.inputs ?? {},
+  ).sort();
+  const secretNames = Object.keys(
+    workflow.on?.workflow_call?.secrets ?? {},
+  ).sort();
+
+  expect(inputNames).toEqual(
+    expect.arrayContaining([
+      "target",
+      "source",
+      "registry",
+      "chart",
+      "tag",
+      "version",
+      "publish",
+      "runs-on",
+    ]),
+  );
+  expect(secretNames).toEqual(
+    expect.arrayContaining([
+      "NPM_TOKEN",
+      "CARGO_REGISTRY_TOKEN",
+      "HELM_USERNAME",
+      "HELM_PASSWORD",
+      "DAGGER_CLOUD_TOKEN",
+      "DISCORD_WEBHOOK_URL",
+    ]),
+  );
+});

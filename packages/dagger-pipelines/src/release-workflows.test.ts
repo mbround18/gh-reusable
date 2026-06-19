@@ -27,6 +27,12 @@ function readWorkflow(fileName: string): {
   return parse(readFileSync(path.join(workflowsDir, fileName), "utf8"));
 }
 
+function inputNames(fileName: string): string[] {
+  return Object.keys(
+    readWorkflow(fileName).on?.workflow_call?.inputs ?? {},
+  ).sort();
+}
+
 test("release pnpm workflow delegates to publish.yaml with package release inputs", () => {
   const workflow = readWorkflow("release-pnpm.yaml");
   const inputs = workflow.on?.workflow_call?.inputs ?? {};
@@ -110,4 +116,53 @@ test("release test workflows run build/package only", () => {
     ".github/workflows/release-compose.yaml",
   );
   expect(composeTest.jobs?.release?.secrets?.DAGGER_CLOUD_TOKEN).toBeDefined();
+});
+
+test("release workflow interfaces remain backward compatible", () => {
+  expect(inputNames("release-pnpm.yaml")).toEqual(
+    expect.arrayContaining([
+      "source",
+      "registry",
+      "tag",
+      "version",
+      "publish",
+      "runs-on",
+    ]),
+  );
+  expect(inputNames("release-docker.yaml")).toEqual(
+    expect.arrayContaining([
+      "image",
+      "context",
+      "canary_label",
+      "dockerfile",
+      "ghcr",
+      "ghcr_username",
+      "dockerhub_username",
+      "semver_prefix",
+      "prepend_target",
+      "target",
+      "platforms",
+      "download_artifact",
+      "download_artifact_destination",
+      "track_release_summary",
+    ]),
+  );
+  expect(inputNames("release-compose.yaml")).toEqual(
+    expect.arrayContaining([
+      "image",
+      "context",
+      "canary_label",
+      "dockerfile",
+      "ghcr",
+      "ghcr_username",
+      "dockerhub_username",
+      "semver_prefix",
+      "prepend_target",
+      "target",
+      "platforms",
+      "download_artifact",
+      "download_artifact_destination",
+      "track_release_summary",
+    ]),
+  );
 });

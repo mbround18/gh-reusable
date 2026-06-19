@@ -552,6 +552,9 @@ function normalizeSubpath(value: string): string {
 export type {
   ActionCoverageEntry,
   ActionId,
+  CompatibilityClassification,
+  ComplianceIssue,
+  ComplianceResult,
   CommandPreset,
   DaggerCoverageConfig,
   DaggerTask,
@@ -592,3 +595,11 @@ export {
   type ResolvedSemverBase,
   type SemverIncrement,
 } from "./semver.js";
+export {
+  evaluateDaggerInvocationStep,
+  evaluateWorkflowDefinitionCompliance,
+  parseDaggerCallName,
+  type DaggerInvocationStep,
+  type WorkflowEnvironment as PipelineWorkflowEnvironment,
+  type WorkflowId as PipelineWorkflowId,
+} from "./workflows.js";

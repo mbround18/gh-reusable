@@ -10,6 +10,11 @@ Describe what changed and the desired outcome.
 - Dagger module functions:
 - Downstream repos impacted:
 
+## Compatibility Classification
+
+- Classification: compatible | breaking
+- Justification:
+
 ## Runtime and Defaults Impact
 
 - `defaults.json` changes:
@@ -25,7 +30,19 @@ Describe what changed and the desired outcome.
 - Tests/checks run:
 - Expected signals:
 
+## Consumer Impact and Migration
+
+- Consumer impact:
+- Migration guidance:
+
 ## Rollout and Rollback
 
 - Rollout strategy:
 - Rollback procedure:
+
+## Exception Plan (if needed)
+
+- Exception required?: yes | no
+- Owner:
+- Expires at:
+- Remediation plan:

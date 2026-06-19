@@ -59,10 +59,13 @@ jobs:
           required_headings=(
             "## Summary"
             "## Affected Contracts"
+            "## Compatibility Classification"
             "## Runtime and Defaults Impact"
             "## Security and Permissions Impact"
             "## Validation Plan"
+            "## Consumer Impact and Migration"
             "## Rollout and Rollback"
+            "## Exception Plan (if needed)"
           )
 
           while IFS= read -r spec_file; do
@@ -73,4 +76,20 @@ jobs:
                 exit 1
               fi
             done
+
+            if ! grep -Eiq 'Classification:\s*(compatible|breaking)\b' "${spec_file}"; then
+              echo "::error title=Missing compatibility classification::${spec_file} must declare 'Classification: compatible' or 'Classification: breaking' under Compatibility Classification."
+              exit 1
+            fi
+
+            if grep -Eiq 'Classification:\s*breaking\b' "${spec_file}"; then
+              if ! grep -Fq "Migration guidance" "${spec_file}"; then
+                echo "::error title=Missing migration guidance::${spec_file} declares a breaking change but does not include migration guidance."
+                exit 1
+              fi
+              if ! grep -Fq "Rollback procedure" "${spec_file}"; then
+                echo "::error title=Missing rollback guidance::${spec_file} declares a breaking change but does not include rollback guidance."
+                exit 1
+              fi
+            fi
           done <<< "${spec_files}"

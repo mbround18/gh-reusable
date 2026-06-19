@@ -88,3 +88,17 @@ export interface DaggerCoverageConfig {
   readonly actions: Readonly<Record<ActionId, ActionCoverageEntry>>;
   readonly workflows: Readonly<Record<WorkflowFile, WorkflowCoverageEntry>>;
 }
+
+export type CompatibilityClassification = "compatible" | "breaking";
+
+export type ComplianceStatus = "pass" | "fail";
+
+export interface ComplianceIssue {
+  readonly code: string;
+  readonly message: string;
+}
+
+export interface ComplianceResult {
+  readonly status: ComplianceStatus;
+  readonly issues: readonly ComplianceIssue[];
+}

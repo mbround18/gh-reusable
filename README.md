@@ -27,6 +27,8 @@ This repository now includes a root `pnpm` workspace bootstrap for TypeScript ac
 - Project-local Spec Kit template overrides live in `.specify/templates/overrides/`.
 - A reusable preset package is available at `presets/gh-reusable/`.
 - Pipeline-impacting PRs must include a spec artifact in `specs/pipeline-changes/*.md` and include required sections (enforced by `.github/workflows/spec-governance.yaml`).
+- Pipeline-change specs must include **Compatibility Classification** (`compatible` or `breaking`), consumer migration notes, and exception metadata when waivers are needed.
+- Approved temporary waivers are tracked in `specs/pipeline-changes/exceptions.md` (owner + expiration + remediation required).
 
 ### Using Reusable Actions
 

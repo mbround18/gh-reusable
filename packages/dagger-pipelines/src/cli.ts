@@ -6,7 +6,11 @@ import {
   type BuildAndPushConfig,
   type CiConfig,
 } from "./index.js";
-import { runWorkflow, type WorkflowId } from "./workflows.js";
+import {
+  evaluateWorkflowDefinitionCompliance,
+  runWorkflow,
+  type WorkflowId,
+} from "./workflows.js";
 
 type CliCommand = "ci" | "build-and-push" | "workflow";
 
@@ -80,6 +84,15 @@ function defaultBuildAndPushConfig(): BuildAndPushConfig {
 }
 
 async function main(): Promise<void> {
+  const complianceIssues = evaluateWorkflowDefinitionCompliance();
+  if (complianceIssues.length > 0) {
+    throw new Error(
+      `Workflow definition compliance failed: ${complianceIssues
+        .map((issue) => issue.message)
+        .join("; ")}`,
+    );
+  }
+
   const command = parseCommand();
 
   await connect(async (client) => {

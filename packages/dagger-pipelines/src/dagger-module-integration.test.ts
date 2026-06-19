@@ -3,6 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { expect, test } from "vitest";
+import {
+  evaluateDaggerInvocationStep,
+  parseDaggerCallName,
+} from "./workflows.js";
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -93,10 +97,20 @@ test("all dagger-for-github workflow integrations use module+call and no wrapper
           const call = typeof callValue === "string" ? callValue.trim() : "";
           const moduleRef =
             typeof moduleValue === "string" ? moduleValue.trim() : "";
-          const functionName = call.split(/\s+/)[0] ?? "";
+          const functionName = parseDaggerCallName(call);
           const envSection = (step.env ?? {}) as Record<string, unknown>;
+          const compliance = evaluateDaggerInvocationStep({
+            workflowFile,
+            jobName,
+            uses,
+            with: withSection,
+          });
 
           inspectedSteps.push(`${workflowFile}:${jobName} (direct)`);
+          expect(
+            compliance.status,
+            compliance.issues.map((i) => i.message).join("; "),
+          ).toBe("pass");
           expect(
             moduleRef,
             `${workflowFile}:${jobName} must set with.module`,
@@ -131,9 +145,23 @@ test("all dagger-for-github workflow integrations use module+call and no wrapper
         ) {
           const callValue = withSection.call;
           const call = typeof callValue === "string" ? callValue.trim() : "";
-          const functionName = call.split(/\s+/)[0] ?? "";
+          const functionName = parseDaggerCallName(call);
+          const compliance = evaluateDaggerInvocationStep({
+            workflowFile,
+            jobName,
+            uses,
+            with: withSection,
+            requireExplicitModule:
+              workflowFile === "pnpm-build-n-test.yaml" ||
+              workflowFile === "python-build-n-test.yaml" ||
+              workflowFile === "rust-build-n-test.yaml",
+          });
 
           inspectedSteps.push(`${workflowFile}:${jobName} (composite)`);
+          expect(
+            compliance.status,
+            compliance.issues.map((i) => i.message).join("; "),
+          ).toBe("pass");
           expect(
             call,
             `${workflowFile}:${jobName} must set with.call`,

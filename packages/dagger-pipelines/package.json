@@ -22,6 +22,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:compliance:us1": "vitest run -- src/workflow-governance.test.ts src/dagger-module-integration.test.ts src/standards-defaults.test.ts src/security-workflows.test.ts src/audit-workflow.test.ts",
+    "test:compliance:us2": "vitest run -- src/release-workflows.test.ts src/publish-workflow.test.ts src/spec-governance-workflow.test.ts",
+    "test:compliance": "pnpm run test:compliance:us1 && pnpm run test:compliance:us2",
     "dagger:ci": "node dist/cli.js ci",
     "dagger:build-and-push": "node dist/cli.js build-and-push",
     "dagger:workflow": "node dist/cli.js workflow"
