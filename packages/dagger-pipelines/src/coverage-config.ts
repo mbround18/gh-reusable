@@ -20,9 +20,15 @@ export const ACTION_IDS = [
 
 export const WORKFLOW_FILES = [
   "docker-release.yaml",
+  "release-compose.yaml",
+  "release-docker.yaml",
+  "release-pnpm.yaml",
   "pnpm-build-n-test.yaml",
   "python-build-n-test.yml",
   "rust-build-n-test.yml",
+  "test-release-compose.yaml",
+  "test-release-docker.yaml",
+  "test-release-pnpm.yaml",
   "tagger.yaml",
   "test-docker-release.yaml",
   "test-ensure-repository.yml",
@@ -301,6 +307,24 @@ const WORKFLOWS: Readonly<Record<WorkflowFile, WorkflowCoverageEntry>> = {
       publish: ["docker-buildx-build-push"],
     },
   },
+  "release-compose.yaml": {
+    file: "release-compose.yaml",
+    path: ".github/workflows/release-compose.yaml",
+    actionCoverage: [],
+    presets: {},
+  },
+  "release-docker.yaml": {
+    file: "release-docker.yaml",
+    path: ".github/workflows/release-docker.yaml",
+    actionCoverage: [],
+    presets: {},
+  },
+  "release-pnpm.yaml": {
+    file: "release-pnpm.yaml",
+    path: ".github/workflows/release-pnpm.yaml",
+    actionCoverage: [],
+    presets: {},
+  },
   "rust-build-n-test.yml": {
     file: "rust-build-n-test.yml",
     path: ".github/workflows/rust-build-n-test.yml",
@@ -350,6 +374,24 @@ const WORKFLOWS: Readonly<Record<WorkflowFile, WorkflowCoverageEntry>> = {
       build: ["docker-buildx-build"],
       publish: ["docker-buildx-build-push"],
     },
+  },
+  "test-release-compose.yaml": {
+    file: "test-release-compose.yaml",
+    path: ".github/workflows/test-release-compose.yaml",
+    actionCoverage: [],
+    presets: {},
+  },
+  "test-release-docker.yaml": {
+    file: "test-release-docker.yaml",
+    path: ".github/workflows/test-release-docker.yaml",
+    actionCoverage: [],
+    presets: {},
+  },
+  "test-release-pnpm.yaml": {
+    file: "test-release-pnpm.yaml",
+    path: ".github/workflows/test-release-pnpm.yaml",
+    actionCoverage: [],
+    presets: {},
   },
   "test-ensure-repository.yml": {
     file: "test-ensure-repository.yml",

@@ -1,0 +1,69 @@
+name: Release pnpm
+
+on:
+  workflow_call:
+    inputs:
+      source:
+        required: false
+        type: string
+        default: "."
+        description: "Path to the source directory."
+      registry:
+        required: false
+        type: string
+        default: ""
+        description: "Registry URL. Defaults to https://registry.npmjs.org."
+      tag:
+        required: false
+        type: string
+        default: ""
+        description: "npm dist-tag (for example latest, next, or beta)."
+      version:
+        required: false
+        type: string
+        default: ""
+        description: "Version override (must match the package manifest)."
+      publish:
+        required: false
+        type: boolean
+        default: true
+        description: "Whether to publish after packaging. Set false for testing."
+      runs-on:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+        description: "GitHub runner label."
+    secrets:
+      NPM_TOKEN:
+        required: false
+        description: "Token with publish access to the npm registry."
+      DAGGER_CLOUD_TOKEN:
+        required: false
+      DISCORD_WEBHOOK_URL:
+        required: false
+        description: "Discord webhook URL for publish notifications."
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish Node package
+    uses: ./.github/workflows/publish.yaml
+    with:
+      target: node
+      source: ${{ inputs.source }}
+      registry: ${{ inputs.registry }}
+      tag: ${{ inputs.tag }}
+      version: ${{ inputs.version }}
+      publish: ${{ inputs.publish }}
+      runs-on: ${{ inputs.runs-on }}
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      DAGGER_CLOUD_TOKEN: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}

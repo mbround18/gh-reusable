@@ -1,4 +1,5 @@
 import type { Client } from "@dagger.io/dagger";
+import { readFileSync } from "node:fs";
 
 import {
   buildAndPush,
@@ -17,6 +18,17 @@ import {
   type SourceConfig,
 } from "./index.js";
 import { resolveDockerReleasePublishAddress } from "./docker-release-semver.js";
+
+type PipelineDefaults = {
+  rust: { toolchain: string; debianImageSuffix: string };
+  python: { version: string; debianImageSuffix: string };
+};
+
+const DEFAULTS = JSON.parse(
+  readFileSync(new URL("../../../defaults.json", import.meta.url), "utf8"),
+) as PipelineDefaults;
+const DEFAULT_RUST_IMAGE = `rust:${DEFAULTS.rust.toolchain}-${DEFAULTS.rust.debianImageSuffix}`;
+const DEFAULT_PYTHON_IMAGE = `astral/uv:python${DEFAULTS.python.version}-${DEFAULTS.python.debianImageSuffix}`;
 
 export type WorkflowId =
   | "docker-release"
@@ -107,12 +119,12 @@ function bashWorkflowCommand(
   };
 }
 
-const DEFAULT_RUST_TOOLCHAIN = "stable";
+const DEFAULT_RUST_TOOLCHAIN = DEFAULTS.rust.toolchain;
 const DEFAULT_RUST_COMPONENTS = "clippy rustfmt";
 const DEFAULT_RUST_TARGET = "";
 
 const RUST_SETUP_SCRIPT = [
-  'toolchain="${RUST_TOOLCHAIN:-${INPUT_TOOLCHAIN:-stable}}"',
+  `toolchain="\${RUST_TOOLCHAIN:-\${INPUT_TOOLCHAIN:-${DEFAULT_RUST_TOOLCHAIN}}}"`,
   'components_raw="${RUST_COMPONENTS:-${INPUT_COMPONENTS:-clippy rustfmt}}"',
   'targets_raw="${RUST_TARGETS:-${INPUT_TARGET:-}}"',
   'crates_raw="${RUST_CRATES:-${INPUT_CRATES:-}}"',
@@ -283,7 +295,7 @@ export const WORKFLOW_DEFINITIONS = {
     kind: "ci",
     config: {
       container: {
-        image: "astral/uv:python3.12-bookworm-slim",
+        image: DEFAULT_PYTHON_IMAGE,
       },
       install: {
         packageManager: "npm",
@@ -319,7 +331,7 @@ export const WORKFLOW_DEFINITIONS = {
     kind: "ci",
     config: {
       container: {
-        image: "rust:1.89-bookworm",
+        image: DEFAULT_RUST_IMAGE,
         env: {
           CARGO_TERM_COLOR: "always",
         },
@@ -442,7 +454,7 @@ export const WORKFLOW_DEFINITIONS = {
     kind: "ci",
     config: {
       container: {
-        image: "rust:1.89-bookworm",
+        image: DEFAULT_RUST_IMAGE,
         env: {
           CARGO_TERM_COLOR: "always",
         },
@@ -490,7 +502,7 @@ export const WORKFLOW_DEFINITIONS = {
     kind: "ci",
     config: {
       container: {
-        image: "astral/uv:python3.12-bookworm-slim",
+        image: DEFAULT_PYTHON_IMAGE,
       },
       install: {
         packageManager: "npm",
@@ -797,7 +809,7 @@ export const WORKFLOW_DEFINITIONS = {
     kind: "ci",
     config: {
       container: {
-        image: "rust:1.89-bookworm",
+        image: DEFAULT_RUST_IMAGE,
       },
       install: {
         packageManager: "npm",

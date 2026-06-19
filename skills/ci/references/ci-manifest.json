@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-18",
-  "daggerVersion": "v0.20.8",
+  "generatedAt": "2026-06-19",
+  "daggerVersion": "v0.x",
   "moduleRef": "github.com/mbround18/gh-reusable/packages/dagger-module@main",
   "reusableWorkflows": [
     {
@@ -43,6 +43,85 @@
           "required": false,
           "default": false,
           "description": "When true on tag refs, create/update release notes with audit summary."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "file": "codeql.yaml",
+      "name": "Security | Dagger Code Scan",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "semgrep_config",
+          "type": "string",
+          "required": false,
+          "default": "auto",
+          "description": "Semgrep ruleset config."
+        },
+        {
+          "name": "include_gitleaks",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Include secret scanning with gitleaks."
+        },
+        {
+          "name": "create_alerts",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Upload SARIF findings as GitHub code scanning alerts."
+        },
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner label."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "file": "dependency-review.yaml",
+      "name": "Security | Dagger Dependency Audit",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner label."
+        },
+        {
+          "name": "semgrep_config",
+          "type": "string",
+          "required": false,
+          "default": "auto",
+          "description": "Semgrep ruleset config."
+        },
+        {
+          "name": "create_alerts",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Upload SARIF findings as GitHub code scanning alerts."
         }
       ],
       "secrets": [
@@ -225,6 +304,28 @@
       ]
     },
     {
+      "file": "pnpm-build-n-test.yaml",
+      "name": "Pipeline | pnpm Build & Test",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner to use for this workflow."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
       "file": "publish.yaml",
       "name": "Publish",
       "triggers": ["workflow_call"],
@@ -273,6 +374,13 @@
           "description": "Version override (must match version in manifest)."
         },
         {
+          "name": "publish",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Whether to publish after packaging. Set false for build/package-only tests."
+        },
+        {
           "name": "runs-on",
           "type": "string",
           "required": false,
@@ -300,6 +408,358 @@
           "name": "HELM_PASSWORD",
           "required": false,
           "description": "Password for the Helm OCI registry (helm-chart target)."
+        },
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "DISCORD_WEBHOOK_URL",
+          "required": false,
+          "description": "Discord webhook URL for publish notifications."
+        }
+      ]
+    },
+    {
+      "file": "python-build-n-test.yaml",
+      "name": "Pipeline | Python Build & Test",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "python-version",
+          "type": "string",
+          "required": false,
+          "default": "3.12",
+          "description": "Python version to use (e.g., 3.12, 3.13)."
+        },
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner to use for this workflow."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "file": "release-compose.yaml",
+      "name": "Release Compose",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "string",
+          "required": true,
+          "default": "mbround18/test",
+          "description": "Compose image name to build and publish."
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "required": false,
+          "default": ".",
+          "description": "Compose project context directory."
+        },
+        {
+          "name": "canary_label",
+          "type": "string",
+          "required": false,
+          "default": "canary",
+          "description": "Label to trigger canary pushes."
+        },
+        {
+          "name": "dockerfile",
+          "type": "string",
+          "required": false,
+          "default": "./Dockerfile",
+          "description": "Fallback Dockerfile path when compose does not define one."
+        },
+        {
+          "name": "ghcr",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Release to GHCR?"
+        },
+        {
+          "name": "ghcr_username",
+          "type": "string",
+          "required": false,
+          "default": "mbround18",
+          "description": "Who to log into GHCR as."
+        },
+        {
+          "name": "dockerhub_username",
+          "type": "string",
+          "required": false,
+          "default": "mbround18",
+          "description": "Who to log into Docker Hub as."
+        },
+        {
+          "name": "semver_prefix",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Prefix for semver tags, for example example-0.0.0."
+        },
+        {
+          "name": "prepend_target",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Prepend the target to the version tag."
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Target to build."
+        },
+        {
+          "name": "platforms",
+          "type": "string",
+          "required": false,
+          "default": "linux/amd64",
+          "description": "Comma separated list of target platforms."
+        },
+        {
+          "name": "download_artifact",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Download a specific artifact to use within docker build."
+        },
+        {
+          "name": "download_artifact_destination",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Destination directory for a downloaded artifact."
+        },
+        {
+          "name": "track_release_summary",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "When true on tag refs, create or update GitHub release notes with Docker publish details."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DOCKER_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "GHCR_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "DISCORD_WEBHOOK_URL",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "file": "release-docker.yaml",
+      "name": "Release Docker",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "string",
+          "required": true,
+          "default": "mbround18/test",
+          "description": "Name of the image to be built."
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "required": false,
+          "default": ".",
+          "description": "Build context directory."
+        },
+        {
+          "name": "canary_label",
+          "type": "string",
+          "required": false,
+          "default": "canary",
+          "description": "Label to trigger canary pushes."
+        },
+        {
+          "name": "dockerfile",
+          "type": "string",
+          "required": false,
+          "default": "./Dockerfile",
+          "description": "Path to the Dockerfile relative to the context."
+        },
+        {
+          "name": "ghcr",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Release to GHCR?"
+        },
+        {
+          "name": "ghcr_username",
+          "type": "string",
+          "required": false,
+          "default": "mbround18",
+          "description": "Who to log into GHCR as."
+        },
+        {
+          "name": "dockerhub_username",
+          "type": "string",
+          "required": false,
+          "default": "mbround18",
+          "description": "Who to log into Docker Hub as."
+        },
+        {
+          "name": "semver_prefix",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Prefix for semver tags, for example example-0.0.0."
+        },
+        {
+          "name": "prepend_target",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Prepend the target to the version tag."
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Target to build."
+        },
+        {
+          "name": "platforms",
+          "type": "string",
+          "required": false,
+          "default": "linux/amd64",
+          "description": "Comma separated list of target platforms."
+        },
+        {
+          "name": "download_artifact",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Download a specific artifact to use within docker build."
+        },
+        {
+          "name": "download_artifact_destination",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Destination directory for a downloaded artifact."
+        },
+        {
+          "name": "track_release_summary",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "When true on tag refs, create or update GitHub release notes with Docker publish details."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DOCKER_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "GHCR_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "DISCORD_WEBHOOK_URL",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "file": "release-pnpm.yaml",
+      "name": "Release pnpm",
+      "triggers": ["workflow_call"],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "string",
+          "required": false,
+          "default": ".",
+          "description": "Path to the source directory."
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Registry URL. Defaults to https://registry.npmjs.org."
+        },
+        {
+          "name": "tag",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "npm dist-tag (for example latest, next, or beta)."
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Version override (must match the package manifest)."
+        },
+        {
+          "name": "publish",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Whether to publish after packaging. Set false for testing."
+        },
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner label."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "NPM_TOKEN",
+          "required": false,
+          "description": "Token with publish access to the npm registry."
         },
         {
           "name": "DAGGER_CLOUD_TOKEN",
@@ -344,14 +804,14 @@
           "name": "toolchain",
           "type": "string",
           "required": false,
-          "default": "stable",
+          "default": "1.95",
           "description": "Rust toolchain to use."
         },
         {
           "name": "components",
           "type": "string",
           "required": false,
-          "default": "clippy rustfmt",
+          "default": "clippy,rustfmt",
           "description": "Rust components to install."
         },
         {
@@ -382,7 +842,7 @@
     },
     {
       "file": "rust-build-n-test.yaml",
-      "name": "Rust Build and Test",
+      "name": "Pipeline | Rust Build & Test",
       "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
@@ -390,14 +850,14 @@
           "name": "toolchain",
           "type": "string",
           "required": false,
-          "default": "stable",
-          "description": "Rust toolchain to use (e.g., stable, nightly, beta)."
+          "default": "1.95",
+          "description": "Rust toolchain to use (for example 1.95, nightly, beta)."
         },
         {
           "name": "components",
           "type": "string",
           "required": false,
-          "default": "clippy rustfmt",
+          "default": "clippy,rustfmt",
           "description": "Comma-separated list of Rust components to install (e.g., rustfmt, clippy)."
         },
         {
@@ -406,6 +866,13 @@
           "required": false,
           "default": "",
           "description": "Comma-separated list of additional Rust compilation targets."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Optional server name exposed to tests via NAME."
         },
         {
           "name": "runs-on",
@@ -479,6 +946,14 @@
       "secrets": []
     },
     {
+      "file": "security.yaml",
+      "name": "Security",
+      "triggers": ["pull_request", "push", "schedule"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
       "file": "test-code-matrix.yaml",
       "name": "Test | Code Matrix",
       "triggers": ["pull_request", "push"],
@@ -511,8 +986,48 @@
       "secrets": []
     },
     {
+      "file": "test-pnpm-build-n-test.yaml",
+      "name": "Parity | pnpm Build & Test",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "test-python-build-n-test.yaml",
+      "name": "Parity | Python Build & Test",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "test-release-compose.yaml",
+      "name": "Test | Release Compose",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "test-release-docker.yaml",
+      "name": "Test | Release Docker",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "test-release-pnpm.yaml",
+      "name": "Test | Release pnpm",
+      "triggers": ["pull_request", "push"],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
       "file": "test-rust-build-n-test.yaml",
-      "name": "Test | Rust Build and Test Workflow",
+      "name": "Parity | Rust Build & Test",
       "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
@@ -561,6 +1076,20 @@
           "required": false,
           "default": "",
           "description": "Dagger Cloud token for caching"
+        },
+        {
+          "name": "dagger-version",
+          "type": "string",
+          "required": false,
+          "default": "v0.21.5",
+          "description": "Dagger CLI version to execute"
+        },
+        {
+          "name": "engine-version",
+          "type": "string",
+          "required": false,
+          "default": "v0.21.5",
+          "description": "Dagger engine image version to prewarm"
         }
       ],
       "outputs": [
@@ -618,6 +1147,17 @@
     {
       "camel": "ci",
       "kebab": "ci",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        }
+      ]
+    },
+    {
+      "camel": "pnpmBuildAndTest",
+      "kebab": "pnpm-build-and-test",
       "params": [
         {
           "name": "source",
@@ -718,7 +1258,17 @@
           "optional": true
         },
         {
+          "name": "rustfmt\"",
+          "type": "unknown",
+          "optional": false
+        },
+        {
           "name": "target",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "name",
           "type": "string",
           "optional": true
         }
@@ -775,6 +1325,11 @@
           "optional": true
         },
         {
+          "name": "publish",
+          "type": "boolean",
+          "optional": true
+        },
+        {
           "name": "discordWebhook",
           "type": "string",
           "optional": true
@@ -811,6 +1366,11 @@
           "optional": true
         },
         {
+          "name": "publish",
+          "type": "boolean",
+          "optional": true
+        },
+        {
           "name": "discordWebhook",
           "type": "string",
           "optional": true
@@ -844,6 +1404,11 @@
         {
           "name": "version",
           "type": "string",
+          "optional": true
+        },
+        {
+          "name": "publish",
+          "type": "boolean",
           "optional": true
         },
         {
@@ -1159,12 +1724,33 @@
           "optional": true
         },
         {
+          "name": "rustfmt\"",
+          "type": "unknown",
+          "optional": false
+        },
+        {
           "name": "target",
           "type": "string",
           "optional": true
         },
         {
           "name": "crates",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "pythonBuildAndTest",
+      "kebab": "python-build-and-test",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "pythonVersion",
           "type": "string",
           "optional": true
         }
@@ -1339,6 +1925,11 @@
           "name": "components",
           "type": "string",
           "optional": true
+        },
+        {
+          "name": "rustfmt\"",
+          "type": "unknown",
+          "optional": false
         },
         {
           "name": "repository",

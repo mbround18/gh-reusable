@@ -76,9 +76,8 @@ test("tier1 workflows use executable parity flows instead of shallow checks", ()
   expect(pythonParity).toContain("uv build");
   expect(pythonParity).toContain("uv run pytest");
 
-  const pnpmBuildAndTest = getCiWorkflowCommands("pnpm-build-n-test").join(
-    "\n",
-  );
+  const pnpmBuildAndTest =
+    getCiWorkflowCommands("pnpm-build-n-test").join("\n");
   expect(getCiWorkflowInstallCommand("pnpm-build-n-test")).toContain(
     "pnpm install --frozen-lockfile",
   );

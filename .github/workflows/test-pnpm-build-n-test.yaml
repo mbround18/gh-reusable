@@ -76,8 +76,10 @@ jobs:
             const markdown = report.reportMarkdown || report.markdown || payload.markdown || '_No summary produced._'
             fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
             fs.writeFileSync('report.md', markdown)
-            if ((payload.errors || report.errors || []).length > 0) {
-              core.setFailed('Pipeline report contains errors')
+            const hasErrors = (payload.errors || report.errors || []).length > 0
+            const failed = payload.success === false || report.success === false || hasErrors
+            if (failed) {
+              core.setFailed('Pipeline report indicates failure')
             }
             await core.summary.addRaw(markdown).write()
 

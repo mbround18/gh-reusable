@@ -46,12 +46,15 @@ function getWorkflow() {
 test("publish workflow exposes target input via workflow_call", () => {
   const workflow = getWorkflow();
   const target = workflow.on?.workflow_call?.inputs?.target;
+  const publish = workflow.on?.workflow_call?.inputs?.publish;
 
   expect(target?.type).toBe("string");
   expect(target?.required).toBe(true);
   expect(target?.description).toContain("node");
   expect(target?.description).toContain("rust-crate");
   expect(target?.description).toContain("helm-chart");
+  expect(publish?.type).toBe("boolean");
+  expect(publish?.default).toBe(true);
 });
 
 test("publish workflow accepts publish secrets", () => {
@@ -85,6 +88,9 @@ test("publish workflow wires every publish entrypoint", () => {
   expect(daggerCalls.length).toBeGreaterThanOrEqual(3);
   expect(
     daggerCalls.some(({ step }) => step.with?.call?.includes("publish-npm")),
+  ).toBe(true);
+  expect(
+    daggerCalls.some(({ step }) => step.with?.call?.includes("--publish=")),
   ).toBe(true);
   expect(
     daggerCalls.some(({ step }) =>

@@ -1,0 +1,14 @@
+[project]
+name = "gh-reusable"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.18",
+    "specify-cli",
+]
+
+[tool.uv.sources]
+specify-cli = { git = "https://github.com/github/spec-kit.git", rev = "main" }

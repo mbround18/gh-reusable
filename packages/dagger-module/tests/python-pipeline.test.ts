@@ -9,8 +9,7 @@ import {
   shouldSkipDaggerSmokeTests,
 } from "./dagger-smoke-utils";
 
-const daggerSmokeTest =
-  shouldSkipDaggerSmokeTests() ? test.skip : test;
+const daggerSmokeTest = shouldSkipDaggerSmokeTests() ? test.skip : test;
 
 daggerSmokeTest(
   "runs the Python uv pipeline against the sample project",
@@ -66,7 +65,9 @@ daggerSmokeTest(
         expect.objectContaining({ name: "uv run pytest", success: true }),
       ]),
     );
-    const pytestStep = report?.steps?.find((step) => step.name === "uv run pytest");
+    const pytestStep = report?.steps?.find(
+      (step) => step.name === "uv run pytest",
+    );
     expect(pytestStep?.stdout ?? "").toContain("1 passed");
   },
   120_000,

@@ -37,6 +37,7 @@ export interface NodePublishOptions {
   token: string;
   tag: string;
   version: string;
+  publish?: boolean;
   discordWebhook?: string;
 }
 

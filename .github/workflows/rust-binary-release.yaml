@@ -20,7 +20,7 @@ on:
       toolchain:
         required: false
         type: string
-        default: "stable"
+        default: "1.95"
         description: "Rust toolchain to use."
       components:
         required: false

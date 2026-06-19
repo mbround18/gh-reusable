@@ -6,8 +6,8 @@ on:
       toolchain:
         required: false
         type: string
-        description: "Rust toolchain to use (e.g., stable, nightly, beta)."
-        default: "stable"
+        description: "Rust toolchain to use (for example 1.95, nightly, beta)."
+        default: "1.95"
       components:
         required: false
         type: string
@@ -35,6 +35,9 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   rust-build-and-test:
@@ -72,7 +75,9 @@ jobs:
             const markdown = report.reportMarkdown || report.markdown || payload.markdown || '_No summary produced._'
             fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
             fs.writeFileSync('report.md', markdown)
-            if ((payload.errors || report.errors || []).length > 0) {
-              core.setFailed('Pipeline report contains errors')
+            const hasErrors = (payload.errors || report.errors || []).length > 0
+            const failed = payload.success === false || report.success === false || hasErrors
+            if (failed) {
+              core.setFailed('Pipeline report indicates failure')
             }
             await core.summary.addRaw(markdown).write()

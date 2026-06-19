@@ -8,9 +8,9 @@ inputs:
     required: false
     default: "."
   toolchain:
-    description: "Rust toolchain (e.g. 'stable', 'nightly', 'beta'). Defaults to stable."
+    description: "Rust toolchain (for example '1.95', 'nightly', 'beta'). Defaults to 1.95."
     required: false
-    default: "stable"
+    default: "1.95"
   components:
     description: "Space or comma-separated Rust components to install (e.g. 'clippy rustfmt')."
     required: false

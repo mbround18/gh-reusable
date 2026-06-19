@@ -97,6 +97,15 @@ export interface BuildAndPushResult {
   readonly tags?: readonly string[];
 }
 
+type PipelineDefaults = {
+  node: { version: string; debianImageSuffix: string };
+};
+
+const DEFAULTS = JSON.parse(
+  readFileSync(new URL("../../../defaults.json", import.meta.url), "utf8"),
+) as PipelineDefaults;
+const DEFAULT_NODE_BASE_IMAGE = `node:${DEFAULTS.node.version}-${DEFAULTS.node.debianImageSuffix}-slim`;
+
 const PACKAGE_MANAGER_CACHE_PATHS: Record<PackageManager, string> = {
   pnpm: "/pnpm/store",
   npm: "/root/.npm",
@@ -115,7 +124,7 @@ export function createBaseContainer(
 ): Container {
   const container = client
     .container()
-    .from(config.image ?? "node:24-bookworm-slim")
+    .from(config.image ?? DEFAULT_NODE_BASE_IMAGE)
     .withWorkdir(config.workdir ?? "/workspace")
     .withEnvVariable("CI", "true");
 

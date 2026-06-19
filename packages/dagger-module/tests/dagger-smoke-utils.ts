@@ -55,7 +55,11 @@ function findDaggerBinaries(dir: string, depth: number): string[] {
 
   for (const entry of entries) {
     const entryPath = path.join(dir, entry.name);
-    if (entry.isFile() && entry.name === "dagger" && isExecutableBinary(entryPath)) {
+    if (
+      entry.isFile() &&
+      entry.name === "dagger" &&
+      isExecutableBinary(entryPath)
+    ) {
       binaries.push(entryPath);
       continue;
     }
@@ -140,7 +144,10 @@ export function parsePipelineOutput(
   return JSON.parse(jsonLine) as Record<string, unknown>;
 }
 
-export function isDaggerRuntimeUnavailable(stdout: string, stderr: string): boolean {
+export function isDaggerRuntimeUnavailable(
+  stdout: string,
+  stderr: string,
+): boolean {
   const output = `${stdout}\n${stderr}`;
   return (
     output.includes('driver for scheme "image" was not available') ||

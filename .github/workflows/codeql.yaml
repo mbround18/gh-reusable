@@ -1,0 +1,50 @@
+name: "Security | Dagger Code Scan"
+
+on:
+  workflow_call:
+    inputs:
+      semgrep_config:
+        required: false
+        type: string
+        default: "auto"
+        description: "Semgrep ruleset config."
+      include_gitleaks:
+        required: false
+        type: boolean
+        default: true
+        description: "Include secret scanning with gitleaks."
+      create_alerts:
+        required: false
+        type: boolean
+        default: true
+        description: "Upload SARIF findings as GitHub code scanning alerts."
+      runs-on:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+        description: "GitHub runner label."
+    secrets:
+      DAGGER_CLOUD_TOKEN:
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: "Dagger Security Audit"
+    uses: ./.github/workflows/audit.yaml
+    with:
+      runs-on: ${{ inputs.runs-on }}
+      semgrep_config: ${{ inputs.semgrep_config }}
+      include_gitleaks: ${{ inputs.include_gitleaks }}
+      create_alerts: ${{ inputs.create_alerts }}
+      track_release_summary: false
+    secrets:
+      DAGGER_CLOUD_TOKEN: ${{ secrets.DAGGER_CLOUD_TOKEN }}

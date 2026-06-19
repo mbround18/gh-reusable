@@ -1,0 +1,76 @@
+name: "Governance | Spec Artifacts"
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+      - "packages/dagger-module/src/**"
+      - "packages/dagger-pipelines/src/**"
+      - "defaults.json"
+      - "defaults.schema.json"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}
+  cancel-in-progress: true
+
+jobs:
+  enforce-spec-artifacts:
+    name: "Enforce pipeline change specs"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
+        with:
+          fetch-depth: 0
+
+      - name: Validate spec artifacts for pipeline-impacting changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base_ref="${{ github.base_ref }}"
+          git fetch --no-tags --prune --depth=1 origin "${base_ref}"
+
+          changed_files="$(git diff --name-only "origin/${base_ref}...${GITHUB_SHA}")"
+          echo "Changed files:"
+          echo "${changed_files}"
+
+          impact_regex='^(\.github/workflows/|\.github/actions/|packages/dagger-module/src/|packages/dagger-pipelines/src/|defaults\.json|defaults\.schema\.json)'
+          spec_regex='^specs/pipeline-changes/.*\.md$'
+
+          impacted="$(echo "${changed_files}" | grep -E "${impact_regex}" || true)"
+          if [ -z "${impacted}" ]; then
+            echo "No pipeline-impacting changes detected."
+            exit 0
+          fi
+
+          spec_files="$(echo "${changed_files}" | grep -E "${spec_regex}" || true)"
+          if [ -z "${spec_files}" ]; then
+            echo "::error title=Missing pipeline change spec::Pipeline-impacting changes require at least one updated spec under specs/pipeline-changes/*.md"
+            exit 1
+          fi
+
+          required_headings=(
+            "## Summary"
+            "## Affected Contracts"
+            "## Runtime and Defaults Impact"
+            "## Security and Permissions Impact"
+            "## Validation Plan"
+            "## Rollout and Rollback"
+          )
+
+          while IFS= read -r spec_file; do
+            [ -n "${spec_file}" ] || continue
+            for heading in "${required_headings[@]}"; do
+              if ! grep -Fq "${heading}" "${spec_file}"; then
+                echo "::error title=Spec template mismatch::${spec_file} is missing required section: ${heading}"
+                exit 1
+              fi
+            done
+          done <<< "${spec_files}"

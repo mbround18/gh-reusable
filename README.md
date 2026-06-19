@@ -18,8 +18,15 @@ This repository now includes a root `pnpm` workspace bootstrap for TypeScript ac
 - Install workspace dependencies: `pnpm install`
 - Shared TypeScript baseline: `tsconfig.base.json`
 - Shared Vite baseline helper: `vite.config.base.mts`
+- Repository runtime defaults: `defaults.json` (Node, Rust, Debian, language image baselines)
 - Shared Dagger pipeline primitives: `packages/dagger-pipelines`
 - GitHub wrapper for Dagger execution: `.github/workflows/dagger.yaml` via `dagger/dagger-for-github@v8`
+
+### Spec Kit governance for pipeline changes
+
+- Project-local Spec Kit template overrides live in `.specify/templates/overrides/`.
+- A reusable preset package is available at `presets/gh-reusable/`.
+- Pipeline-impacting PRs must include a spec artifact in `specs/pipeline-changes/*.md` and include required sections (enforced by `.github/workflows/spec-governance.yaml`).
 
 ### Using Reusable Actions
 
@@ -76,7 +83,7 @@ jobs:
     with:
       components: &#34;clippy rustfmt&#34; # Optional, Comma-separated list of Rust components to install (e.g., rustfmt, clippy).
       target: &#34;&#34;                   # Optional, Comma-separated list of additional Rust compilation targets.
-      toolchain: &#34;stable&#34;          # Optional, Rust toolchain to use (e.g., stable, nightly, beta).
+      toolchain: &#34;1.95&#34;            # Optional, Rust toolchain to use (e.g., 1.95, nightly, beta).
     </code>
                 </pre>
                 </details>
@@ -132,7 +139,7 @@ steps:
       crates: &#34;&#34;          # Required, Comma-separated list of CLI crates to install (e.g., trunk, wasm-bindgen).
       components: &#34;&#34;      # Optional, Comma-separated list of Rust components to install (e.g., rustfmt, clippy).
       target: &#34;&#34;          # Optional, Comma-separated list of additional Rust compilation targets.
-      toolchain: &#34;stable&#34; # Optional, Rust toolchain to use (e.g., stable, nightly, beta).
+      toolchain: &#34;1.95&#34;   # Optional, Rust toolchain to use (e.g., 1.95, nightly, beta).
     </code>
                     </pre>
                 </details>

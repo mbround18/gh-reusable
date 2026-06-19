@@ -20,6 +20,11 @@ const moduleSource = readFileSync(
 );
 const skillDir = path.join(root, "skills", "ci");
 const refsDir = path.join(skillDir, "references");
+const defaults = JSON.parse(
+  readFileSync(path.join(root, "defaults.json"), "utf8"),
+) as {
+  rust: { toolchain: string };
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -377,7 +382,7 @@ ${funcRows.join("\n")}
     call: >-
       rust-build-and-test
       --source=.
-      --toolchain=stable
+      --toolchain=${defaults.rust.toolchain}
       --components=clippy,rustfmt
     cloud-token: \${{ secrets.DAGGER_CLOUD_TOKEN }}
 \`\`\`

@@ -1,0 +1,114 @@
+name: Release Compose
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        type: string
+        required: true
+        default: "mbround18/test"
+        description: "Compose image name to build and publish."
+      context:
+        type: string
+        required: false
+        default: "."
+        description: "Compose project context directory."
+      canary_label:
+        type: string
+        required: false
+        default: "canary"
+        description: "Label to trigger canary pushes."
+      dockerfile:
+        type: string
+        default: "./Dockerfile"
+        description: "Fallback Dockerfile path when compose does not define one."
+      ghcr:
+        type: boolean
+        default: false
+        description: "Release to GHCR?"
+      ghcr_username:
+        type: string
+        default: "mbround18"
+        description: "Who to log into GHCR as."
+      dockerhub_username:
+        type: string
+        default: "mbround18"
+        description: "Who to log into Docker Hub as."
+      semver_prefix:
+        type: string
+        default: ""
+        description: "Prefix for semver tags, for example example-0.0.0."
+      prepend_target:
+        type: boolean
+        default: false
+        description: "Prepend the target to the version tag."
+      target:
+        type: string
+        default: ""
+        description: "Target to build."
+        required: false
+      platforms:
+        type: string
+        default: "linux/amd64"
+        required: false
+        description: "Comma separated list of target platforms."
+      download_artifact:
+        type: string
+        default: ""
+        description: "Download a specific artifact to use within docker build."
+        required: false
+      download_artifact_destination:
+        type: string
+        default: ""
+        description: "Destination directory for a downloaded artifact."
+        required: false
+      track_release_summary:
+        type: boolean
+        default: false
+        description: "When true on tag refs, create or update GitHub release notes with Docker publish details."
+    secrets:
+      DOCKER_TOKEN:
+        required: false
+      GHCR_TOKEN:
+        required: false
+      DAGGER_CLOUD_TOKEN:
+        required: false
+      DISCORD_WEBHOOK_URL:
+        required: false
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}-${{ inputs.image }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: >-
+      Compose Release for ${{ inputs.image }} @ ${{ github.event_name ==
+      'pull_request' && format('PR #{0}', github.event.pull_request.number) ||
+      github.ref_name }}
+    uses: ./.github/workflows/docker-release.yaml
+    with:
+      image: ${{ inputs.image }}
+      context: ${{ inputs.context }}
+      canary_label: ${{ inputs.canary_label }}
+      dockerfile: ${{ inputs.dockerfile }}
+      ghcr: ${{ inputs.ghcr }}
+      ghcr_username: ${{ inputs.ghcr_username }}
+      dockerhub_username: ${{ inputs.dockerhub_username }}
+      semver_prefix: ${{ inputs.semver_prefix }}
+      prepend_target: ${{ inputs.prepend_target }}
+      target: ${{ inputs.target }}
+      platforms: ${{ inputs.platforms }}
+      download_artifact: ${{ inputs.download_artifact }}
+      download_artifact_destination: ${{ inputs.download_artifact_destination }}
+      track_release_summary: ${{ inputs.track_release_summary }}
+    secrets:
+      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      DAGGER_CLOUD_TOKEN: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}

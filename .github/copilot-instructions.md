@@ -66,3 +66,10 @@ cargo test --verbose
   - list workflow runs/jobs, then fetch failed job logs before editing workflow YAML.
   - Use run/job IDs from MCP responses instead of scraping logs manually.
 - For reusable workflow/action changes, use GitHub PR/issue MCP tools to read discussion and check-run context before changing Dagger calls or workflow inputs.
+
+<!-- SPECKIT START -->
+
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+
+<!-- SPECKIT END -->

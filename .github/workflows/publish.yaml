@@ -32,6 +32,11 @@ on:
         type: string
         default: ""
         description: "Version override (must match version in manifest)."
+      publish:
+        required: false
+        type: boolean
+        default: true
+        description: "Whether to publish after packaging. Set false for build/package-only tests."
       runs-on:
         required: false
         type: string
@@ -81,6 +86,7 @@ jobs:
             --token=${{ secrets.NPM_TOKEN }}
             --tag=${{ inputs.tag }}
             --version=${{ inputs.version }}
+            --publish=${{ inputs.publish }}
             --discord-webhook=${{ secrets.DISCORD_WEBHOOK_URL }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
       - if: always()
@@ -94,7 +100,9 @@ jobs:
             const payload = report.report || report
             fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
             fs.writeFileSync('report.md', report.reportMarkdown || report.markdown || '')
-            if ((payload.errors || report.errors || []).length > 0) core.setFailed('Pipeline report contains errors')
+            const hasErrors = (payload.errors || report.errors || []).length > 0
+            const failed = payload.success === false || report.success === false || hasErrors
+            if (failed) core.setFailed('Pipeline report indicates failure')
             await core.summary.addRaw(report.reportMarkdown || report.markdown || '').write()
       - if: always()
         uses: actions/upload-artifact@v4
@@ -132,7 +140,9 @@ jobs:
             const payload = report.report || report
             fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
             fs.writeFileSync('report.md', report.reportMarkdown || report.markdown || '')
-            if ((payload.errors || report.errors || []).length > 0) core.setFailed('Pipeline report contains errors')
+            const hasErrors = (payload.errors || report.errors || []).length > 0
+            const failed = payload.success === false || report.success === false || hasErrors
+            if (failed) core.setFailed('Pipeline report indicates failure')
             await core.summary.addRaw(report.reportMarkdown || report.markdown || '').write()
       - if: always()
         uses: actions/upload-artifact@v4
@@ -172,7 +182,9 @@ jobs:
             const payload = report.report || report
             fs.writeFileSync('report.json', JSON.stringify(payload, null, 2))
             fs.writeFileSync('report.md', report.reportMarkdown || report.markdown || '')
-            if ((payload.errors || report.errors || []).length > 0) core.setFailed('Pipeline report contains errors')
+            const hasErrors = (payload.errors || report.errors || []).length > 0
+            const failed = payload.success === false || report.success === false || hasErrors
+            if (failed) core.setFailed('Pipeline report indicates failure')
             await core.summary.addRaw(report.reportMarkdown || report.markdown || '').write()
       - if: always()
         uses: actions/upload-artifact@v4

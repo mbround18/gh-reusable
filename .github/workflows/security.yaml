@@ -1,0 +1,36 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 6 * * 1"
+
+permissions:
+  contents: write
+  pull-requests: write
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    uses: ./.github/workflows/codeql.yaml
+    with:
+      semgrep_config: auto
+      include_gitleaks: true
+      create_alerts: true
+    secrets:
+      DAGGER_CLOUD_TOKEN: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+
+  dependency-review:
+    uses: ./.github/workflows/dependency-review.yaml
+    with:
+      semgrep_config: auto
+      create_alerts: true
+    secrets:
+      DAGGER_CLOUD_TOKEN: ${{ secrets.DAGGER_CLOUD_TOKEN }}

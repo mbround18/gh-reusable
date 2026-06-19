@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh-reusable runtime defaults",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["node", "rust", "python", "go", "ruby", "java", "debian"],
+  "properties": {
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "debianImageSuffix"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+$" },
+        "debianImageSuffix": { "type": "string", "pattern": "^[a-z0-9-]+$" }
+      }
+    },
+    "rust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["toolchain", "debianImageSuffix"],
+      "properties": {
+        "toolchain": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+        },
+        "debianImageSuffix": { "type": "string", "pattern": "^[a-z0-9-]+$" }
+      }
+    },
+    "python": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "debianImageSuffix"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+        "debianImageSuffix": { "type": "string", "pattern": "^[a-z0-9-]+$" }
+      }
+    },
+    "go": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "debianImageSuffix"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+        "debianImageSuffix": { "type": "string", "pattern": "^[a-z0-9-]+$" }
+      }
+    },
+    "ruby": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "debianImageSuffix"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+        "debianImageSuffix": { "type": "string", "pattern": "^[a-z0-9-]+$" }
+      }
+    },
+    "java": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "distribution", "debianImageSuffix"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+$" },
+        "distribution": { "type": "string", "minLength": 1 },
+        "debianImageSuffix": { "type": "string", "pattern": "^[a-z0-9-]+$" }
+      }
+    },
+    "debian": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "codename"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+$" },
+        "codename": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

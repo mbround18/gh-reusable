@@ -13,6 +13,7 @@ import {
   type VariableDefinitionNode,
 } from "graphql";
 import { parse as parseYaml } from "yaml";
+import { readFileSync } from "node:fs";
 import {
   type PipelineReport,
   PipelineReporter,
@@ -40,13 +41,43 @@ import type {
   DiscordWebhookPayload,
 } from "./types";
 
+type PipelineDefaults = {
+  node: { version: string; debianImageSuffix: string };
+  rust: { toolchain: string; debianImageSuffix: string };
+  python: { version: string; debianImageSuffix: string };
+  go: { version: string; debianImageSuffix: string };
+  ruby: { version: string; debianImageSuffix: string };
+  java: { version: string; distribution: string; debianImageSuffix: string };
+  debian: { version: string; codename: string };
+};
+
+const DEFAULTS = JSON.parse(
+  readFileSync(new URL("../../../defaults.json", import.meta.url), "utf8"),
+) as PipelineDefaults;
+const DEFAULT_NODE_VERSION = DEFAULTS.node.version;
+const DEFAULT_NODE_IMAGE = `node:${DEFAULT_NODE_VERSION}-${DEFAULTS.node.debianImageSuffix}`;
+const DEFAULT_RUST_TOOLCHAIN = DEFAULTS.rust.toolchain;
+const DEFAULT_RUST_IMAGE = `rust:${DEFAULT_RUST_TOOLCHAIN}-${DEFAULTS.rust.debianImageSuffix}`;
+const DEFAULT_PYTHON_VERSION = DEFAULTS.python.version;
+const DEFAULT_PYTHON_IMAGE = (pythonVersion: string): string =>
+  `astral/uv:python${pythonVersion}-${DEFAULTS.python.debianImageSuffix}`;
+const DEFAULT_GO_VERSION = DEFAULTS.go.version;
+const DEFAULT_GO_IMAGE = (goVersion: string): string =>
+  `golang:${goVersion}-${DEFAULTS.go.debianImageSuffix}`;
+const DEFAULT_RUBY_VERSION = DEFAULTS.ruby.version;
+const DEFAULT_RUBY_IMAGE = (rubyVersion: string): string =>
+  `ruby:${rubyVersion}-${DEFAULTS.ruby.debianImageSuffix}`;
+const DEFAULT_JAVA_VERSION = DEFAULTS.java.version;
+const DEFAULT_TEMURIN_IMAGE = (javaVersion: string): string =>
+  `eclipse-temurin:${javaVersion}-jdk-${DEFAULTS.java.debianImageSuffix}`;
+
 @object()
 export class GhReusablePipelines {
   @func()
   async ci(source: Directory): Promise<string> {
     return dag
       .container()
-      .from("node:24-bookworm")
+      .from(DEFAULT_NODE_IMAGE)
       .withMountedDirectory("/src", source)
       .withWorkdir("/src")
       .withEnvVariable("DAGGER_PNPM_PIPELINE", "1")
@@ -87,7 +118,7 @@ export class GhReusablePipelines {
     }
 
     const installStep = reporter.startStep("pnpm install", {
-      containerImage: "node:24-bookworm",
+      containerImage: DEFAULT_NODE_IMAGE,
       command: "pnpm install --frozen-lockfile",
     });
     let container = this.withNodeEnv(source, "pnpm");
@@ -121,7 +152,7 @@ export class GhReusablePipelines {
     container = installResult.container;
 
     const buildStep = reporter.startStep("pnpm build", {
-      containerImage: "node:24-bookworm",
+      containerImage: DEFAULT_NODE_IMAGE,
       command: "pnpm run build",
     });
     const buildResult = await this.runCapturedStep(
@@ -158,7 +189,7 @@ export class GhReusablePipelines {
       "1",
     );
     const testStep = reporter.startStep("pnpm test", {
-      containerImage: "node:24-bookworm",
+      containerImage: DEFAULT_NODE_IMAGE,
       command: "pnpm test",
     });
     const testResult = await this.runCapturedStep(
@@ -281,7 +312,7 @@ export class GhReusablePipelines {
   @func()
   async rustBuildAndTest(
     source: Directory,
-    toolchain: string = "stable",
+    toolchain: string = DEFAULT_RUST_TOOLCHAIN,
     components: string = "clippy,rustfmt",
     target: string = "",
     name: string = "",
@@ -572,6 +603,7 @@ export class GhReusablePipelines {
     token: string = "",
     tag: string = "",
     version: string = "",
+    publish: boolean = true,
     discordWebhook: string = "",
   ): Promise<string> {
     const manager = await this.detectNodePackageManager(source);
@@ -581,6 +613,7 @@ export class GhReusablePipelines {
       token,
       tag,
       version,
+      publish,
       discordWebhook,
     });
   }
@@ -592,6 +625,7 @@ export class GhReusablePipelines {
     token: string = "",
     tag: string = "",
     version: string = "",
+    publish: boolean = true,
     discordWebhook: string = "",
   ): Promise<string> {
     return this.publishNodePackage(source, {
@@ -600,6 +634,7 @@ export class GhReusablePipelines {
       token,
       tag,
       version,
+      publish,
       discordWebhook,
     });
   }
@@ -611,6 +646,7 @@ export class GhReusablePipelines {
     token: string = "",
     tag: string = "",
     version: string = "",
+    publish: boolean = true,
     discordWebhook: string = "",
   ): Promise<string> {
     return this.publishNodePackage(source, {
@@ -619,6 +655,7 @@ export class GhReusablePipelines {
       token,
       tag,
       version,
+      publish,
       discordWebhook,
     });
   }
@@ -661,7 +698,7 @@ export class GhReusablePipelines {
     reporter.setOutput("cacheKey", cache.key);
 
     const checkStep = reporter.startStep("cargo check", {
-      containerImage: "rust:1.89-bookworm",
+      containerImage: DEFAULT_RUST_IMAGE,
       command: "cargo check",
     });
     let rustContainer = this.withRustEnv(source);
@@ -701,7 +738,7 @@ export class GhReusablePipelines {
     }
 
     const testStep = reporter.startStep("cargo test", {
-      containerImage: "rust:1.89-bookworm",
+      containerImage: DEFAULT_RUST_IMAGE,
       command: "cargo test",
     });
     const testResult = await this.runCapturedStep(
@@ -737,7 +774,7 @@ export class GhReusablePipelines {
     }
 
     const packageStep = reporter.startStep("cargo package", {
-      containerImage: "rust:1.89-bookworm",
+      containerImage: DEFAULT_RUST_IMAGE,
       command: "cargo package",
     });
     const packageResult = await this.runCapturedStep(
@@ -773,7 +810,7 @@ export class GhReusablePipelines {
     }
 
     const publishStep = reporter.startStep("cargo publish", {
-      containerImage: "rust:1.89-bookworm",
+      containerImage: DEFAULT_RUST_IMAGE,
       command: `cargo publish${registry !== "crates.io" ? ` --registry ${registry}` : ""}`,
     });
     const authenticated = packageResult.container.withSecretVariable(
@@ -1079,14 +1116,15 @@ export class GhReusablePipelines {
     source: Directory,
     options: NodePublishOptions,
   ): Promise<string> {
-    if (!options.token) {
+    const shouldPublish = options.publish ?? true;
+    if (shouldPublish && !options.token) {
       throw new Error(`Missing required token for ${options.manager} publish`);
     }
     const reporter = this.createReporter(`publish-${options.manager}`, {
       sourceDir: ".",
       version: options.version,
       registryUrls: [options.registry],
-      credentials: { NPM_TOKEN: true },
+      credentials: shouldPublish ? { NPM_TOKEN: true } : {},
     });
     const packageJson = await this.readRequiredText(source, "package.json");
     const manifest = this.parsePackageJson(packageJson);
@@ -1121,7 +1159,7 @@ export class GhReusablePipelines {
     reporter.setOutput("cacheKey", cache.key);
 
     const installStep = reporter.startStep(`${options.manager} install`, {
-      containerImage: "node:24-bookworm",
+      containerImage: DEFAULT_NODE_IMAGE,
       command:
         options.manager === "npm"
           ? "npm ci"
@@ -1166,7 +1204,7 @@ export class GhReusablePipelines {
     }
 
     const buildStep = reporter.startStep(`${options.manager} build`, {
-      containerImage: "node:24-bookworm",
+      containerImage: DEFAULT_NODE_IMAGE,
       command: `${options.manager} run build`,
     });
     const buildResult = await this.runCapturedStep(
@@ -1202,7 +1240,7 @@ export class GhReusablePipelines {
     }
 
     const testStep = reporter.startStep(`${options.manager} test`, {
-      containerImage: "node:24-bookworm",
+      containerImage: DEFAULT_NODE_IMAGE,
       command: `${options.manager} test`,
     });
     const testResult = await this.runCapturedStep(
@@ -1237,8 +1275,68 @@ export class GhReusablePipelines {
       );
     }
 
+    if (!shouldPublish) {
+      const packStep = reporter.startStep(`${options.manager} pack`, {
+        containerImage: DEFAULT_NODE_IMAGE,
+        command: `${options.manager} pack --json`,
+      });
+      const packResult = await this.runCapturedStep(
+        testResult.container,
+        `${options.manager} pack`,
+        ["npm", "pack", "--json"],
+      );
+      reporter.endStep(packStep, {
+        success: packResult.exitCode === 0,
+        stdout: packResult.stdout,
+        stderr: packResult.stderr,
+        stdoutSummary: summarizeText(packResult.stdout),
+        stderrSummary: summarizeText(packResult.stderr),
+        exitCode: packResult.exitCode,
+      });
+      if (packResult.exitCode !== 0) {
+        reporter.recordError(
+          `${options.manager} pack`,
+          packResult.stderr || packResult.stdout,
+          "Fix packaging failures before continuing",
+        );
+        return this.publishResult(
+          {
+            target: options.manager,
+            name: manifest.name,
+            version: resolvedVersion,
+            registry: options.registry,
+            url: `https://www.npmjs.com/package/${encodeURIComponent(manifest.name)}/v/${resolvedVersion}`,
+          },
+          reporter,
+          { packageManager: options.manager },
+        );
+      }
+
+      this.recordPipelineWarnings(
+        reporter,
+        (await cache.save(packResult.container, true)).warnings,
+      );
+
+      return this.publishResult(
+        {
+          target: options.manager,
+          name: manifest.name,
+          version: resolvedVersion,
+          registry: options.registry,
+          url: `https://www.npmjs.com/package/${encodeURIComponent(manifest.name)}/v/${resolvedVersion}`,
+          packageManager: options.manager,
+          notes: "deps/build/test/package completed",
+        },
+        reporter,
+        {
+          packageManager: options.manager,
+          artifactPath: this.extractNpmPackArtifact(packResult.stdout),
+        },
+      );
+    }
+
     const publishStep = reporter.startStep(`${options.manager} publish`, {
-      containerImage: "node:24-bookworm",
+      containerImage: DEFAULT_NODE_IMAGE,
       command: `npm publish --registry ${options.registry}${options.tag ? ` --tag ${options.tag}` : ""}`,
     });
     const taggedContainer = this.withAuthSecrets(testResult.container, {
@@ -1331,7 +1429,7 @@ export class GhReusablePipelines {
   ): Container {
     return dag
       .container()
-      .from("node:24-bookworm")
+      .from(DEFAULT_NODE_IMAGE)
       .withMountedDirectory("/src", source)
       .withWorkdir("/src")
       .withEnvVariable("CI", "true")
@@ -1342,19 +1440,16 @@ export class GhReusablePipelines {
   private withRustEnv(source: Directory): Container {
     return dag
       .container()
-      .from("rust:1.89-bookworm")
+      .from(DEFAULT_RUST_IMAGE)
       .withMountedDirectory("/src", source)
       .withWorkdir("/src")
       .withEnvVariable("PATH", this.rustPath());
   }
 
-  private withPythonEnv(
-    source: Directory,
-    pythonVersion: string,
-  ): Container {
+  private withPythonEnv(source: Directory, pythonVersion: string): Container {
     return dag
       .container()
-      .from(`astral/uv:python${pythonVersion}-bookworm-slim`)
+      .from(DEFAULT_PYTHON_IMAGE(pythonVersion))
       .withMountedDirectory("/src", source)
       .withWorkdir("/src");
   }
@@ -1496,6 +1591,15 @@ export class GhReusablePipelines {
     return requestedVersion || manifestVersion;
   }
 
+  private extractNpmPackArtifact(stdout: string): string | undefined {
+    try {
+      const parsed = JSON.parse(stdout) as Array<{ filename?: string }>;
+      return parsed[0]?.filename;
+    } catch {
+      return undefined;
+    }
+  }
+
   private async detectNodePackageManager(
     source: Directory,
   ): Promise<NodePackageManager> {
@@ -1578,8 +1682,8 @@ export class GhReusablePipelines {
       throw new Error("package.json must define name and version");
     }
     const scripts = Object.fromEntries(
-      Object.entries(parsed.scripts ?? {}).filter(([, value]) =>
-        typeof value === "string",
+      Object.entries(parsed.scripts ?? {}).filter(
+        ([, value]) => typeof value === "string",
       ),
     ) as Record<string, string>;
     return { name: parsed.name, version: parsed.version, scripts };
@@ -2202,7 +2306,7 @@ export class GhReusablePipelines {
   @func()
   async setupRust(
     source: Directory,
-    toolchain: string = "stable",
+    toolchain: string = DEFAULT_RUST_TOOLCHAIN,
     components: string = "clippy,rustfmt",
     target: string = "",
     crates: string = "",
@@ -2219,7 +2323,7 @@ export class GhReusablePipelines {
   @func()
   async pythonBuildAndTest(
     source: Directory,
-    pythonVersion: string = "3.12",
+    pythonVersion: string = DEFAULT_PYTHON_VERSION,
   ): Promise<string> {
     const reporter = this.createReporter("python-build-and-test", {
       sourceDir: ".",
@@ -2256,7 +2360,9 @@ export class GhReusablePipelines {
       return true;
     };
 
-    if (!(await runStep("uv sync", ["uv", "sync", "--all-groups", "--frozen"]))) {
+    if (
+      !(await runStep("uv sync", ["uv", "sync", "--all-groups", "--frozen"]))
+    ) {
       const report = reporter.finalize();
       return JSON.stringify({
         success: false,
@@ -2302,7 +2408,7 @@ export class GhReusablePipelines {
   @func()
   async setupNode(
     source: Directory,
-    nodeVersion: string = "24",
+    nodeVersion: string = DEFAULT_NODE_VERSION,
     packageManager: string = "auto",
     installDeps: boolean = false,
   ): Promise<Container> {
@@ -2313,7 +2419,7 @@ export class GhReusablePipelines {
 
     let c = dag
       .container()
-      .from(`node:${nodeVersion}-bookworm-slim`)
+      .from(`node:${nodeVersion}-${DEFAULTS.node.debianImageSuffix}-slim`)
       .withMountedDirectory("/src", source)
       .withWorkdir("/src")
       .withExec(["corepack", "enable"]);
@@ -2342,11 +2448,11 @@ export class GhReusablePipelines {
   @func()
   async setupGo(
     source: Directory,
-    goVersion: string = "1.24",
+    goVersion: string = DEFAULT_GO_VERSION,
   ): Promise<Container> {
     return dag
       .container()
-      .from(`golang:${goVersion}-bookworm`)
+      .from(DEFAULT_GO_IMAGE(goVersion))
       .withMountedDirectory("/src", source)
       .withWorkdir("/src");
   }
@@ -2358,12 +2464,12 @@ export class GhReusablePipelines {
   @func()
   async setupRuby(
     source: Directory,
-    rubyVersion: string = "3.4",
+    rubyVersion: string = DEFAULT_RUBY_VERSION,
     bundleInstall: boolean = false,
   ): Promise<Container> {
     let c = dag
       .container()
-      .from(`ruby:${rubyVersion}-bookworm`)
+      .from(DEFAULT_RUBY_IMAGE(rubyVersion))
       .withMountedDirectory("/src", source)
       .withWorkdir("/src");
     if (bundleInstall) {
@@ -2379,11 +2485,11 @@ export class GhReusablePipelines {
   @func()
   async setupJava(
     source: Directory,
-    javaVersion: string = "21",
+    javaVersion: string = DEFAULT_JAVA_VERSION,
     distribution: string = "temurin",
   ): Promise<Container> {
     const imageMap: Record<string, string> = {
-      temurin: `eclipse-temurin:${javaVersion}-jdk-bookworm`,
+      temurin: DEFAULT_TEMURIN_IMAGE(javaVersion),
       corretto: `amazoncorretto:${javaVersion}`,
       zulu: `azul/zulu-openjdk-debian:${javaVersion}`,
       liberica: `bellsoft/liberica-openjdk-debian:${javaVersion}`,
@@ -2455,7 +2561,7 @@ export class GhReusablePipelines {
     ghToken: string,
     buildCommand: string = "cargo build --release",
     archiveName: string = "bundle.zip",
-    toolchain: string = "stable",
+    toolchain: string = DEFAULT_RUST_TOOLCHAIN,
     components: string = "clippy,rustfmt",
     repository: string = "",
     discordWebhook: string = "",
@@ -2629,7 +2735,7 @@ export class GhReusablePipelines {
 
     let container = dag
       .container()
-      .from("rust:1.89-bookworm")
+      .from(DEFAULT_RUST_IMAGE)
       .withMountedDirectory("/src", source)
       .withWorkdir("/src")
       .withEnvVariable("PATH", this.rustPath())

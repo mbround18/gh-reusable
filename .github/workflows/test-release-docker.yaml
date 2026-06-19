@@ -1,0 +1,32 @@
+name: "Test | Release Docker"
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-docker.yaml"
+      - ".github/workflows/docker-release.yaml"
+      - "packages/dagger-module/src/index.ts"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-docker.yaml"
+      - ".github/workflows/docker-release.yaml"
+      - "packages/dagger-module/src/index.ts"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Build Docker release without publishing
+    uses: ./.github/workflows/release-docker.yaml
+    with:
+      image: mbround18/gh-reusable-testing
+      context: .
+      dockerfile: ./Dockerfile
+      ghcr: false
+      platforms: linux/amd64
+    secrets:
+      DAGGER_CLOUD_TOKEN: ${{ secrets.DAGGER_CLOUD_TOKEN }}

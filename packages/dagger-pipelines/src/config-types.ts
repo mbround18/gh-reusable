@@ -26,9 +26,15 @@ export type ActionId =
 
 export type WorkflowFile =
   | "docker-release.yaml"
+  | "release-compose.yaml"
+  | "release-docker.yaml"
+  | "release-pnpm.yaml"
   | "pnpm-build-n-test.yaml"
   | "python-build-n-test.yml"
   | "rust-build-n-test.yml"
+  | "test-release-compose.yaml"
+  | "test-release-docker.yaml"
+  | "test-release-pnpm.yaml"
   | "tagger.yaml"
   | "test-docker-release.yaml"
   | "test-ensure-repository.yml"

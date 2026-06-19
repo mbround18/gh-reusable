@@ -25,14 +25,14 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # de0fac2, https://github.com/actions/checkout/releases/latest
 
-      - name: Test setup-rust (stable toolchain with clippy + rustfmt)
+      - name: Test setup-rust (1.95 toolchain with clippy + rustfmt)
         uses: ./.github/actions/dagger-run
         with:
           module: ./packages/dagger-module
           call: >-
             setup-rust
             --source=.
-            --toolchain=stable
+            --toolchain=1.95
             --components=clippy,rustfmt
             with-exec --args=rustc,--version
             stdout

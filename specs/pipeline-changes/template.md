@@ -1,0 +1,31 @@
+# Pipeline Change Spec: [TITLE]
+
+## Summary
+
+Describe what changed and the desired outcome.
+
+## Affected Contracts
+
+- Reusable workflows:
+- Dagger module functions:
+- Downstream repos impacted:
+
+## Runtime and Defaults Impact
+
+- `defaults.json` changes:
+- Container/runtime baseline changes:
+
+## Security and Permissions Impact
+
+- Permissions deltas:
+- Security scanner/policy deltas:
+
+## Validation Plan
+
+- Tests/checks run:
+- Expected signals:
+
+## Rollout and Rollback
+
+- Rollout strategy:
+- Rollback procedure:

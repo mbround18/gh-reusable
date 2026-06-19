@@ -4,7 +4,7 @@ This GitHub Action sets up a Rust toolchain, installs additional components and 
 
 ## Features
 
-- Install specific Rust toolchains (e.g., stable, nightly, beta).
+- Install specific Rust toolchains (e.g., 1.95, nightly, beta).
 - Install additional Rust components like `clippy` and `rustfmt`.
 - Install additional compilation targets.
 - Cache Cargo dependencies to speed up builds.
@@ -36,7 +36,7 @@ jobs:
       - name: Setup Rust
         uses: mbround18/gh-reusable/actions/setup-rust@v0.0.5
         with:
-          toolchain: "stable"
+          toolchain: "1.95"
           components: "clippy,rustfmt"
           target: "wasm32-unknown-unknown"
           crates: "wasm-pack,trunk"
@@ -44,9 +44,9 @@ jobs:
 
 ## Inputs
 
-| Name         | Description                                                 | Required | Default  |
-| ------------ | ----------------------------------------------------------- | -------- | -------- |
-| `toolchain`  | Rust toolchain to use (e.g., stable, nightly)               | No       | `stable` |
-| `components` | Comma-separated list of Rust components to install          | No       | `""`     |
-| `target`     | Comma-separated list of additional Rust compilation targets | No       | `""`     |
-| `crates`     | Comma-separated list of CLI crates to install               | No       | `""`     |
+| Name         | Description                                                 | Required | Default |
+| ------------ | ----------------------------------------------------------- | -------- | ------- |
+| `toolchain`  | Rust toolchain to use (e.g., 1.95, nightly)                 | No       | `1.95`  |
+| `components` | Comma-separated list of Rust components to install          | No       | `""`    |
+| `target`     | Comma-separated list of additional Rust compilation targets | No       | `""`    |
+| `crates`     | Comma-separated list of CLI crates to install               | No       | `""`    |

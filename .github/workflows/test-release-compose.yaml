@@ -1,0 +1,34 @@
+name: "Test | Release Compose"
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-compose.yaml"
+      - ".github/workflows/docker-release.yaml"
+      - "packages/dagger-module/src/index.ts"
+      - "packages/dagger-pipelines/src/docker-parity.ts"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-compose.yaml"
+      - ".github/workflows/docker-release.yaml"
+      - "packages/dagger-module/src/index.ts"
+      - "packages/dagger-pipelines/src/docker-parity.ts"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Build Compose release without publishing
+    uses: ./.github/workflows/release-compose.yaml
+    with:
+      image: mbround18/gh-reusable-testing
+      context: .
+      dockerfile: ./Dockerfile
+      ghcr: false
+      platforms: linux/amd64
+    secrets:
+      DAGGER_CLOUD_TOKEN: ${{ secrets.DAGGER_CLOUD_TOKEN }}
