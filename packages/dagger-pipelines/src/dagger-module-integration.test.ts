@@ -68,6 +68,9 @@ test("dagger module exposes expected integration entrypoints", () => {
       "rustBuildAndTest",
     ]),
   );
+  expect(exportedFunctions).not.toContain("detectLanguageFamilies");
+  expect(exportedFunctions).not.toContain("renderAuditIntelligenceSection");
+  expect(exportedFunctions).not.toContain("selectAuditScanners");
 });
 
 test("all dagger-for-github workflow integrations use module+call and no wrapper args", () => {

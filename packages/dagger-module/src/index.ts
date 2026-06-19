@@ -14,6 +14,18 @@ import {
 } from "graphql";
 import { parse as parseYaml } from "yaml";
 import { existsSync, readFileSync } from "node:fs";
+import type { AuditScannerResult, RepositorySignals } from "./audit-types";
+import {
+  aggregateAuditResults,
+  buildScanFindings,
+  createFailedScannerResult,
+  createSkippedScannerResult,
+  detectLanguageFamilies,
+  normalizeScannerStatus,
+  parseScannerFindings,
+  renderAuditIntelligenceSection,
+  selectAuditScanners,
+} from "./audit-logic";
 import {
   type PipelineReport,
   PipelineReporter,
@@ -501,109 +513,66 @@ export class GhReusablePipelines {
       credentials: {},
     });
 
-    const semgrepStep = reporter.startStep("semgrep scan", {
-      containerImage: "returntocorp/semgrep:1.81.0",
-      command: `semgrep scan --config ${semgrepConfig} --json --output /tmp/semgrep.json /src`,
-    });
-    const semgrepResult = await this.runCapturedStep(
-      dag
-        .container()
-        .from("returntocorp/semgrep:1.81.0")
-        .withMountedDirectory("/src", source)
-        .withWorkdir("/src")
-        .withEnvVariable("SEMGREP_CONFIG", semgrepConfig),
-      "semgrep scan",
-      [
-        "sh",
-        "-lc",
-        [
-          "set -eu",
-          'semgrep scan --config "$SEMGREP_CONFIG" --json --output /tmp/semgrep.json /src',
-          "if [ ! -s /tmp/semgrep.json ]; then printf '{\"results\":[]}\\n' > /tmp/semgrep.json; fi",
-        ].join("\n"),
-      ],
-    );
-    const semgrepJson = await semgrepResult.container
-      .file("/tmp/semgrep.json")
-      .contents();
-    const semgrepFindings = this.countFromObjectArrayField(
-      semgrepJson,
-      "results",
-    );
-    reporter.endStep(semgrepStep, {
-      success: semgrepResult.exitCode === 0,
-      stdout: semgrepResult.stdout,
-      stderr: semgrepResult.stderr,
-      stdoutSummary: summarizeText(semgrepResult.stdout),
-      stderrSummary: summarizeText(semgrepResult.stderr),
-      exitCode: semgrepResult.exitCode,
-    });
-    if (semgrepResult.exitCode !== 0) {
-      reporter.recordError(
-        "semgrep scan",
-        semgrepResult.stderr || semgrepResult.stdout,
-        "Fix Semgrep execution errors before relying on the audit results",
+    const signals = await this.collectAuditSignals(source);
+    const detection = detectLanguageFamilies(signals);
+    if (detection.fallbackMode) {
+      reporter.recordWarning(
+        "Fallback audit mode was used because repository language detection was weak or ambiguous; baseline scanners were used.",
       );
     }
 
-    let gitleaksFindings = 0;
-    if (includeGitleaks) {
-      const gitleaksStep = reporter.startStep("gitleaks detect", {
-        containerImage: "zricethezav/gitleaks:v8.24.2",
-        command:
-          "gitleaks detect --source=/src --report-format=json --report-path=/tmp/gitleaks.json --redact --exit-code=0",
-      });
-      const gitleaksResult = await this.runCapturedStep(
-        dag
-          .container()
-          .from("zricethezav/gitleaks:v8.24.2")
-          .withMountedDirectory("/src", source)
-          .withWorkdir("/src"),
-        "gitleaks detect",
-        [
-          "sh",
-          "-lc",
-          [
-            "set -eu",
-            "gitleaks detect --source=/src --report-format=json --report-path=/tmp/gitleaks.json --redact --exit-code=0",
-            "if [ ! -s /tmp/gitleaks.json ]; then printf '[]\\n' > /tmp/gitleaks.json; fi",
-          ].join("\n"),
-        ],
-      );
-      const gitleaksJson = await gitleaksResult.container
-        .file("/tmp/gitleaks.json")
-        .contents();
-      gitleaksFindings = this.countFromArray(gitleaksJson);
-      reporter.endStep(gitleaksStep, {
-        success: gitleaksResult.exitCode === 0,
-        stdout: gitleaksResult.stdout,
-        stderr: gitleaksResult.stderr,
-        stdoutSummary: summarizeText(gitleaksResult.stdout),
-        stderrSummary: summarizeText(gitleaksResult.stderr),
-        exitCode: gitleaksResult.exitCode,
-      });
-      if (gitleaksResult.exitCode !== 0) {
+    const scannerConfigs = selectAuditScanners(detection, includeGitleaks);
+    const runnableScannerConfigs = scannerConfigs.filter(
+      (scanner) => scanner.shouldRun,
+    );
+    const scannerRuns = runnableScannerConfigs.map((scanner) =>
+      scanner.name === "semgrep"
+        ? this.runSemgrepScanner(source, semgrepConfig, reporter)
+        : this.runGitleaksScanner(source, reporter),
+    );
+
+    const settledScannerRuns = await Promise.allSettled(scannerRuns);
+    const runnableScannerResults = settledScannerRuns.map(
+      (settled, index): AuditScannerResult => {
+        const scannerConfig = runnableScannerConfigs[index]!;
+        if (settled.status === "fulfilled") {
+          return settled.value;
+        }
+        const reason =
+          settled.reason instanceof Error
+            ? settled.reason.message
+            : String(settled.reason);
         reporter.recordError(
-          "gitleaks detect",
-          gitleaksResult.stderr || gitleaksResult.stdout,
-          "Fix Gitleaks execution errors before relying on the audit results",
+          scannerConfig.stepName,
+          reason,
+          `Fix ${scannerConfig.name} execution errors before relying on the audit results`,
         );
-      }
-    }
+        return createFailedScannerResult(scannerConfig, 0, reason);
+      },
+    );
 
-    const totalFindings = semgrepFindings + gitleaksFindings;
-    reporter.setOutput("scanFindings", {
-      semgrep: semgrepFindings,
-      gitleaks: includeGitleaks ? gitleaksFindings : 0,
-      total: totalFindings,
-    });
+    const skippedScannerResults = scannerConfigs
+      .filter((scanner) => !scanner.shouldRun)
+      .map((scanner) => createSkippedScannerResult(scanner));
+
+    const summary = aggregateAuditResults(
+      [...runnableScannerResults, ...skippedScannerResults],
+      detection,
+    );
+    reporter.setOutput("auditSummary", summary);
+    reporter.setOutput("scanFindings", buildScanFindings(summary));
 
     const report = reporter.finalize();
+    const markdown = [
+      report.markdown,
+      renderAuditIntelligenceSection(summary),
+    ].join("\n\n");
+    const enrichedReport = { ...report, markdown };
     return JSON.stringify({
-      markdown: report.markdown,
-      report,
-      reportJson: JSON.stringify(report),
-      reportMarkdown: report.markdown,
+      markdown,
+      report: enrichedReport,
+      reportJson: JSON.stringify(enrichedReport),
+      reportMarkdown: markdown,
     });
   }
 
@@ -1669,6 +1638,187 @@ export class GhReusablePipelines {
     } catch {
       return "";
     }
+  }
+
+  private async readOptionalContainerText(
+    container: Container,
+    path: string,
+  ): Promise<string> {
+    try {
+      return await container.file(path).contents();
+    } catch {
+      return "";
+    }
+  }
+
+  private async collectAuditSignals(
+    source: Directory,
+  ): Promise<RepositorySignals> {
+    const signalPaths = [
+      "Cargo.toml",
+      "Cargo.lock",
+      "package.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "package-lock.json",
+      "pyproject.toml",
+      "uv.lock",
+      "poetry.lock",
+      "requirements.txt",
+      "setup.py",
+      "go.mod",
+      "go.sum",
+      "Dockerfile",
+      "docker-compose.yml",
+      "docker-compose.yaml",
+      "compose.yml",
+      "compose.yaml",
+    ] as const;
+
+    const entries = await Promise.all(
+      signalPaths.map(
+        async (signal) =>
+          [
+            signal,
+            Boolean(await this.readOptionalText(source, signal)),
+          ] as const,
+      ),
+    );
+
+    return Object.fromEntries(entries) as RepositorySignals;
+  }
+
+  private async runSemgrepScanner(
+    source: Directory,
+    semgrepConfig: string,
+    reporter: PipelineReporter,
+  ): Promise<AuditScannerResult> {
+    const startedAt = Date.now();
+    const step = reporter.startStep("semgrep scan", {
+      containerImage: "returntocorp/semgrep:1.81.0",
+      command: `semgrep scan --config ${semgrepConfig} --json --output /tmp/semgrep.json /src`,
+    });
+    const result = await this.runCapturedStep(
+      dag
+        .container()
+        .from("returntocorp/semgrep:1.81.0")
+        .withMountedDirectory("/src", source)
+        .withWorkdir("/src")
+        .withEnvVariable("SEMGREP_CONFIG", semgrepConfig),
+      "semgrep scan",
+      [
+        "sh",
+        "-lc",
+        [
+          "set -eu",
+          'semgrep scan --config "$SEMGREP_CONFIG" --json --output /tmp/semgrep.json /src',
+          "if [ ! -s /tmp/semgrep.json ]; then printf '{\"results\":[]}\\n' > /tmp/semgrep.json; fi",
+        ].join("\n"),
+      ],
+    );
+    const json = await this.readOptionalContainerText(
+      result.container,
+      "/tmp/semgrep.json",
+    );
+    const parsed = parseScannerFindings("semgrep", json);
+    const status = normalizeScannerStatus(
+      result.exitCode,
+      parsed.findingsCount,
+    );
+    reporter.endStep(step, {
+      success: status !== "failed",
+      stdout: result.stdout,
+      stderr: result.stderr,
+      stdoutSummary: summarizeText(result.stdout),
+      stderrSummary: summarizeText(result.stderr),
+      exitCode: result.exitCode,
+    });
+    if (status === "failed") {
+      reporter.recordError(
+        "semgrep scan",
+        result.stderr || result.stdout,
+        "Fix Semgrep execution errors before relying on the audit results",
+      );
+    }
+
+    return {
+      name: "semgrep",
+      family: "cross-language",
+      status,
+      findingsCount: parsed.findingsCount,
+      durationMs: Date.now() - startedAt,
+      failureReason:
+        status === "failed"
+          ? result.stderr || result.stdout || "Semgrep execution failed"
+          : undefined,
+      topFindings: parsed.topFindings,
+    };
+  }
+
+  private async runGitleaksScanner(
+    source: Directory,
+    reporter: PipelineReporter,
+  ): Promise<AuditScannerResult> {
+    const startedAt = Date.now();
+    const step = reporter.startStep("gitleaks detect", {
+      containerImage: "zricethezav/gitleaks:v8.24.2",
+      command:
+        "gitleaks detect --source=/src --report-format=json --report-path=/tmp/gitleaks.json --redact --exit-code=0",
+    });
+    const result = await this.runCapturedStep(
+      dag
+        .container()
+        .from("zricethezav/gitleaks:v8.24.2")
+        .withMountedDirectory("/src", source)
+        .withWorkdir("/src"),
+      "gitleaks detect",
+      [
+        "sh",
+        "-lc",
+        [
+          "set -eu",
+          "gitleaks detect --source=/src --report-format=json --report-path=/tmp/gitleaks.json --redact --exit-code=0",
+          "if [ ! -s /tmp/gitleaks.json ]; then printf '[]\\n' > /tmp/gitleaks.json; fi",
+        ].join("\n"),
+      ],
+    );
+    const json = await this.readOptionalContainerText(
+      result.container,
+      "/tmp/gitleaks.json",
+    );
+    const parsed = parseScannerFindings("gitleaks", json);
+    const status = normalizeScannerStatus(
+      result.exitCode,
+      parsed.findingsCount,
+    );
+    reporter.endStep(step, {
+      success: status !== "failed",
+      stdout: result.stdout,
+      stderr: result.stderr,
+      stdoutSummary: summarizeText(result.stdout),
+      stderrSummary: summarizeText(result.stderr),
+      exitCode: result.exitCode,
+    });
+    if (status === "failed") {
+      reporter.recordError(
+        "gitleaks detect",
+        result.stderr || result.stdout,
+        "Fix Gitleaks execution errors before relying on the audit results",
+      );
+    }
+
+    return {
+      name: "gitleaks",
+      family: "cross-language",
+      status,
+      findingsCount: parsed.findingsCount,
+      durationMs: Date.now() - startedAt,
+      failureReason:
+        status === "failed"
+          ? result.stderr || result.stdout || "Gitleaks execution failed"
+          : undefined,
+      topFindings: parsed.topFindings,
+    };
   }
 
   private parsePackageJson(raw: string): NamedVersion {

@@ -90,6 +90,8 @@ test("audit workflow runs module audit and supports SARIF alerts + PR history", 
   expect(gitleaksUpload?.uses).toContain("github/codeql-action/upload-sarif@");
   expect(reportStep?.uses).toContain("actions/github-script@");
   expect(reportUpload?.uses).toContain("actions/upload-artifact@");
+  expect(reportStep?.name).toBe("Materialize audit report");
+  expect(reportUpload?.name).toBe("Upload audit report artifact");
   expect(stickyComment?.uses).toContain("actions/github-script@");
   expect(historyComment?.uses).toContain("actions/github-script@");
   expect(releaseNotes?.if).toContain("inputs.track_release_summary");
