@@ -58,7 +58,7 @@ jobs:
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
 
       - if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           REPORT_JSON: ${{ steps.dagger.outputs.stdout }}
         with:
