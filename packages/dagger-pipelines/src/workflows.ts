@@ -1,5 +1,5 @@
 import type { Client } from "@dagger.io/dagger";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import type { ComplianceIssue, ComplianceResult } from "./config-types.js";
 
 import {
@@ -25,9 +25,13 @@ type PipelineDefaults = {
   python: { version: string; debianImageSuffix: string };
 };
 
-const DEFAULTS = JSON.parse(
-  readFileSync(new URL("../../../defaults.json", import.meta.url), "utf8"),
-) as PipelineDefaults;
+const DEFAULTS_PATH = new URL("../../../defaults.json", import.meta.url);
+const DEFAULTS = existsSync(DEFAULTS_PATH)
+  ? (JSON.parse(readFileSync(DEFAULTS_PATH, "utf8")) as PipelineDefaults)
+  : ({
+      rust: { toolchain: "1.95", debianImageSuffix: "trixie" },
+      python: { version: "3.12", debianImageSuffix: "trixie-slim" },
+    } as PipelineDefaults);
 const DEFAULT_RUST_IMAGE = `rust:${DEFAULTS.rust.toolchain}-${DEFAULTS.rust.debianImageSuffix}`;
 const DEFAULT_PYTHON_IMAGE = `astral/uv:python${DEFAULTS.python.version}-${DEFAULTS.python.debianImageSuffix}`;
 

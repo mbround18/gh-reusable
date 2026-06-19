@@ -13,7 +13,7 @@ import {
   type VariableDefinitionNode,
 } from "graphql";
 import { parse as parseYaml } from "yaml";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import {
   type PipelineReport,
   PipelineReporter,
@@ -61,15 +61,10 @@ const EMBEDDED_DEFAULTS: PipelineDefaults = {
   debian: { version: "13", codename: "trixie" },
 };
 
-const DEFAULTS = (() => {
-  try {
-    return JSON.parse(
-      readFileSync(new URL("../../../defaults.json", import.meta.url), "utf8"),
-    ) as PipelineDefaults;
-  } catch {
-    return EMBEDDED_DEFAULTS;
-  }
-})();
+const DEFAULTS_PATH = new URL("../../../defaults.json", import.meta.url);
+const DEFAULTS = existsSync(DEFAULTS_PATH)
+  ? (JSON.parse(readFileSync(DEFAULTS_PATH, "utf8")) as PipelineDefaults)
+  : EMBEDDED_DEFAULTS;
 const DEFAULT_NODE_VERSION = DEFAULTS.node.version;
 const DEFAULT_NODE_IMAGE = `node:${DEFAULT_NODE_VERSION}-${DEFAULTS.node.debianImageSuffix}`;
 const DEFAULT_RUST_TOOLCHAIN = DEFAULTS.rust.toolchain;
