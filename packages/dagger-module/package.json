@@ -13,7 +13,7 @@
     "adm-zip": "^0.5.17",
     "env-paths": "^3.0.0",
     "execa": "^8.0.1",
-    "graphql": "^16.14.0",
+    "graphql": "^17.0.1",
     "graphql-request": "^6.1.0",
     "graphql-tag": "^2.12.6",
     "node-color-log": "^12.0.1",
