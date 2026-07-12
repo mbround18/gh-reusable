@@ -7,7 +7,7 @@ allowBuilds:
   protobufjs: true
 
 catalog:
-  "@dagger.io/dagger": "0.21.5"
+  "@dagger.io/dagger": "0.21.7"
 
 overrides:
   "glob": "13.x.x"
