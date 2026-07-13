@@ -6,19 +6,19 @@
   "author": "mbround18",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "1.11.1",
-    "@actions/github": "6.0.1",
-    "semver": "7.7.4"
+    "@actions/core": "3.0.1",
+    "@actions/github": "9.1.1",
+    "semver": "7.8.5"
   },
   "devDependencies": {
-    "vitest": "^3.2.4",
+    "@vitest/coverage-v8": "^4.1.10",
     "mock-fs": "5.5.0",
-    "@vitest/coverage-v8": "^3.2.4"
+    "vitest": "^4.1.10"
   },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
-  "packageManager": "pnpm@10.15.1"
+  "packageManager": "pnpm@11.12.0"
 }

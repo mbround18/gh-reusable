@@ -1,5 +1,4 @@
 const core = require("@actions/core");
-const github = require("@actions/github");
 
 const { buildNewVersion } = require("./version");
 const { resolveIncrementFromLabels, detectIncrement } = require("./increment");
@@ -10,6 +9,8 @@ const { fetchQuery, getLastTag } = require("./tag");
  */
 async function run() {
   try {
+    const github = await import("@actions/github");
+
     // Get inputs
     const token = core.getInput("token") || process.env.GITHUB_TOKEN;
     if (!token) {

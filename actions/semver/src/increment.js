@@ -1,4 +1,3 @@
-const github = require("@actions/github");
 const path = require("path");
 const { fetchQuery } = require("./tag");
 
@@ -136,13 +135,13 @@ function resolveIncrementFromBranch(branchName, core) {
  * Gets a branch name from GitHub context
  * @returns {string} - Branch name or empty string when unavailable
  */
-function getBranchNameFromContext() {
-  if (github.context.eventName === "pull_request") {
-    return github.context.payload?.pull_request?.head?.ref || "";
+function getBranchNameFromContext(context) {
+  if (context.eventName === "pull_request") {
+    return context.payload?.pull_request?.head?.ref || "";
   }
 
-  if (github.context.ref?.startsWith("refs/heads/")) {
-    return github.context.ref.replace("refs/heads/", "");
+  if (context.ref?.startsWith("refs/heads/")) {
+    return context.ref.replace("refs/heads/", "");
   }
 
   return "";
@@ -170,10 +169,13 @@ async function detectIncrement(
   patchLabel,
   core,
 ) {
-  core.info(`GitHub event name: ${github.context.eventName}`);
-  core.info(`GitHub ref: ${github.context.ref}`);
-  core.info(`GitHub SHA: ${github.context.sha}`);
-  const branchName = getBranchNameFromContext();
+  const github = await import("@actions/github");
+  const { context } = github;
+
+  core.info(`GitHub event name: ${context.eventName}`);
+  core.info(`GitHub ref: ${context.ref}`);
+  core.info(`GitHub SHA: ${context.sha}`);
+  const branchName = getBranchNameFromContext(context);
   if (branchName) {
     core.info(`Detected branch name: ${branchName}`);
   }
@@ -183,10 +185,10 @@ async function detectIncrement(
     return incrementInput;
   }
 
-  if (github.context.eventName === "pull_request") {
+  if (context.eventName === "pull_request") {
     try {
       core.info("Detecting increment from PR labels...");
-      const prNumber = github.context.payload.pull_request.number;
+      const prNumber = context.payload.pull_request.number;
       core.info(`PR number: ${prNumber}`);
 
       const query = await fetchQuery(
@@ -230,7 +232,7 @@ async function detectIncrement(
   // For commits pushed to branches, check if it's from a merged PR
   try {
     core.info("Detecting increment from commit-associated PR labels...");
-    const commitSha = github.context.sha;
+    const commitSha = context.sha;
     core.info(`Commit SHA: ${commitSha}`);
 
     const query = await fetchQuery(

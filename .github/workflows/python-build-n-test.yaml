@@ -31,16 +31,16 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # de0fac2, https://github.com/actions/checkout/releases/latest
       - id: dagger
-        uses: mbround18/gh-reusable/.github/actions/dagger-run@main
+        uses: ./.github/actions/dagger-run
         with:
           call: >-
             python-build-and-test
             --source=.
             --python-version=${{ inputs.python-version }}
-          module: github.com/mbround18/gh-reusable/packages/dagger-module@main
+          module: github.com/mbround18/gh-reusable/packages/dagger-module@aff8423c31771a97c7080604cd9a2502edf42b8e
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
       - if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0, https://github.com/actions/github-script/releases/tag/v9.0.0
         env:
           REPORT_JSON: ${{ steps.dagger.outputs.stdout }}
         with:
