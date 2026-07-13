@@ -80,7 +80,7 @@ jobs:
             exit 1
           fi
       - if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           REPORT_JSON: ${{ steps.docs-check.outputs.stdout }}
         with:
