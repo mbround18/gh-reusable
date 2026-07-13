@@ -11,10 +11,10 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@actions/core": "^1.11.1",
+    "@actions/core": "^3.0.1",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.10"
   }
 }

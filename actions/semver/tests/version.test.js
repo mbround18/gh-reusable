@@ -1,5 +1,4 @@
-import { describe, test, beforeEach, afterEach, vi, expect } from "vitest";
-const github = require("@actions/github");
+import { describe, test, beforeEach, vi, expect } from "vitest";
 const { buildNewVersion } = require("../src/version");
 
 describe("buildNewVersion", () => {
@@ -12,13 +11,6 @@ describe("buildNewVersion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.GITHUB_REF;
-    github.context = {
-      eventName: "push",
-      payload: {},
-      repo: { owner: "testowner", repo: "testrepo" },
-      sha: "abc123456789",
-      ref: "refs/heads/main",
-    };
   });
 
   test("should increment patch version correctly", () => {

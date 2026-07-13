@@ -1,4 +1,3 @@
-const github = require("@actions/github");
 const semver = require("semver");
 
 /**

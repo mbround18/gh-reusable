@@ -3,21 +3,22 @@
   "private": true,
   "version": "0.0.0",
   "description": "Workspace bootstrap for reusable actions.",
-  "packageManager": "pnpm@11.7.0+sha512.19cc852c120c7125760f2443ee6be0ca5b40f9f50598de1a09a1f177503e010e57c23c77646e01e761de59bf874fb22a3398c33ab9691fc13eb946b6f0f4d620",
+  "packageManager": "pnpm@11.12.0",
   "scripts": {
-    "build": "pnpm -r --if-present run build",
-    "test": "pnpm -r --if-present run test",
-    "test:coverage": "pnpm -r --if-present run test:coverage",
-    "typecheck": "pnpm -r --if-present run typecheck",
-    "generate:ci-skill": "tsx scripts/generate-ci-skill.ts"
+    "build": "corepack pnpm -r --if-present run build",
+    "test": "corepack pnpm -r --if-present run test",
+    "test:coverage": "corepack pnpm -r --if-present run test:coverage",
+    "typecheck": "corepack pnpm -r --if-present run typecheck",
+    "generate:ci-skill": "tsx scripts/generate-ci-skill.ts",
+    "pin:github-actions": "tsx scripts/pin-github-actions.mts"
   },
   "devDependencies": {
-    "@types/node": "^25.9.3",
-    "@vitest/coverage-v8": "^4.1.9",
-    "tsx": "^4.22.4",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.16",
-    "vitest": "^4.1.9",
+    "@types/node": "^26.1.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10",
     "yaml": "^2.9.0"
   }
 }

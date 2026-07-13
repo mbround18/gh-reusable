@@ -8,7 +8,7 @@ inputs:
   module:
     description: "Dagger module reference"
     required: false
-    default: "github.com/mbround18/gh-reusable/packages/dagger-module@main"
+    default: "github.com/mbround18/gh-reusable/packages/dagger-module@aff8423c31771a97c7080604cd9a2502edf42b8e"
   cloud-token:
     description: "Dagger Cloud token for caching"
     required: false
@@ -67,7 +67,7 @@ runs:
 
     - name: Run Dagger call
       id: dagger
-      uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # 27b130b (https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1)
+      uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # v8.4.1, https://github.com/dagger/dagger-for-github/releases/tag/v8.4.1
       env:
         DAGGER_NO_NAG: "1"
         GH_REUSABLE_NESTED_DAGGER: "1"
