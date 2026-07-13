@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 
 import {
   WORKFLOW_DEFINITIONS,
+  evaluateConditionalSecretRequirement,
   validateWorkflowDefinitions,
 } from "./workflows.js";
 
@@ -90,4 +91,19 @@ test("tier1 workflows use executable parity flows instead of shallow checks", ()
   );
   expect(pnpmParity).toContain("pnpm run build");
   expect(pnpmParity).toContain("pnpm run test");
+});
+
+test("conditional secret helper validates publish contract snippets", () => {
+  const raw = `
+  if: inputs.publish
+  run: echo \${{ secrets.CARGO_REGISTRY_TOKEN }}
+  `;
+  const result = evaluateConditionalSecretRequirement({
+    workflowFile: "rust-build-n-test.yaml",
+    workflowRaw: raw,
+    whenInput: "publish",
+    secret: "CARGO_REGISTRY_TOKEN",
+    conditionSnippet: "inputs.publish",
+  });
+  expect(result.status).toBe("pass");
 });

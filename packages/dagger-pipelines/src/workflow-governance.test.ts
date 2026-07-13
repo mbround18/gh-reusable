@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { expect, test } from "vitest";
+import { evaluateConditionalSecretRequirement } from "./workflows.js";
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -59,4 +60,23 @@ test("workflow inputs and secrets are always referenced", () => {
     expectWorkflowReferences(raw, "input", dispatchInputs, workflowFile);
     expectWorkflowReferences(raw, "secret", secrets, workflowFile);
   }
+});
+
+test("rust workflow enforces conditional publish secret and docs references", () => {
+  const workflowFile = "rust-build-n-test.yaml";
+  const { raw } = readWorkflow(workflowFile);
+  const conditional = evaluateConditionalSecretRequirement({
+    workflowFile,
+    workflowRaw: raw,
+    whenInput: "publish",
+    secret: "CARGO_REGISTRY_TOKEN",
+    conditionSnippet: "inputs.publish",
+  });
+
+  expect(
+    conditional.status,
+    conditional.issues.map((issue) => issue.message).join("; "),
+  ).toBe("pass");
+  expect(raw.includes("inputs.publish_docs")).toBe(true);
+  expect(raw.includes("inputs.docs_path")).toBe(true);
 });

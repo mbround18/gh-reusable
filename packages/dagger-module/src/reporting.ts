@@ -1,4 +1,5 @@
 export type PipelineStepStatus = "success" | "failure" | "skipped";
+import type { RustPipelineModeOutcomes } from "./types";
 
 export interface PipelineReportMetadata {
   readonly pipelineName: string;
@@ -49,6 +50,7 @@ export interface PipelineReportOutputs {
   readonly auditSummary?: import("./audit-types").AuditSummary;
   readonly cacheBackend?: string;
   readonly cacheKey?: string;
+  readonly rustModeOutcomes?: RustPipelineModeOutcomes;
 }
 
 export interface PipelineReport {
@@ -348,6 +350,28 @@ export function summarizeText(text: string, limit = 200): string {
 
 export function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+export function createRustModeOutcomes(options: {
+  publishEnabled: boolean;
+  docsEnabled: boolean;
+}): RustPipelineModeOutcomes {
+  return {
+    publish: {
+      mode: "publish",
+      enabled: options.publishEnabled,
+      attempted: false,
+      skippedReason: options.publishEnabled
+        ? undefined
+        : "publish flag disabled",
+    },
+    docs: {
+      mode: "docs",
+      enabled: options.docsEnabled,
+      attempted: false,
+      skippedReason: options.docsEnabled ? undefined : "publish_docs disabled",
+    },
+  };
 }
 
 function truncate(value: string, limit: number): string {

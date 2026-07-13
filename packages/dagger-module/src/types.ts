@@ -106,6 +106,20 @@ export interface ReporterInputs {
   credentials?: Readonly<Record<string, boolean>>;
 }
 
+export interface RustModeOutcome {
+  mode: "publish" | "docs";
+  enabled: boolean;
+  attempted: boolean;
+  success?: boolean;
+  skippedReason?: string;
+  failureReason?: string;
+}
+
+export interface RustPipelineModeOutcomes {
+  publish: RustModeOutcome;
+  docs: RustModeOutcome;
+}
+
 export interface BranchRule {
   increment: SemverIncrement;
   patterns: RegExp[];

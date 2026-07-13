@@ -29,6 +29,7 @@ import {
 import {
   type PipelineReport,
   PipelineReporter,
+  createRustModeOutcomes,
   shellQuote,
   summarizeText,
 } from "./reporting";
@@ -80,6 +81,7 @@ const DEFAULTS = existsSync(DEFAULTS_PATH)
 const DEFAULT_NODE_VERSION = DEFAULTS.node.version;
 const DEFAULT_NODE_IMAGE = `node:${DEFAULT_NODE_VERSION}-${DEFAULTS.node.debianImageSuffix}`;
 const DEFAULT_RUST_TOOLCHAIN = DEFAULTS.rust.toolchain;
+const DEFAULT_RUST_COMPONENTS = "clippy,rustfmt";
 const DEFAULT_RUST_IMAGE = `rust:${DEFAULT_RUST_TOOLCHAIN}-${DEFAULTS.rust.debianImageSuffix}`;
 const DEFAULT_PYTHON_VERSION = DEFAULTS.python.version;
 const DEFAULT_PYTHON_IMAGE = (pythonVersion: string): string =>
@@ -336,7 +338,7 @@ export class GhReusablePipelines {
   async rustBuildAndTest(
     source: Directory,
     toolchain: string = DEFAULT_RUST_TOOLCHAIN,
-    components: string = "clippy,rustfmt",
+    components: string = DEFAULT_RUST_COMPONENTS,
     target: string = "",
     name: string = "",
   ): Promise<string> {
@@ -498,6 +500,238 @@ export class GhReusablePipelines {
       markdown: report.markdown,
       report,
       reportMarkdown: report.markdown,
+    });
+  }
+
+  @func()
+  async rustDocsBuild(
+    source: Directory,
+    toolchain: string = DEFAULT_RUST_TOOLCHAIN,
+    components: string = DEFAULT_RUST_COMPONENTS,
+    target: string = "",
+    docsPath: string = "target/doc",
+  ): Promise<string> {
+    const reporter = this.createReporter("rust-docs-build", {
+      sourceDir: ".",
+      registryUrls: [],
+      credentials: {},
+    });
+    let container = await this.buildRustContainer(
+      source,
+      toolchain,
+      components,
+      target,
+      "",
+    );
+
+    const docsStep = reporter.startStep("cargo doc", {
+      command: "cargo doc --no-deps",
+    });
+    const docsResult = await this.runCapturedStep(container, "cargo doc", [
+      "cargo",
+      "doc",
+      "--no-deps",
+    ]);
+    reporter.endStep(docsStep, {
+      success: docsResult.exitCode === 0,
+      stdout: docsResult.stdout,
+      stderr: docsResult.stderr,
+      stdoutSummary: summarizeText(docsResult.stdout),
+      stderrSummary: summarizeText(docsResult.stderr),
+      exitCode: docsResult.exitCode,
+    });
+    if (docsResult.exitCode !== 0) {
+      reporter.recordError(
+        "cargo doc",
+        docsResult.stderr || docsResult.stdout,
+        "Fix rustdoc generation failures before publishing docs",
+      );
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+    container = docsResult.container;
+
+    const validateStep = reporter.startStep("validate docs output", {
+      command: `test -d ${docsPath}`,
+    });
+    const docsOutputCheck = await this.runCapturedStep(
+      container,
+      "validate docs output",
+      ["sh", "-lc", `test -d ${shellQuote(docsPath)}`],
+    );
+    reporter.endStep(validateStep, {
+      success: docsOutputCheck.exitCode === 0,
+      stdout: docsOutputCheck.stdout,
+      stderr: docsOutputCheck.stderr,
+      stdoutSummary: summarizeText(docsOutputCheck.stdout),
+      stderrSummary: summarizeText(docsOutputCheck.stderr),
+      exitCode: docsOutputCheck.exitCode,
+    });
+    if (docsOutputCheck.exitCode !== 0) {
+      reporter.recordError(
+        "validate docs output",
+        docsOutputCheck.stderr || docsOutputCheck.stdout,
+        `Rust docs output path "${docsPath}" was not found`,
+      );
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        markdown: report.markdown,
+        report,
+        reportMarkdown: report.markdown,
+      });
+    }
+
+    reporter.setOutput("packageMetadata", {
+      docsPath,
+      command: "cargo doc --no-deps",
+    });
+    const report = reporter.finalize();
+    return JSON.stringify({
+      success: true,
+      markdown: report.markdown,
+      report,
+      reportMarkdown: report.markdown,
+    });
+  }
+
+  @func()
+  async rustPipeline(
+    source: Directory,
+    toolchain: string = DEFAULT_RUST_TOOLCHAIN,
+    components: string = DEFAULT_RUST_COMPONENTS,
+    target: string = "",
+    name: string = "",
+    publish: boolean = false,
+    token: string = "",
+    registry: string = "crates.io",
+    version: string = "",
+    publishDocs: boolean = false,
+    docsPath: string = "target/doc",
+  ): Promise<string> {
+    const reporter = this.createReporter("rust-pipeline", {
+      sourceDir: ".",
+      version,
+      registryUrls: publish ? [registry] : [],
+      credentials: { CARGO_REGISTRY_TOKEN: publish && Boolean(token.trim()) },
+    });
+    const modeOutcomes = createRustModeOutcomes({
+      publishEnabled: publish,
+      docsEnabled: publishDocs,
+    });
+
+    if (publish && !token.trim()) {
+      modeOutcomes.publish.failureReason =
+        "CARGO_REGISTRY_TOKEN is required when publish=true";
+      reporter.recordError(
+        "publish contract validation",
+        modeOutcomes.publish.failureReason,
+        "Provide CARGO_REGISTRY_TOKEN when enabling publish",
+      );
+      reporter.setOutput("rustModeOutcomes", modeOutcomes);
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        report,
+        markdown: report.markdown,
+        reportMarkdown: report.markdown,
+      });
+    }
+
+    const baselineResult = this.parsePipelineResponse(
+      await this.rustBuildAndTest(source, toolchain, components, target, name),
+    );
+    const baselineSuccess = baselineResult.success !== false;
+    if (!baselineSuccess) {
+      reporter.recordError(
+        "rust-build-and-test",
+        "Baseline Rust build/test checks failed",
+        "Fix Rust build/test errors before optional modes run",
+      );
+      modeOutcomes.publish.skippedReason =
+        "baseline build/test checks failed before publish";
+      modeOutcomes.docs.skippedReason =
+        "baseline build/test checks failed before docs";
+      reporter.setOutput("rustModeOutcomes", modeOutcomes);
+      const report = reporter.finalize();
+      return JSON.stringify({
+        success: false,
+        report,
+        markdown: [report.markdown, baselineResult.markdown]
+          .filter(Boolean)
+          .join("\n\n---\n\n"),
+        reportMarkdown: [report.markdown, baselineResult.markdown]
+          .filter(Boolean)
+          .join("\n\n---\n\n"),
+      });
+    }
+
+    let publishResultMarkdown = "";
+    if (publish) {
+      modeOutcomes.publish.attempted = true;
+      const publishResult = this.parsePipelineResponse(
+        await this.publishRustCrate(source, token, version, registry),
+      );
+      modeOutcomes.publish.success = publishResult.success !== false;
+      if (!modeOutcomes.publish.success) {
+        modeOutcomes.publish.failureReason =
+          "publish-rust-crate failed; see step logs for details";
+        reporter.recordError(
+          "publish-rust-crate",
+          modeOutcomes.publish.failureReason,
+          "Check Cargo metadata, versioning, and crates.io credentials",
+        );
+      }
+      publishResultMarkdown = publishResult.markdown;
+    }
+
+    let docsResultMarkdown = "";
+    if (publishDocs) {
+      modeOutcomes.docs.attempted = true;
+      const docsResult = this.parsePipelineResponse(
+        await this.rustDocsBuild(
+          source,
+          toolchain,
+          components,
+          target,
+          docsPath,
+        ),
+      );
+      modeOutcomes.docs.success = docsResult.success !== false;
+      if (!modeOutcomes.docs.success) {
+        modeOutcomes.docs.failureReason =
+          "rust-docs-build failed; ensure docs output is generated";
+        reporter.recordError(
+          "rust-docs-build",
+          modeOutcomes.docs.failureReason,
+          "Fix rustdoc generation before deploying to GitHub Pages",
+        );
+      }
+      docsResultMarkdown = docsResult.markdown;
+    }
+
+    reporter.setOutput("rustModeOutcomes", modeOutcomes);
+    const report = reporter.finalize();
+    const success = report.errors.length === 0;
+    const combinedMarkdown = [
+      report.markdown,
+      baselineResult.markdown,
+      publishResultMarkdown,
+      docsResultMarkdown,
+    ]
+      .filter(Boolean)
+      .join("\n\n---\n\n");
+
+    return JSON.stringify({
+      success,
+      report,
+      markdown: combinedMarkdown,
+      reportMarkdown: combinedMarkdown,
     });
   }
 
@@ -1529,6 +1763,28 @@ export class GhReusablePipelines {
     });
   }
 
+  private parsePipelineResponse(raw: string): {
+    success?: boolean;
+    markdown: string;
+    report?: PipelineReport;
+  } {
+    try {
+      const parsed = JSON.parse(raw) as {
+        success?: boolean;
+        markdown?: string;
+        reportMarkdown?: string;
+        report?: PipelineReport;
+      };
+      return {
+        success: parsed.success,
+        markdown: parsed.reportMarkdown ?? parsed.markdown ?? "",
+        report: parsed.report,
+      };
+    } catch {
+      return { success: false, markdown: "" };
+    }
+  }
+
   private async runCapturedStep(
     container: Container,
     name: string,
@@ -2468,7 +2724,7 @@ export class GhReusablePipelines {
   async setupRust(
     source: Directory,
     toolchain: string = DEFAULT_RUST_TOOLCHAIN,
-    components: string = "clippy,rustfmt",
+    components: string = DEFAULT_RUST_COMPONENTS,
     target: string = "",
     crates: string = "",
   ): Promise<Container> {
@@ -2723,7 +2979,7 @@ export class GhReusablePipelines {
     buildCommand: string = "cargo build --release",
     archiveName: string = "bundle.zip",
     toolchain: string = DEFAULT_RUST_TOOLCHAIN,
-    components: string = "clippy,rustfmt",
+    components: string = DEFAULT_RUST_COMPONENTS,
     repository: string = "",
     discordWebhook: string = "",
   ): Promise<string> {

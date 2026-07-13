@@ -65,7 +65,9 @@ test("dagger module exposes expected integration entrypoints", () => {
       "publishYarn",
       "pnpmBuildAndTest",
       "pythonBuildAndTest",
+      "rustDocsBuild",
       "rustBuildAndTest",
+      "rustPipeline",
     ]),
   );
   expect(exportedFunctions).not.toContain("detectLanguageFamilies");
@@ -157,7 +159,8 @@ test("all dagger-for-github workflow integrations use module+call and no wrapper
             requireExplicitModule:
               workflowFile === "pnpm-build-n-test.yaml" ||
               workflowFile === "python-build-n-test.yaml" ||
-              workflowFile === "rust-build-n-test.yaml",
+              workflowFile === "rust-build-n-test.yaml" ||
+              workflowFile === "rust-docs-publish.yaml",
           });
 
           inspectedSteps.push(`${workflowFile}:${jobName} (composite)`);

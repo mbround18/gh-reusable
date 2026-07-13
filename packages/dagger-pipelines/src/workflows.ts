@@ -1087,6 +1087,50 @@ export function parseDaggerCallName(call: string): string {
   return call.trim().split(/\s+/)[0] ?? "";
 }
 
+export function hasWorkflowReference(
+  workflowRaw: string,
+  kind: "input" | "secret",
+  name: string,
+): boolean {
+  const token = kind === "input" ? `inputs.${name}` : `secrets.${name}`;
+  return workflowRaw.includes(token);
+}
+
+export function evaluateConditionalSecretRequirement(input: {
+  workflowFile: string;
+  workflowRaw: string;
+  whenInput: string;
+  secret: string;
+  conditionSnippet?: string;
+}): ComplianceResult {
+  const issues: ComplianceIssue[] = [];
+  if (!hasWorkflowReference(input.workflowRaw, "input", input.whenInput)) {
+    issues.push({
+      code: "missing-conditional-input-reference",
+      message: `${input.workflowFile} must reference inputs.${input.whenInput}`,
+    });
+  }
+  if (!hasWorkflowReference(input.workflowRaw, "secret", input.secret)) {
+    issues.push({
+      code: "missing-conditional-secret-reference",
+      message: `${input.workflowFile} must reference secrets.${input.secret}`,
+    });
+  }
+  if (
+    input.conditionSnippet &&
+    !input.workflowRaw.includes(input.conditionSnippet)
+  ) {
+    issues.push({
+      code: "missing-conditional-guard",
+      message: `${input.workflowFile} must include conditional guard "${input.conditionSnippet}"`,
+    });
+  }
+  return {
+    status: issues.length === 0 ? "pass" : "fail",
+    issues,
+  };
+}
+
 export function evaluateDaggerInvocationStep(
   step: DaggerInvocationStep,
 ): ComplianceResult {

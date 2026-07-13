@@ -13,6 +13,7 @@ type WorkflowJob = {
   uses?: string;
   with?: Record<string, unknown>;
   secrets?: Record<string, unknown>;
+  steps?: Array<{ name?: string; run?: string }>;
 };
 
 function readWorkflow(fileName: string): {
@@ -165,4 +166,29 @@ test("release workflow interfaces remain backward compatible", () => {
       "track_release_summary",
     ]),
   );
+});
+
+test("rust reusable and docs publish workflows preserve compatibility contracts", () => {
+  const rustBuild = readWorkflow("rust-build-n-test.yaml");
+  const rustDocs = readWorkflow("rust-docs-publish.yaml");
+  const buildInputs = rustBuild.on?.workflow_call?.inputs ?? {};
+  const docsInputs = rustDocs.on?.workflow_call?.inputs ?? {};
+
+  expect(buildInputs.publish?.default).toBe(false);
+  expect(buildInputs.registry?.default).toBe("crates.io");
+  expect(buildInputs.version?.default).toBe("");
+  expect(buildInputs.publish_docs?.default).toBe(false);
+  expect(buildInputs.docs_path?.default).toBe("target/doc");
+
+  expect(rustBuild.jobs?.["publish-docs"]?.uses).toContain(
+    ".github/workflows/rust-docs-publish.yaml",
+  );
+  expect(docsInputs.docs_path?.default).toBe("target/doc");
+  expect(
+    String(
+      rustDocs.jobs?.["publish-docs"]?.steps?.find((step) =>
+        step.name?.includes("Validate docs output"),
+      )?.run ?? "",
+    ),
+  ).toContain("Ensure cargo doc output path is correct");
 });
