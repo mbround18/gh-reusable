@@ -600,7 +600,9 @@ export {
 } from "./semver.js";
 export {
   evaluateDaggerInvocationStep,
+  evaluateConditionalSecretRequirement,
   evaluateWorkflowDefinitionCompliance,
+  hasWorkflowReference,
   parseDaggerCallName,
   type DaggerInvocationStep,
   type WorkflowEnvironment as PipelineWorkflowEnvironment,

@@ -83,11 +83,13 @@ test("dockerfiles and workflow defaults align with defaults.json", () => {
   expect(semverDockerfile).toContain(`FROM ${expectedNodeSlim}`);
 
   const rustWorkflow = readText(".github/workflows/rust-build-n-test.yaml");
+  const rustDocsWorkflow = readText(".github/workflows/rust-docs-publish.yaml");
   const rustBinaryRelease = readText(
     ".github/workflows/rust-binary-release.yaml",
   );
   const setupRustAction = readText("actions/setup-rust/action.yml");
   expect(rustWorkflow).toContain(`default: "${defaults.rust.toolchain}"`);
+  expect(rustDocsWorkflow).toContain(`default: "${defaults.rust.toolchain}"`);
   expect(rustBinaryRelease).toContain(`default: "${defaults.rust.toolchain}"`);
   expect(setupRustAction).toContain(`default: "${defaults.rust.toolchain}"`);
 });
@@ -98,6 +100,7 @@ test("legacy runtime literals are banned in standards-critical files", () => {
     "packages/dagger-pipelines/src/index.ts",
     "packages/dagger-pipelines/src/workflows.ts",
     ".github/workflows/rust-build-n-test.yaml",
+    ".github/workflows/rust-docs-publish.yaml",
     ".github/workflows/rust-binary-release.yaml",
     "actions/setup-rust/action.yml",
     "scripts/generate-ci-skill.ts",

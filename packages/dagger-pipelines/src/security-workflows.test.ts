@@ -29,6 +29,7 @@ function readWorkflow(fileName: string): {
       if?: string;
       uses?: string;
       with?: Record<string, unknown>;
+      permissions?: Record<string, string>;
       steps?: WorkflowStep[];
     }
   >;
@@ -101,4 +102,21 @@ test("security workflow composes codeql and dependency review reusables", () => 
   );
   expect(String(dependencyReview?.with?.semgrep_config ?? "")).toBe("auto");
   expect(dependencyReview?.with?.create_alerts).toBe(true);
+});
+
+test("rust workflows keep least-privilege defaults and docs-scoped elevation", () => {
+  const rustBuild = readWorkflow("rust-build-n-test.yaml");
+  const rustDocs = readWorkflow("rust-docs-publish.yaml");
+
+  expect(rustBuild.permissions?.contents).toBe("read");
+  expect(rustBuild.permissions?.pages).toBeUndefined();
+  expect(rustBuild.permissions?.["id-token"]).toBeUndefined();
+  expect(rustBuild.jobs?.["rust-build-and-test"]?.with).toBeUndefined();
+
+  expect(rustDocs.permissions?.contents).toBe("read");
+  expect(rustDocs.jobs?.["publish-docs"]?.permissions?.contents).toBe("read");
+  expect(rustDocs.jobs?.["publish-docs"]?.permissions?.pages).toBe("write");
+  expect(rustDocs.jobs?.["publish-docs"]?.permissions?.["id-token"]).toBe(
+    "write",
+  );
 });

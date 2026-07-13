@@ -99,6 +99,11 @@ test("publish workflow wires every publish entrypoint", () => {
   ).toBe(true);
   expect(
     daggerCalls.some(({ step }) =>
+      step.with?.call?.includes("--token=${{ secrets.CARGO_REGISTRY_TOKEN }}"),
+    ),
+  ).toBe(true);
+  expect(
+    daggerCalls.some(({ step }) =>
       step.with?.call?.includes("publish-helm-chart"),
     ),
   ).toBe(true);

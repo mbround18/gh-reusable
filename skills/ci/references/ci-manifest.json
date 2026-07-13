@@ -1,12 +1,14 @@
 {
-  "generatedAt": "2026-06-19",
+  "generatedAt": "2026-07-13",
   "daggerVersion": "v0.x",
   "moduleRef": "github.com/mbround18/gh-reusable/packages/dagger-module@main",
   "reusableWorkflows": [
     {
       "file": "audit.yaml",
       "name": "Audit Workflow",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -56,7 +58,9 @@
     {
       "file": "codeql.yaml",
       "name": "Security | Dagger Code Scan",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -99,7 +103,9 @@
     {
       "file": "dependency-review.yaml",
       "name": "Security | Dagger Dependency Audit",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -135,7 +141,9 @@
     {
       "file": "docker-release.yaml",
       "name": "Docker Release Workflow",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -263,7 +271,9 @@
     {
       "file": "enforce-labels.yaml",
       "name": "Enforce PR Labels",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -306,7 +316,9 @@
     {
       "file": "pnpm-build-n-test.yaml",
       "name": "Pipeline | pnpm Build & Test",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -328,7 +340,9 @@
     {
       "file": "publish.yaml",
       "name": "Publish",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -424,7 +438,9 @@
     {
       "file": "python-build-n-test.yaml",
       "name": "Pipeline | Python Build & Test",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -453,7 +469,9 @@
     {
       "file": "release-compose.yaml",
       "name": "Release Compose",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -581,7 +599,9 @@
     {
       "file": "release-docker.yaml",
       "name": "Release Docker",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -709,7 +729,9 @@
     {
       "file": "release-pnpm.yaml",
       "name": "Release pnpm",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -776,7 +798,9 @@
     {
       "file": "rust-binary-release.yaml",
       "name": "Rust Binary Release",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -843,7 +867,9 @@
     {
       "file": "rust-build-n-test.yaml",
       "name": "Pipeline | Rust Build & Test",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -880,6 +906,98 @@
           "required": false,
           "default": "ubuntu-latest",
           "description": "GitHub runner to use for this workflow."
+        },
+        {
+          "name": "publish",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Whether to publish the crate after a successful build/test run."
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "required": false,
+          "default": "crates.io",
+          "description": "Cargo registry to publish to when publish=true."
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Optional publish version override."
+        },
+        {
+          "name": "publish_docs",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Whether to generate Rust docs and publish them to GitHub Pages."
+        },
+        {
+          "name": "docs_path",
+          "type": "string",
+          "required": false,
+          "default": "target/doc",
+          "description": "Path to generated docs for GitHub Pages upload."
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DAGGER_CLOUD_TOKEN",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "CARGO_REGISTRY_TOKEN",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "file": "rust-docs-publish.yaml",
+      "name": "Pipeline | Rust Docs Publish",
+      "triggers": [
+        "workflow_call"
+      ],
+      "isReusable": true,
+      "inputs": [
+        {
+          "name": "toolchain",
+          "type": "string",
+          "required": false,
+          "default": "1.95",
+          "description": "Rust toolchain to use (for example 1.95, nightly, beta)."
+        },
+        {
+          "name": "components",
+          "type": "string",
+          "required": false,
+          "default": "clippy,rustfmt",
+          "description": "Comma-separated list of Rust components to install."
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "required": false,
+          "default": "",
+          "description": "Comma-separated list of additional Rust compilation targets."
+        },
+        {
+          "name": "docs_path",
+          "type": "string",
+          "required": false,
+          "default": "target/doc",
+          "description": "Path to generated Rust docs for GitHub Pages upload."
+        },
+        {
+          "name": "runs-on",
+          "type": "string",
+          "required": false,
+          "default": "ubuntu-latest",
+          "description": "GitHub runner to use for this workflow."
         }
       ],
       "secrets": [
@@ -893,7 +1011,9 @@
     {
       "file": "tagger.yaml",
       "name": "Reusable Tag Creation Workflow",
-      "triggers": ["workflow_call"],
+      "triggers": [
+        "workflow_call"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -922,7 +1042,11 @@
     {
       "file": "update-readme.yaml",
       "name": "Update README",
-      "triggers": ["workflow_call", "workflow_dispatch", "push"],
+      "triggers": [
+        "workflow_call",
+        "workflow_dispatch",
+        "push"
+      ],
       "isReusable": true,
       "inputs": [
         {
@@ -940,7 +1064,10 @@
     {
       "file": "internal-ci.yaml",
       "name": "CI",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -948,7 +1075,21 @@
     {
       "file": "security.yaml",
       "name": "Security",
-      "triggers": ["pull_request", "push", "schedule"],
+      "triggers": [
+        "pull_request",
+        "push",
+        "schedule"
+      ],
+      "isReusable": false,
+      "inputs": [],
+      "secrets": []
+    },
+    {
+      "file": "spec-governance.yaml",
+      "name": "Governance | Spec Artifacts",
+      "triggers": [
+        "pull_request"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -956,7 +1097,10 @@
     {
       "file": "test-code-matrix.yaml",
       "name": "Test | Code Matrix",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -964,7 +1108,10 @@
     {
       "file": "test-docker-release.yaml",
       "name": "Test | Docker Release Workflow",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -972,7 +1119,10 @@
     {
       "file": "test-graphql-action.yaml",
       "name": "Test | GraphQL Query Default Branch",
-      "triggers": ["push", "pull_request"],
+      "triggers": [
+        "push",
+        "pull_request"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -980,7 +1130,10 @@
     {
       "file": "test-install-cli.yaml",
       "name": "Test | Install CLI Action",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -988,7 +1141,10 @@
     {
       "file": "test-pnpm-build-n-test.yaml",
       "name": "Parity | pnpm Build & Test",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -996,7 +1152,10 @@
     {
       "file": "test-python-build-n-test.yaml",
       "name": "Parity | Python Build & Test",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1004,7 +1163,10 @@
     {
       "file": "test-release-compose.yaml",
       "name": "Test | Release Compose",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1012,7 +1174,10 @@
     {
       "file": "test-release-docker.yaml",
       "name": "Test | Release Docker",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1020,7 +1185,10 @@
     {
       "file": "test-release-pnpm.yaml",
       "name": "Test | Release pnpm",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1028,7 +1196,10 @@
     {
       "file": "test-rust-build-n-test.yaml",
       "name": "Parity | Rust Build & Test",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1036,7 +1207,10 @@
     {
       "file": "test-semver.yaml",
       "name": "Test | Semver Action",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1044,7 +1218,10 @@
     {
       "file": "test-setup-rust.yaml",
       "name": "Test | Setup Rust",
-      "triggers": ["pull_request", "push"],
+      "triggers": [
+        "pull_request",
+        "push"
+      ],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1258,9 +1435,66 @@
           "optional": true
         },
         {
-          "name": "rustfmt\"",
-          "type": "unknown",
+          "name": "target",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "rustDocsBuild",
+      "kebab": "rust-docs-build",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
           "optional": false
+        },
+        {
+          "name": "toolchain",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "components",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "docsPath",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "camel": "rustPipeline",
+      "kebab": "rust-pipeline",
+      "params": [
+        {
+          "name": "source",
+          "type": "Directory",
+          "optional": false
+        },
+        {
+          "name": "toolchain",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "components",
+          "type": "string",
+          "optional": true
         },
         {
           "name": "target",
@@ -1269,6 +1503,36 @@
         },
         {
           "name": "name",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "publish",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "registry",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "publishDocs",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "docsPath",
           "type": "string",
           "optional": true
         }
@@ -1724,11 +1988,6 @@
           "optional": true
         },
         {
-          "name": "rustfmt\"",
-          "type": "unknown",
-          "optional": false
-        },
-        {
           "name": "target",
           "type": "string",
           "optional": true
@@ -1925,11 +2184,6 @@
           "name": "components",
           "type": "string",
           "optional": true
-        },
-        {
-          "name": "rustfmt\"",
-          "type": "unknown",
-          "optional": false
         },
         {
           "name": "repository",
