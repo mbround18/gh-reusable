@@ -2,7 +2,7 @@
 
 ## Summary
 
-This PR updates dependency pins across workflows/actions/packages and includes a targeted adjustment to keep Dagger TypeScript SDK runtime installs stable in CI.
+This PR updates dependency pins across workflows/actions/packages and includes targeted adjustments to keep Dagger TypeScript SDK runtime installs stable in CI.
 
 ## Affected Contracts
 
@@ -18,7 +18,7 @@ This PR updates dependency pins across workflows/actions/packages and includes a
 ## Runtime and Defaults Impact
 
 - `defaults.json` changes: none.
-- Container/runtime baseline changes: pin `packages/dagger-module` package-manager metadata to pnpm 10.15.1 for Dagger SDK runtime install compatibility.
+- Container/runtime baseline changes: pin `packages/dagger-module` package-manager metadata to pnpm 10.15.1 and keep `typescript` on the SDK-compatible 5.x line for Dagger runtime compatibility.
 
 ## Security and Permissions Impact
 
@@ -28,7 +28,7 @@ This PR updates dependency pins across workflows/actions/packages and includes a
 ## Validation Plan
 
 - Tests/checks run: PR CI checks (including parity and governance checks) on this branch.
-- Expected signals: no `ERR_PNPM_IGNORED_BUILDS` failure in Dagger parity jobs and spec governance check passes.
+- Expected signals: no Dagger runtime install/bootstrap failures in parity jobs and spec governance check passes.
 
 ## Consumer Impact and Migration
 
