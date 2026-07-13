@@ -104,6 +104,16 @@ test("publish workflow wires every publish entrypoint", () => {
   ).toBe(true);
   expect(
     daggerCalls.some(({ step }) =>
+      step.with?.call?.includes("--workspace="),
+    ),
+  ).toBe(true);
+  expect(
+    daggerCalls.some(({ step }) =>
+      step.with?.call?.includes("--crate="),
+    ),
+  ).toBe(true);
+  expect(
+    daggerCalls.some(({ step }) =>
       step.with?.call?.includes("publish-helm-chart"),
     ),
   ).toBe(true);
@@ -136,6 +146,8 @@ test("publish workflow interface remains backward compatible", () => {
       "chart",
       "tag",
       "version",
+      "workspace",
+      "crate",
       "publish",
       "runs-on",
     ]),

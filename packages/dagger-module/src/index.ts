@@ -613,6 +613,10 @@ export class GhReusablePipelines {
     version: string = "",
     publishDocs: boolean = false,
     docsPath: string = "target/doc",
+    /** Publish all members of a Cargo workspace when `publish=true`. */
+    workspace: boolean = false,
+    /** Specific crate name to publish (single-crate or workspace). */
+    crate: string = "",
   ): Promise<string> {
     const reporter = this.createReporter("rust-pipeline", {
       sourceDir: ".",
@@ -675,7 +679,7 @@ export class GhReusablePipelines {
     if (publish) {
       modeOutcomes.publish.attempted = true;
       const publishResult = this.parsePipelineResponse(
-        await this.publishRustCrate(source, token, version, registry),
+        await this.publishRustCrate(source, token, version, registry, "", workspace, crate),
       );
       modeOutcomes.publish.success = publishResult.success !== false;
       if (!modeOutcomes.publish.success) {
@@ -881,23 +885,70 @@ export class GhReusablePipelines {
     version: string = "",
     registry: string = "crates.io",
     discordWebhook: string = "",
+    /**
+     * When true, publish all members of a Cargo workspace.  Mutually
+     * compatible with `crate` — if both are set, only the named crate
+     * is published.
+     */
+    workspace: boolean = false,
+    /**
+     * Name of a specific crate to publish.  Works for both single-crate
+     * repos (passes `-p <name>` to cargo) and workspaces.  Leave empty
+     * to publish the root crate (single-crate) or the whole workspace
+     * (when `workspace=true`).
+     */
+    crate: string = "",
   ): Promise<string> {
     if (!token) {
       throw new Error("Missing required crates.io token");
     }
+
+    // Normalize: strip 'v' prefix from git tags; ignore non-version strings
+    // (e.g. branch names) so manifest version is used as fallback.
+    const normalizedVersion = this.normalizeVersion(version);
+
+    const manifest = await this.readRequiredText(source, "Cargo.toml");
+    const isWorkspace = this.isCargoWorkspace(manifest);
+    const rootPkg = this.tryParseCargoManifest(manifest);
+
+    // Resolve which crates to publish and their names
+    let cratesToPublish: string[] = [];
+    if (isWorkspace && workspace && !crate) {
+      const memberPaths = this.parseCargoWorkspaceMemberPaths(manifest);
+      for (const memberPath of memberPaths) {
+        const memberManifest = await this.readOptionalText(
+          source,
+          `${memberPath}/Cargo.toml`,
+        );
+        if (memberManifest) {
+          const memberPkg = this.tryParseCargoManifest(memberManifest);
+          if (memberPkg?.name) cratesToPublish.push(memberPkg.name);
+        }
+      }
+    } else if (crate) {
+      cratesToPublish = [crate];
+    }
+    // Empty cratesToPublish → publish root crate without -p flag (existing behaviour)
+
+    const manifestVersion = rootPkg?.version ?? "0.0.0";
+    const resolvedVersion = normalizedVersion || manifestVersion;
+    const packageName =
+      rootPkg?.name ?? cratesToPublish[0] ?? "unknown";
+    const displayName =
+      cratesToPublish.length > 1
+        ? `${packageName} (+${cratesToPublish.length - 1} more)`
+        : cratesToPublish[0] ?? packageName;
+
     const reporter = this.createReporter("publish-rust-crate", {
       sourceDir: ".",
-      version,
+      version: resolvedVersion,
       registryUrls: [registry],
       credentials: { CARGO_REGISTRY_TOKEN: true },
     });
-    const manifest = await this.readRequiredText(source, "Cargo.toml");
-    const crate = this.parseCargoManifest(manifest);
-    const resolvedVersion = this.withVersioning(crate.version, version);
     reporter.setOutput("publishedVersion", resolvedVersion);
     reporter.setOutput("registryUrls", [registry]);
     reporter.setOutput("packageMetadata", {
-      name: crate.name,
+      name: displayName,
       manifest: "Cargo.toml",
     });
 
@@ -916,6 +967,19 @@ export class GhReusablePipelines {
       command: "cargo check",
     });
     let rustContainer = this.withRustEnv(source);
+
+    // If a version override was supplied, rewrite version fields in all
+    // Cargo.toml files inside the container before any cargo command runs.
+    // This covers both [package].version (single crate / workspace members)
+    // and [workspace.package].version (workspace-inherited versions).
+    if (normalizedVersion && normalizedVersion !== manifestVersion) {
+      rustContainer = rustContainer.withExec([
+        "sh",
+        "-c",
+        `find /src -name "Cargo.toml" -exec sed -i 's/^version = ".*"/version = "${normalizedVersion}"/' {} \\;`,
+      ]);
+    }
+
     const restoredCache = await cache.restore(rustContainer);
     this.recordPipelineWarnings(reporter, restoredCache.warnings);
     rustContainer = restoredCache.container;
@@ -941,10 +1005,10 @@ export class GhReusablePipelines {
       return this.publishResult(
         {
           target: "rust-crate",
-          name: crate.name,
+          name: packageName,
           version: resolvedVersion,
           registry,
-          url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}`,
+          url: `https://crates.io/crates/${encodeURIComponent(packageName)}/${resolvedVersion}`,
         },
         reporter,
         { notes: "cargo check failed" },
@@ -977,24 +1041,33 @@ export class GhReusablePipelines {
       return this.publishResult(
         {
           target: "rust-crate",
-          name: crate.name,
+          name: packageName,
           version: resolvedVersion,
           registry,
-          url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}`,
+          url: `https://crates.io/crates/${encodeURIComponent(packageName)}/${resolvedVersion}`,
         },
         reporter,
         { notes: "cargo test failed" },
       );
     }
 
+    // Build package args: use --workspace for workspace-all, -p <name> for a
+    // specific crate, or no flag for a single-crate repo.
+    const packageArgs: readonly [string, ...string[]] =
+      isWorkspace && workspace && !crate
+        ? ["cargo", "package", "--workspace", "--allow-dirty"]
+        : crate
+          ? ["cargo", "package", "-p", crate, "--allow-dirty"]
+          : ["cargo", "package", "--allow-dirty"];
+
     const packageStep = reporter.startStep("cargo package", {
       containerImage: DEFAULT_RUST_IMAGE,
-      command: "cargo package",
+      command: packageArgs.join(" "),
     });
     const packageResult = await this.runCapturedStep(
       testResult.container,
       "cargo package",
-      ["cargo", "package"],
+      packageArgs,
     );
     reporter.endStep(packageStep, {
       success: packageResult.exitCode === 0,
@@ -1013,19 +1086,34 @@ export class GhReusablePipelines {
       return this.publishResult(
         {
           target: "rust-crate",
-          name: crate.name,
+          name: packageName,
           version: resolvedVersion,
           registry,
-          url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}`,
+          url: `https://crates.io/crates/${encodeURIComponent(packageName)}/${resolvedVersion}`,
         },
         reporter,
         { notes: "cargo package failed" },
       );
     }
 
+    // Build the publish commands.  For workspace-all we publish each member
+    // in sequence with a short delay to respect crates.io rate limits.
+    const registryFlag =
+      registry !== "crates.io" ? ` --registry ${registry}` : "";
+    const publishCommands =
+      cratesToPublish.length === 0
+        ? [
+            `cargo publish --token "$CARGO_REGISTRY_TOKEN"${registryFlag}`,
+          ]
+        : cratesToPublish.map(
+            (c, i) =>
+              `${i > 0 ? "sleep 5 && " : ""}cargo publish -p ${c} --token "$CARGO_REGISTRY_TOKEN"${registryFlag}`,
+          );
+    const publishScript = publishCommands.join(" && ");
+
     const publishStep = reporter.startStep("cargo publish", {
       containerImage: DEFAULT_RUST_IMAGE,
-      command: `cargo publish${registry !== "crates.io" ? ` --registry ${registry}` : ""}`,
+      command: publishScript,
     });
     const authenticated = packageResult.container.withSecretVariable(
       "CARGO_REGISTRY_TOKEN",
@@ -1034,11 +1122,7 @@ export class GhReusablePipelines {
     const publishResult = await this.runCapturedStep(
       authenticated,
       "cargo publish",
-      [
-        "sh",
-        "-lc",
-        `cargo publish --token "$CARGO_REGISTRY_TOKEN"${registry !== "crates.io" ? ` --registry ${registry}` : ""}`,
-      ],
+      ["sh", "-c", publishScript],
     );
     reporter.endStep(publishStep, {
       success: publishResult.exitCode === 0,
@@ -1057,10 +1141,10 @@ export class GhReusablePipelines {
       return this.publishResult(
         {
           target: "rust-crate",
-          name: crate.name,
+          name: packageName,
           version: resolvedVersion,
           registry,
-          url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}`,
+          url: `https://crates.io/crates/${encodeURIComponent(packageName)}/${resolvedVersion}`,
         },
         reporter,
         { notes: "cargo publish failed" },
@@ -1076,13 +1160,13 @@ export class GhReusablePipelines {
       username: "gh-reusable",
       embeds: [
         {
-          title: `🦀 Published — ${crate.name}@${resolvedVersion}`,
+          title: `🦀 Published — ${displayName}@${resolvedVersion}`,
           color: this.discordColor("success"),
-          url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}`,
+          url: `https://crates.io/crates/${encodeURIComponent(packageName)}/${resolvedVersion}`,
           timestamp: new Date().toISOString(),
           footer: { text: "gh-reusable · publish-rust-crate" },
           fields: [
-            { name: "Crate", value: `\`${crate.name}\``, inline: true },
+            { name: "Crate", value: `\`${displayName}\``, inline: true },
             { name: "Version", value: `\`${resolvedVersion}\``, inline: true },
             { name: "Registry", value: `\`${registry}\``, inline: true },
           ],
@@ -1093,15 +1177,15 @@ export class GhReusablePipelines {
     return this.publishResult(
       {
         target: "rust-crate",
-        name: crate.name,
+        name: packageName,
         version: resolvedVersion,
         registry,
-        url: `https://crates.io/crates/${encodeURIComponent(crate.name)}/${resolvedVersion}`,
+        url: `https://crates.io/crates/${encodeURIComponent(packageName)}/${resolvedVersion}`,
         notes: "cargo check/test/package/publish completed",
       },
       reporter,
       {
-        artifactPath: `/target/package/${crate.name}-${resolvedVersion}.crate`,
+        artifactPath: `/target/package/${packageName}-${resolvedVersion}.crate`,
       },
     );
   }
@@ -2113,6 +2197,44 @@ export class GhReusablePipelines {
     return { name, version };
   }
 
+  private tryParseCargoManifest(raw: string): NamedVersion | null {
+    try {
+      return this.parseCargoManifest(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  private isCargoWorkspace(raw: string): boolean {
+    return /^\[workspace\]/m.test(raw);
+  }
+
+  private parseCargoWorkspaceMemberPaths(raw: string): string[] {
+    // Split TOML into sections on section-header boundaries, then find [workspace].
+    const sections = raw.split(/(?=^\[)/m);
+    const workspaceSection = sections.find((s) => /^\[workspace\]/.test(s));
+    if (!workspaceSection) return [];
+    // Use [\s\S]*? to handle both inline and multi-line members arrays.
+    const membersMatch = workspaceSection.match(
+      /^members\s*=\s*\[([\s\S]*?)\]/m,
+    );
+    if (!membersMatch) return [];
+    return membersMatch[1]
+      .split(",")
+      .map((m) => m.replace(/#[^\n]*/g, "").replace(/["']/g, "").trim())
+      .filter(Boolean);
+  }
+
+  /**
+   * Normalize a version string: strip a leading 'v' prefix and validate that it
+   * looks like semver (X.Y.Z...).  Returns the cleaned version, or an empty
+   * string when the input does not resemble a version (e.g. a branch name).
+   */
+  private normalizeVersion(version: string): string {
+    const stripped = version.startsWith("v") ? version.slice(1) : version;
+    return /^[0-9]+\.[0-9]+\.[0-9]/.test(stripped) ? stripped : "";
+  }
+
   private parseChartYaml(raw: string): NamedVersion {
     const name = this.yamlField(raw, "name");
     const version = this.yamlField(raw, "version");
@@ -2120,11 +2242,14 @@ export class GhReusablePipelines {
   }
 
   private tomlPackageSection(raw: string): string {
-    const match = raw.match(/^\[package\][\s\S]*?(?=^\[|$)/m);
-    if (!match) {
+    // Split on section-header boundaries (lines starting with '[') so that
+    // '$' in multiline mode does not prematurely end the match at line endings.
+    const sections = raw.split(/(?=^\[)/m);
+    const pkg = sections.find((s) => /^\[package\]/.test(s));
+    if (!pkg) {
       throw new Error("Cargo.toml must contain a [package] section");
     }
-    return match[0];
+    return pkg;
   }
 
   private tomlField(section: string, key: string): string {

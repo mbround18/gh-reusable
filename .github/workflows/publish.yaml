@@ -32,6 +32,16 @@ on:
         type: string
         default: ""
         description: "Version override (must match version in manifest)."
+      workspace:
+        required: false
+        type: boolean
+        default: false
+        description: "Publish all members of a Cargo workspace (rust-crate target only)."
+      crate:
+        required: false
+        type: string
+        default: ""
+        description: "Specific crate name to publish within the workspace (rust-crate target only). Leave empty to publish the root crate or, when workspace=true, all members."
       publish:
         required: false
         type: boolean
@@ -126,7 +136,9 @@ jobs:
             --source=${{ inputs.source || '.' }}
             --token=${{ secrets.CARGO_REGISTRY_TOKEN }}
             --registry=${{ inputs.registry || 'crates.io' }}
-            --version=${{ inputs.version }}
+            --version=${{ inputs.version || github.ref_name }}
+            --workspace=${{ inputs.workspace }}
+            --crate=${{ inputs.crate }}
             --discord-webhook=${{ secrets.DISCORD_WEBHOOK_URL }}
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
       - if: always()
