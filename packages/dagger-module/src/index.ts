@@ -13,6 +13,7 @@ import {
   type VariableDefinitionNode,
 } from "graphql";
 import { parse as parseYaml } from "yaml";
+import { parse as parseToml } from "toml";
 import { existsSync, readFileSync } from "node:fs";
 import type { AuditScannerResult, RepositorySignals } from "./audit-types";
 import {
@@ -2107,9 +2108,17 @@ export class GhReusablePipelines {
   }
 
   private parseCargoManifest(raw: string): NamedVersion {
-    const packageSection = this.tomlPackageSection(raw);
-    const name = this.tomlField(packageSection, "name");
-    const version = this.tomlField(packageSection, "version");
+    const parsed = parseToml(raw) as { package?: { name?: string; version?: string } };
+    if (!parsed.package) {
+      throw new Error("Cargo.toml must contain a [package] section");
+    }
+    const { name, version } = parsed.package;
+    if (!name) {
+      throw new Error("Cargo.toml must define package.name");
+    }
+    if (!version) {
+      throw new Error("Cargo.toml must define package.version");
+    }
     return { name, version };
   }
 
@@ -2117,24 +2126,6 @@ export class GhReusablePipelines {
     const name = this.yamlField(raw, "name");
     const version = this.yamlField(raw, "version");
     return { name, version };
-  }
-
-  private tomlPackageSection(raw: string): string {
-    const match = raw.match(/^\[package\][\s\S]*?(?=^\[|$(?![\s\S]))/m);
-    if (!match) {
-      throw new Error("Cargo.toml must contain a [package] section");
-    }
-    return match[0];
-  }
-
-  private tomlField(section: string, key: string): string {
-    const match = section.match(
-      new RegExp(`^${key}\\s*=\\s*["']([^"']+)["']`, "m"),
-    );
-    if (!match?.[1]) {
-      throw new Error(`Cargo.toml must define package.${key}`);
-    }
-    return match[1];
   }
 
   private yamlField(raw: string, key: string): string {

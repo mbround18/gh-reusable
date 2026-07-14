@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@actions/cache": "^6.1.0",
+    "@actions/cache": "^6.2.0",
     "@dagger.io/dagger": "catalog:",
     "@grpc/grpc-js": "^1.14.4",
     "@lifeomic/axios-fetch": "^3.1.0",
@@ -20,8 +20,9 @@
     "node-fetch": "^3.3.2",
     "reflect-metadata": "^0.2.2",
     "semver": "^7.8.5",
-    "tar": "^7.5.19",
-    "typescript": "^5.9.3",
+    "tar": "^7.5.20",
+    "toml": "^4.3.0",
+    "typescript": "^7.0.2",
     "yaml": "^2.9.0"
   },
   "scripts": {

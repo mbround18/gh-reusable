@@ -9,6 +9,10 @@ allowBuilds:
 catalog:
   "@dagger.io/dagger": "0.21.7"
 
+minimumReleaseAgeExclude:
+  - '@actions/cache@6.2.0'
+  - toml@4.3.0
+
 overrides:
   "glob": "13.x.x"
   "node-domexception": "2.x.x"
