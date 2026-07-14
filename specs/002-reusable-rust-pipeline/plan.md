@@ -29,9 +29,10 @@ Add an additive reusable Rust pipeline contract that keeps build/test as the def
 **Target Platform**: GitHub Actions (`ubuntu-latest`) and local Linux/macOS development  
 **Project Type**: Monorepo (reusable workflows + Dagger-first execution + governance test suite)  
 **Constraints**: Workflows stay thin; core behavior in `packages/dagger-module/src/index.ts`; least-privilege permissions; non-breaking migration for existing Rust consumers  
-**Scale/Scope**: Rust workflow contract surfaces (`rust-build-n-test`, `publish`) and Dagger Rust/publication entrypoints  
+**Scale/Scope**: Rust workflow contract surfaces (`rust-build-n-test`, `publish`) and Dagger Rust/publication entrypoints
 
 Resolved clarifications from Phase 0 are captured in `research.md`:
+
 - No existing reusable GitHub Pages docs publish workflow exists today.
 - Current compatibility surfaces are `rust-build-n-test.yaml` and `publish.yaml` (`target: rust-crate`).
 - Governance tests already enforce workflow input/secret usage and Dagger call-name alignment.
@@ -54,6 +55,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 See `specs/002-reusable-rust-pipeline/research.md`.
 
 Key outcomes:
+
 - Reuse existing Rust call naming conventions (`rust-build-and-test`, `publish-rust-crate`) and add new docs call with kebab-case alignment.
 - Add docs publishing as an explicit opt-in contract path (no default mutation).
 - Extend governance tests to cover new Rust reusable contract surfaces and compatibility expectations.
@@ -141,14 +143,14 @@ packages/dagger-pipelines/src/
 
 ## Validation Matrix
 
-| Contract surface | Validation |
-| --- | --- |
-| Rust reusable workflow wiring and declarations | `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/workflow-governance.test.ts` |
-| Dagger `@func()` ↔ workflow call-name alignment | `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/dagger-module-integration.test.ts` |
-| Publish workflow interface + compatibility | `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/publish-workflow.test.ts src/release-workflows.test.ts` |
-| Runtime default/toolchain consistency | `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/standards-defaults.test.ts` |
-| Security/audit baseline regression | `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/security-workflows.test.ts src/audit-workflow.test.ts` |
-| Workspace confidence | `pnpm run typecheck && pnpm run test` |
+| Contract surface                                | Validation                                                                                                           |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Rust reusable workflow wiring and declarations  | `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/workflow-governance.test.ts`                            |
+| Dagger `@func()` ↔ workflow call-name alignment | `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/dagger-module-integration.test.ts`                      |
+| Publish workflow interface + compatibility      | `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/publish-workflow.test.ts src/release-workflows.test.ts` |
+| Runtime default/toolchain consistency           | `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/standards-defaults.test.ts`                             |
+| Security/audit baseline regression              | `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/security-workflows.test.ts src/audit-workflow.test.ts`  |
+| Workspace confidence                            | `pnpm run typecheck && pnpm run test`                                                                                |
 
 ## Rollout and Compatibility Strategy
 

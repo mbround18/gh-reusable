@@ -21,6 +21,7 @@ pnpm --filter @gh-reusable/dagger-pipelines run test -- src/dagger-module-integr
 ```
 
 Expected outcome:
+
 - Workflow inputs/secrets and Dagger call names are contract-valid.
 
 ## Scenario B: Rust publish/release compatibility surfaces
@@ -30,6 +31,7 @@ pnpm --filter @gh-reusable/dagger-pipelines run test -- src/publish-workflow.tes
 ```
 
 Expected outcome:
+
 - Existing publish contract remains compatible.
 - Rust publish path still maps to expected Dagger contract entrypoints.
 
@@ -40,6 +42,7 @@ pnpm --filter @gh-reusable/dagger-pipelines run test -- src/rust-workflow.test.t
 ```
 
 Expected outcome:
+
 - Docs mode remains opt-in via `publish_docs`.
 - Reusable docs workflow wiring (`rust-docs-publish.yaml`) is present.
 - Actionable docs-path failure guidance is enforced in tests.
@@ -51,6 +54,7 @@ pnpm --filter @gh-reusable/dagger-pipelines run test -- src/standards-defaults.t
 ```
 
 Expected outcome:
+
 - Rust defaults align with `defaults.json`.
 - Reusable workflows continue declaring explicit permissions and security behavior.
 
@@ -62,6 +66,7 @@ pnpm run test
 ```
 
 Expected outcome:
+
 - No cross-package regressions.
 
 ## Focused compliance aliases

@@ -25,7 +25,9 @@ export function getArg(
   return argv[idx + 1];
 }
 
-export function parseCommand(argv: readonly string[] = process.argv): CliCommand {
+export function parseCommand(
+  argv: readonly string[] = process.argv,
+): CliCommand {
   const command = argv[2];
   if (
     command === "ci" ||
@@ -66,8 +68,7 @@ export function defaultBuildAndPushConfig(
 
   const username = environment.REGISTRY_USERNAME;
   const passwordEnv = environment.REGISTRY_PASSWORD_ENV;
-  const registryAddress =
-    environment.REGISTRY_ADDRESS ?? address.split("/")[0];
+  const registryAddress = environment.REGISTRY_ADDRESS ?? address.split("/")[0];
 
   return {
     source: { path: ".", exclude: ["**/node_modules", "**/.git"] },
@@ -154,7 +155,11 @@ export async function runCli(
         throw new Error("workflow command requires --id <workflow-id>");
       }
 
-      const result = await deps.runWorkflowFn(client, workflowId, deps.environment);
+      const result = await deps.runWorkflowFn(
+        client,
+        workflowId,
+        deps.environment,
+      );
       if ("stdout" in result) {
         deps.writeStdout(result.stdout);
         return;

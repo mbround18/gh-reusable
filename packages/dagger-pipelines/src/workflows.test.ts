@@ -123,7 +123,8 @@ test("parseDaggerCallName returns the first token", () => {
 });
 
 test("workflow reference helper detects input and secret tokens", () => {
-  const raw = "if: inputs.publish\nrun: echo ${{ secrets.CARGO_REGISTRY_TOKEN }}";
+  const raw =
+    "if: inputs.publish\nrun: echo ${{ secrets.CARGO_REGISTRY_TOKEN }}";
   expect(hasWorkflowReference(raw, "input", "publish")).toBe(true);
   expect(hasWorkflowReference(raw, "secret", "CARGO_REGISTRY_TOKEN")).toBe(
     true,

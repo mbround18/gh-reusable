@@ -42,7 +42,9 @@ test("coverage config workflow list stays in sync with workflow map and real fil
 });
 
 test("coverage config references only known command presets", () => {
-  const presetIds = new Set(DAGGER_COVERAGE_CONFIG.commandPresets.map((p) => p.id));
+  const presetIds = new Set(
+    DAGGER_COVERAGE_CONFIG.commandPresets.map((p) => p.id),
+  );
 
   for (const action of Object.values(DAGGER_COVERAGE_CONFIG.actions)) {
     for (const refs of Object.values(action.presets)) {

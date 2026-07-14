@@ -77,15 +77,15 @@ test("rust reusable workflow wires baseline, publish gate, and docs deployment",
   const steps = buildJob?.steps ?? [];
 
   expect(
-    steps.some((step) =>
-      step.with?.call?.includes("rust-pipeline --source=."),
-    ),
+    steps.some((step) => step.with?.call?.includes("rust-pipeline --source=.")),
   ).toBe(true);
   expect(
     steps.some(
       (step) =>
         step.with?.call?.includes("--publish=${{ inputs.publish }}") &&
-        step.with?.call?.includes("--token=${{ secrets.CARGO_REGISTRY_TOKEN }}"),
+        step.with?.call?.includes(
+          "--token=${{ secrets.CARGO_REGISTRY_TOKEN }}",
+        ),
     ),
   ).toBe(true);
 

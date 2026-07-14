@@ -6,9 +6,7 @@
     {
       "file": "audit.yaml",
       "name": "Audit Workflow",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -58,9 +56,7 @@
     {
       "file": "codeql.yaml",
       "name": "Security | Dagger Code Scan",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -103,9 +99,7 @@
     {
       "file": "dependency-review.yaml",
       "name": "Security | Dagger Dependency Audit",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -141,9 +135,7 @@
     {
       "file": "docker-release.yaml",
       "name": "Docker Release Workflow",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -271,9 +263,7 @@
     {
       "file": "enforce-labels.yaml",
       "name": "Enforce PR Labels",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -316,9 +306,7 @@
     {
       "file": "pnpm-build-n-test.yaml",
       "name": "Pipeline | pnpm Build & Test",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -340,9 +328,7 @@
     {
       "file": "publish.yaml",
       "name": "Publish",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -438,9 +424,7 @@
     {
       "file": "python-build-n-test.yaml",
       "name": "Pipeline | Python Build & Test",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -469,9 +453,7 @@
     {
       "file": "release-compose.yaml",
       "name": "Release Compose",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -599,9 +581,7 @@
     {
       "file": "release-docker.yaml",
       "name": "Release Docker",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -729,9 +709,7 @@
     {
       "file": "release-pnpm.yaml",
       "name": "Release pnpm",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -798,9 +776,7 @@
     {
       "file": "rust-binary-release.yaml",
       "name": "Rust Binary Release",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -867,9 +843,7 @@
     {
       "file": "rust-build-n-test.yaml",
       "name": "Pipeline | Rust Build & Test",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -959,9 +933,7 @@
     {
       "file": "rust-docs-publish.yaml",
       "name": "Pipeline | Rust Docs Publish",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -1011,9 +983,7 @@
     {
       "file": "tagger.yaml",
       "name": "Reusable Tag Creation Workflow",
-      "triggers": [
-        "workflow_call"
-      ],
+      "triggers": ["workflow_call"],
       "isReusable": true,
       "inputs": [
         {
@@ -1042,11 +1012,7 @@
     {
       "file": "update-readme.yaml",
       "name": "Update README",
-      "triggers": [
-        "workflow_call",
-        "workflow_dispatch",
-        "push"
-      ],
+      "triggers": ["workflow_call", "workflow_dispatch", "push"],
       "isReusable": true,
       "inputs": [
         {
@@ -1064,10 +1030,7 @@
     {
       "file": "internal-ci.yaml",
       "name": "CI",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1075,11 +1038,7 @@
     {
       "file": "security.yaml",
       "name": "Security",
-      "triggers": [
-        "pull_request",
-        "push",
-        "schedule"
-      ],
+      "triggers": ["pull_request", "push", "schedule"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1087,9 +1046,7 @@
     {
       "file": "spec-governance.yaml",
       "name": "Governance | Spec Artifacts",
-      "triggers": [
-        "pull_request"
-      ],
+      "triggers": ["pull_request"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1097,10 +1054,7 @@
     {
       "file": "test-code-matrix.yaml",
       "name": "Test | Code Matrix",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1108,10 +1062,7 @@
     {
       "file": "test-docker-release.yaml",
       "name": "Test | Docker Release Workflow",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1119,10 +1070,7 @@
     {
       "file": "test-graphql-action.yaml",
       "name": "Test | GraphQL Query Default Branch",
-      "triggers": [
-        "push",
-        "pull_request"
-      ],
+      "triggers": ["push", "pull_request"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1130,10 +1078,7 @@
     {
       "file": "test-install-cli.yaml",
       "name": "Test | Install CLI Action",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1141,10 +1086,7 @@
     {
       "file": "test-pnpm-build-n-test.yaml",
       "name": "Parity | pnpm Build & Test",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1152,10 +1094,7 @@
     {
       "file": "test-python-build-n-test.yaml",
       "name": "Parity | Python Build & Test",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1163,10 +1102,7 @@
     {
       "file": "test-release-compose.yaml",
       "name": "Test | Release Compose",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1174,10 +1110,7 @@
     {
       "file": "test-release-docker.yaml",
       "name": "Test | Release Docker",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1185,10 +1118,7 @@
     {
       "file": "test-release-pnpm.yaml",
       "name": "Test | Release pnpm",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1196,10 +1126,7 @@
     {
       "file": "test-rust-build-n-test.yaml",
       "name": "Parity | Rust Build & Test",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1207,10 +1134,7 @@
     {
       "file": "test-semver.yaml",
       "name": "Test | Semver Action",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []
@@ -1218,10 +1142,7 @@
     {
       "file": "test-setup-rust.yaml",
       "name": "Test | Setup Rust",
-      "triggers": [
-        "pull_request",
-        "push"
-      ],
+      "triggers": ["pull_request", "push"],
       "isReusable": false,
       "inputs": [],
       "secrets": []

@@ -46,9 +46,7 @@ test("runCli handles compliance failures", async () => {
   const stderr: string[] = [];
   const exitCode = await runCli({
     argv: ["node", "cli.js", "ci"],
-    evaluateCompliance: () => [
-      { code: "broken", message: "workflow invalid" },
-    ],
+    evaluateCompliance: () => [{ code: "broken", message: "workflow invalid" }],
     writeStderr: (value) => stderr.push(value),
   });
 

@@ -65,7 +65,7 @@ concurrency:
 
 permissions:
   contents: read
-  
+
 jobs:
   rust-build-and-test:
     name: "Pipeline | Rust Build & Test"

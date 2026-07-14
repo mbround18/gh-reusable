@@ -11,7 +11,7 @@ catalog:
   "@dagger.io/dagger": "0.21.7"
 
 minimumReleaseAgeExclude:
-  - '@actions/cache@6.2.0'
+  - "@actions/cache@6.2.0"
   - toml@4.3.0
 
 overrides:

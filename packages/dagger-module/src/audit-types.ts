@@ -1,10 +1,5 @@
 export type LanguageFamily =
-  | "rust"
-  | "node"
-  | "python"
-  | "go"
-  | "docker"
-  | "generic";
+  "rust" | "node" | "python" | "go" | "docker" | "generic";
 
 export type DetectionConfidence = "high" | "medium" | "low" | "none";
 

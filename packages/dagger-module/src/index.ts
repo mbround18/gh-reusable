@@ -2108,7 +2108,9 @@ export class GhReusablePipelines {
   }
 
   private parseCargoManifest(raw: string): NamedVersion {
-    const parsed = parseToml(raw) as { package?: { name?: string; version?: string } };
+    const parsed = parseToml(raw) as {
+      package?: { name?: string; version?: string };
+    };
     if (!parsed.package) {
       throw new Error("Cargo.toml must contain a [package] section");
     }

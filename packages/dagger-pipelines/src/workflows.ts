@@ -100,8 +100,7 @@ interface BuildAndPushWorkflowDefinition {
 }
 
 export type WorkflowDefinition =
-  | CiWorkflowDefinition
-  | BuildAndPushWorkflowDefinition;
+  CiWorkflowDefinition | BuildAndPushWorkflowDefinition;
 export type WorkflowDefinitions = Readonly<
   Record<WorkflowId, WorkflowDefinition>
 >;

@@ -27,7 +27,9 @@ interface DaggerRunAction {
 }
 
 function loadDaggerRunAction(): DaggerRunAction {
-  return parseYaml(readFileSync(daggerRunActionPath, "utf8")) as DaggerRunAction;
+  return parseYaml(
+    readFileSync(daggerRunActionPath, "utf8"),
+  ) as DaggerRunAction;
 }
 
 // Structured-envelope parsing/formatting behavior itself is unit-tested

@@ -92,9 +92,9 @@ describe("parseDaggerStdout", () => {
 
 describe("decodeHtmlEntities", () => {
   test("decodes the entities escapeHtml produces", () => {
-    expect(decodeHtmlEntities("&lt;a&gt; &quot;b&quot; &#39;c&#39; &amp;")).toBe(
-      `<a> "b" 'c' &`,
-    );
+    expect(
+      decodeHtmlEntities("&lt;a&gt; &quot;b&quot; &#39;c&#39; &amp;"),
+    ).toBe(`<a> "b" 'c' &`);
   });
 });
 

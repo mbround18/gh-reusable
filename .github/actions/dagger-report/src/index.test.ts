@@ -46,7 +46,9 @@ afterEach(() => {
 
 describe("dagger-report entrypoint", () => {
   test("clears outputs and does nothing for empty stdout", async () => {
-    mockGetInput.mockImplementation((name) => (name === "dagger-stdout" ? "" : ""));
+    mockGetInput.mockImplementation((name) =>
+      name === "dagger-stdout" ? "" : "",
+    );
 
     await import("./index.js");
     await vi.waitFor(() => expect(mockSetOutput).toHaveBeenCalled());
@@ -70,7 +72,9 @@ describe("dagger-report entrypoint", () => {
       reportMarkdown: markdown,
       report: { errors: [{ step: "cargo fmt" }] },
     });
-    mockGetInput.mockImplementation((name) => (name === "dagger-stdout" ? raw : ""));
+    mockGetInput.mockImplementation((name) =>
+      name === "dagger-stdout" ? raw : "",
+    );
 
     await import("./index.js");
     await vi.waitFor(() => expect(mockSetFailed).toHaveBeenCalled());
@@ -88,7 +92,9 @@ describe("dagger-report entrypoint", () => {
 
   test("fails closed for unparsable stdout that looks like a failure", async () => {
     const raw = 'dagger output: {"success":false missing-closing-brace';
-    mockGetInput.mockImplementation((name) => (name === "dagger-stdout" ? raw : ""));
+    mockGetInput.mockImplementation((name) =>
+      name === "dagger-stdout" ? raw : "",
+    );
 
     await import("./index.js");
     await vi.waitFor(() => expect(mockSetFailed).toHaveBeenCalled());
@@ -112,7 +118,10 @@ describe("dagger-report entrypoint", () => {
     await import("./index.js");
     await vi.waitFor(() => expect(mockSetFailed).not.toHaveBeenCalled());
 
-    expect(mockSetOutput).toHaveBeenCalledWith("report-markdown", "✅ all good");
+    expect(mockSetOutput).toHaveBeenCalledWith(
+      "report-markdown",
+      "✅ all good",
+    );
     expect(mockSetOutput).toHaveBeenCalledWith("pipeline-success", "true");
   });
 });

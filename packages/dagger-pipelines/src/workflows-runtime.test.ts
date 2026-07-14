@@ -79,7 +79,9 @@ class FakeClient {
     return this.containerInstance;
   }
 
-  host(): { directory: (path: string, options: { exclude?: string[] }) => FakeDirectory } {
+  host(): {
+    directory: (path: string, options: { exclude?: string[] }) => FakeDirectory;
+  } {
     return {
       directory: (hostPath: string, _options: { exclude?: string[] }) =>
         new FakeDirectory(hostPath),

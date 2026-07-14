@@ -14,12 +14,7 @@ The set of language families the detection engine recognizes.
 
 ```typescript
 export type LanguageFamily =
-  | "rust"
-  | "node"
-  | "python"
-  | "go"
-  | "docker"
-  | "generic"; // always-present baseline
+  "rust" | "node" | "python" | "go" | "docker" | "generic"; // always-present baseline
 ```
 
 - `generic` is always emitted (ensures semgrep + gitleaks always run).

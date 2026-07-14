@@ -86,6 +86,6 @@ runs:
 
     - name: Surface structured Dagger output
       id: surface-report
-      uses: ./.github/actions/dagger-report
+      uses: mbround18/gh-reusable/.github/actions/dagger-report@main
       with:
         dagger-stdout: ${{ steps.dagger.outputs.output || steps.dagger.outputs.stdout }}

@@ -93,7 +93,10 @@ class FakeContainer {
   }
 
   withMountedDirectory(mountPath: string, sourceDir: FakeDirectory): this {
-    this.mountedDirectories.push({ path: mountPath, source: sourceDir.pathValue });
+    this.mountedDirectories.push({
+      path: mountPath,
+      source: sourceDir.pathValue,
+    });
     return this;
   }
 
@@ -152,7 +155,9 @@ class FakeClient {
     return this.containerInstance;
   }
 
-  host(): { directory: (path: string, options: { exclude?: string[] }) => FakeDirectory } {
+  host(): {
+    directory: (path: string, options: { exclude?: string[] }) => FakeDirectory;
+  } {
     return this.hostApi;
   }
 
@@ -182,9 +187,12 @@ function tempDir(prefix: string): string {
 
 test("base container, source mounting, and dependency install defaults are wired", () => {
   const client = new FakeClient();
-  const base = createBaseContainer(client as unknown as never, {
-    env: { FOO: "bar" },
-  } as BaseContainerConfig) as unknown as FakeContainer;
+  const base = createBaseContainer(
+    client as unknown as never,
+    {
+      env: { FOO: "bar" },
+    } as BaseContainerConfig,
+  ) as unknown as FakeContainer;
   const source = sourceDirectory(client as unknown as never, {
     path: "src",
     exclude: ["node_modules"],
@@ -258,11 +266,18 @@ test("buildAndPush publishes docker tags when push is enabled", async () => {
   const workspace = tempDir("dagger-pipelines-workspace-");
   const config: BuildAndPushConfig = {
     source: { path: workspace },
-    install: { packageManager: "npm", command: { name: "noop", args: ["true"] } },
+    install: {
+      packageManager: "npm",
+      command: { name: "noop", args: ["true"] },
+    },
     build: [{ name: "build", args: ["echo", "build"] }],
     publish: {
       address: "docker.io/org/app:latest",
-      auth: { address: "docker.io", username: "ci-user", passwordEnv: "DOCKER_TOKEN" },
+      auth: {
+        address: "docker.io",
+        username: "ci-user",
+        passwordEnv: "DOCKER_TOKEN",
+      },
     },
     docker: {
       image: "org/app",
@@ -292,7 +307,10 @@ test("buildAndPush returns tags without publishing when push is disabled", async
   const workspace = tempDir("dagger-pipelines-no-push-");
   const config: BuildAndPushConfig = {
     source: { path: workspace },
-    install: { packageManager: "npm", command: { name: "noop", args: ["true"] } },
+    install: {
+      packageManager: "npm",
+      command: { name: "noop", args: ["true"] },
+    },
     build: [{ name: "build", args: ["echo", "build"] }],
     publish: { address: "docker.io/org/app:latest" },
     docker: {
@@ -335,11 +353,18 @@ test("buildAndPush reads registry auth from docker config when env token is abse
 
   const config: BuildAndPushConfig = {
     source: { path: workspace },
-    install: { packageManager: "npm", command: { name: "noop", args: ["true"] } },
+    install: {
+      packageManager: "npm",
+      command: { name: "noop", args: ["true"] },
+    },
     build: [{ name: "build", args: ["echo", "build"] }],
     publish: {
       address: "docker.io/org/app:latest",
-      auth: { address: "docker.io", username: "fallback-user", passwordEnv: "DOCKER_TOKEN" },
+      auth: {
+        address: "docker.io",
+        username: "fallback-user",
+        passwordEnv: "DOCKER_TOKEN",
+      },
     },
   };
 
@@ -362,11 +387,18 @@ test("buildAndPush throws when configured auth cannot be resolved", async () => 
 
   const config: BuildAndPushConfig = {
     source: { path: workspace },
-    install: { packageManager: "npm", command: { name: "noop", args: ["true"] } },
+    install: {
+      packageManager: "npm",
+      command: { name: "noop", args: ["true"] },
+    },
     build: [{ name: "build", args: ["echo", "build"] }],
     publish: {
       address: "docker.io/org/app:latest",
-      auth: { address: "docker.io", username: "ci-user", passwordEnv: "DOCKER_TOKEN" },
+      auth: {
+        address: "docker.io",
+        username: "ci-user",
+        passwordEnv: "DOCKER_TOKEN",
+      },
     },
   };
 

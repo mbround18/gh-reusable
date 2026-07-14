@@ -176,7 +176,8 @@ async function resolveLatestEligibleRelease(
     .filter((release) => !release.draft && !release.prerelease)
     .filter((release) => release.published_at !== null)
     .filter(
-      (release) => new Date(release.published_at as string).getTime() <= cutoffMs,
+      (release) =>
+        new Date(release.published_at as string).getTime() <= cutoffMs,
     )
     .map((release) => ({
       release,
@@ -208,7 +209,10 @@ async function resolvePinnedSpec(
   reference: ParsedReference,
   originSlug: string,
 ): Promise<{ spec: string; comment: string } | null> {
-  if (isLocalSpec(reference.source) || reference.source.startsWith("docker://")) {
+  if (
+    isLocalSpec(reference.source) ||
+    reference.source.startsWith("docker://")
+  ) {
     return null;
   }
 
@@ -284,6 +288,8 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : error);
+  console.error(
+    error instanceof Error ? (error.stack ?? error.message) : error,
+  );
   process.exit(1);
 });

@@ -6,11 +6,7 @@ export type SemverIncrement = "major" | "minor" | "patch";
 export type DockerReleaseDecision = "publish" | "skip" | "failed";
 export type NodePackageManager = "npm" | "pnpm" | "yarn";
 export type PublishTarget =
-  | "npm"
-  | "pnpm"
-  | "yarn"
-  | "rust-crate"
-  | "helm-chart";
+  "npm" | "pnpm" | "yarn" | "rust-crate" | "helm-chart";
 
 // ─── Publish domain ──────────────────────────────────────────────────────────
 
