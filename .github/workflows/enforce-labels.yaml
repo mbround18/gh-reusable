@@ -40,7 +40,7 @@ jobs:
     name: Enforce Labels
     runs-on: ${{ inputs.runs-on }}
     steps:
-      - uses: mbround18/gh-reusable/.github/actions/dagger-run@aff8423c31771a97c7080604cd9a2502edf42b8e
+      - uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         with:
           call: >-
             enforce-pr-labels

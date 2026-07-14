@@ -58,7 +58,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
 
-      - uses: mbround18/gh-reusable/.github/actions/dagger-run@aff8423c31771a97c7080604cd9a2502edf42b8e
+      - uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
         with:

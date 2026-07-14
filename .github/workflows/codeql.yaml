@@ -39,7 +39,7 @@ concurrency:
 jobs:
   audit:
     name: "Dagger Security Audit"
-    uses: ./.github/workflows/audit.yaml
+    uses: mbround18/gh-reusable/.github/workflows/audit.yaml@main
     with:
       runs-on: ${{ inputs.runs-on }}
       semgrep_config: ${{ inputs.semgrep_config }}

@@ -35,7 +35,7 @@ jobs:
   audit:
     name: "Dagger Dependency Audit"
     if: ${{ github.event_name == 'pull_request' }}
-    uses: ./.github/workflows/audit.yaml
+    uses: mbround18/gh-reusable/.github/workflows/audit.yaml@main
     with:
       runs-on: ${{ inputs.runs-on }}
       semgrep_config: ${{ inputs.semgrep_config }}

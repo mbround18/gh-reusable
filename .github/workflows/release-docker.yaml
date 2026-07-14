@@ -91,7 +91,7 @@ jobs:
       Docker Release for ${{ inputs.image }} @ ${{ github.event_name ==
       'pull_request' && format('PR #{0}', github.event.pull_request.number) ||
       github.ref_name }}
-    uses: ./.github/workflows/docker-release.yaml
+    uses: mbround18/gh-reusable/.github/workflows/docker-release.yaml@main
     with:
       image: ${{ inputs.image }}
       context: ${{ inputs.context }}

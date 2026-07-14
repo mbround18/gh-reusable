@@ -65,10 +65,6 @@ permissions:
   contents: read
   packages: write
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.workflow_ref }}
-  cancel-in-progress: true
-
 jobs:
   publish-node:
     name: Publish Node package
@@ -77,7 +73,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # de0fac2, https://github.com/actions/checkout/releases/latest
       - id: publish
-        uses: ./.github/actions/dagger-run
+        uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         with:
           call: >-
             publish-npm
@@ -119,7 +115,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # de0fac2, https://github.com/actions/checkout/releases/latest
       - id: publish
-        uses: ./.github/actions/dagger-run
+        uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         with:
           call: >-
             publish-rust-crate
@@ -159,7 +155,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # de0fac2, https://github.com/actions/checkout/releases/latest
       - id: publish
-        uses: ./.github/actions/dagger-run
+        uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         with:
           call: >-
             publish-helm-chart

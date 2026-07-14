@@ -31,7 +31,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, https://github.com/actions/checkout/releases/tag/v7.0.0
 
-      - uses: mbround18/gh-reusable/actions/github-catalog@aff8423c31771a97c7080604cd9a2502edf42b8e
+      - uses: mbround18/gh-reusable/actions/github-catalog@main
 
       - name: Update Readme
         run: |

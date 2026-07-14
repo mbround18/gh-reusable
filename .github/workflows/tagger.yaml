@@ -42,7 +42,7 @@ jobs:
 
       - name: Resolve next version via Dagger
         id: semver
-        uses: ./.github/actions/dagger-run
+        uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         with:
           call: >-
             compute-semver

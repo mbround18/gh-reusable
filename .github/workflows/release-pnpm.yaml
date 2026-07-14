@@ -54,7 +54,7 @@ concurrency:
 jobs:
   publish:
     name: Publish Node package
-    uses: ./.github/workflows/publish.yaml
+    uses: mbround18/gh-reusable/.github/workflows/publish.yaml@main
     with:
       target: node
       source: ${{ inputs.source }}
