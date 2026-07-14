@@ -1,0 +1,19 @@
+name: Dagger Report
+description: "Parses a structured Dagger pipeline JSON envelope and surfaces it as folded log groups plus a job summary."
+author: "mbround18"
+
+inputs:
+  dagger-stdout:
+    description: "Raw stdout captured from a Dagger function call, expected to contain a JSON report envelope."
+    required: false
+    default: ""
+
+outputs:
+  report-markdown:
+    description: "Human-readable markdown extracted from the structured Dagger JSON output."
+  pipeline-success:
+    description: "Boolean-like string when structured Dagger output reports success/failure."
+
+runs:
+  using: node24
+  main: index.cjs

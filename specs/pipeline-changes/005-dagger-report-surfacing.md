@@ -9,6 +9,7 @@ Centralize structured Dagger pipeline report handling in `.github/actions/dagger
 - Reusable workflows: any workflow using `.github/actions/dagger-run`
 - Dagger module functions: unchanged public function signatures; consumes existing `{ success, report, markdown/reportMarkdown }` envelopes
 - Downstream repos impacted: all consumers of gh-reusable workflows/actions that run Dagger pipelines
+- New local action: `.github/actions/dagger-run` now delegates envelope parsing/rendering to `.github/actions/dagger-report` (TypeScript, built with `@actions/core`), invoked via `uses: ./.github/actions/dagger-report`. `dagger-run`'s public inputs/outputs are unchanged.
 
 ## Compatibility Classification
 
@@ -27,8 +28,8 @@ Centralize structured Dagger pipeline report handling in `.github/actions/dagger
 
 ## Validation Plan
 
-- Tests/checks run: `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/dagger-run-action.test.ts` and `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/workflows.test.ts src/rust-workflow.test.ts src/dagger-module-integration.test.ts`
-- Expected signals: action parsing tests cover structured success/failure, noisy stdout envelopes, and fail-closed behavior for unparsable `success:false` output while workflow governance/integration coverage remains green
+- Tests/checks run: `pnpm --filter @gh-reusable/dagger-report-action run test`, `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/dagger-run-action.test.ts`, and `pnpm --filter @gh-reusable/dagger-pipelines run test -- src/workflows.test.ts src/rust-workflow.test.ts src/dagger-module-integration.test.ts`
+- Expected signals: `dagger-report`'s unit tests cover structured success/failure, noisy stdout envelopes, and fail-closed behavior for unparsable `success:false` output; `dagger-run`'s tests confirm it wires raw stdout into the `dagger-report` action and re-exports its outputs; workflow governance/integration coverage remains green
 
 ## Consumer Impact and Migration
 
