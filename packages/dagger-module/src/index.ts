@@ -2120,7 +2120,7 @@ export class GhReusablePipelines {
   }
 
   private tomlPackageSection(raw: string): string {
-    const match = raw.match(/^\[package\][\s\S]*?(?=^\[|$)/m);
+    const match = raw.match(/^\[package\][\s\S]*?(?=^\[|$(?![\s\S]))/m);
     if (!match) {
       throw new Error("Cargo.toml must contain a [package] section");
     }
