@@ -12,18 +12,21 @@ import {
   type WorkflowId,
 } from "./workflows.js";
 
-type CliCommand = "ci" | "build-and-push" | "workflow";
+export type CliCommand = "ci" | "build-and-push" | "workflow";
 
-function getArg(name: string): string | undefined {
-  const idx = process.argv.indexOf(name);
-  if (idx === -1 || idx + 1 >= process.argv.length) {
+export function getArg(
+  name: string,
+  argv: readonly string[] = process.argv,
+): string | undefined {
+  const idx = argv.indexOf(name);
+  if (idx === -1 || idx + 1 >= argv.length) {
     return undefined;
   }
-  return process.argv[idx + 1];
+  return argv[idx + 1];
 }
 
-function parseCommand(): CliCommand {
-  const command = process.argv[2];
+export function parseCommand(argv: readonly string[] = process.argv): CliCommand {
+  const command = argv[2];
   if (
     command === "ci" ||
     command === "build-and-push" ||
@@ -37,7 +40,7 @@ function parseCommand(): CliCommand {
   );
 }
 
-function defaultCiConfig(): CiConfig {
+export function defaultCiConfig(): CiConfig {
   return {
     source: { path: ".", exclude: ["**/node_modules", "**/.git"] },
     install: { packageManager: "pnpm", cacheKey: "dagger-ci-pnpm" },
@@ -53,15 +56,18 @@ function defaultCiConfig(): CiConfig {
   };
 }
 
-function defaultBuildAndPushConfig(): BuildAndPushConfig {
-  const address = process.env.IMAGE_ADDRESS;
+export function defaultBuildAndPushConfig(
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+): BuildAndPushConfig {
+  const address = environment.IMAGE_ADDRESS;
   if (!address) {
     throw new Error("IMAGE_ADDRESS is required for build-and-push");
   }
 
-  const username = process.env.REGISTRY_USERNAME;
-  const passwordEnv = process.env.REGISTRY_PASSWORD_ENV;
-  const registryAddress = process.env.REGISTRY_ADDRESS ?? address.split("/")[0];
+  const username = environment.REGISTRY_USERNAME;
+  const passwordEnv = environment.REGISTRY_PASSWORD_ENV;
+  const registryAddress =
+    environment.REGISTRY_ADDRESS ?? address.split("/")[0];
 
   return {
     source: { path: ".", exclude: ["**/node_modules", "**/.git"] },
@@ -83,52 +89,94 @@ function defaultBuildAndPushConfig(): BuildAndPushConfig {
   };
 }
 
-async function main(): Promise<void> {
-  const complianceIssues = evaluateWorkflowDefinitionCompliance();
-  if (complianceIssues.length > 0) {
-    throw new Error(
-      `Workflow definition compliance failed: ${complianceIssues
-        .map((issue) => issue.message)
-        .join("; ")}`,
-    );
-  }
-
-  const command = parseCommand();
-
-  await connect(async (client) => {
-    if (command === "ci") {
-      const result = await ci(client, defaultCiConfig());
-      process.stdout.write(result.stdout);
-      return;
-    }
-
-    if (command === "build-and-push") {
-      const result = await buildAndPush(
-        client,
-        defaultBuildAndPushConfig(),
-        process.env,
-      );
-      process.stdout.write(`${result.reference}\n`);
-      return;
-    }
-
-    const workflowId = getArg("--id") as WorkflowId | undefined;
-    if (!workflowId) {
-      throw new Error("workflow command requires --id <workflow-id>");
-    }
-
-    const result = await runWorkflow(client, workflowId, process.env);
-    if ("stdout" in result) {
-      process.stdout.write(result.stdout);
-      return;
-    }
-
-    process.stdout.write(`${result.reference}\n`);
-  });
+interface CliDependencies {
+  readonly argv: readonly string[];
+  readonly environment: Readonly<Record<string, string | undefined>>;
+  readonly writeStdout: (value: string) => void;
+  readonly writeStderr: (value: string) => void;
+  readonly connectFn: typeof connect;
+  readonly ciFn: typeof ci;
+  readonly buildAndPushFn: typeof buildAndPush;
+  readonly runWorkflowFn: typeof runWorkflow;
+  readonly evaluateCompliance: typeof evaluateWorkflowDefinitionCompliance;
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(message);
-  process.exit(1);
-});
+function defaultDependencies(): CliDependencies {
+  return {
+    argv: process.argv,
+    environment: process.env,
+    writeStdout: (value) => process.stdout.write(value),
+    writeStderr: (value) => process.stderr.write(value),
+    connectFn: connect,
+    ciFn: ci,
+    buildAndPushFn: buildAndPush,
+    runWorkflowFn: runWorkflow,
+    evaluateCompliance: evaluateWorkflowDefinitionCompliance,
+  };
+}
+
+export async function runCli(
+  overrides: Partial<CliDependencies> = {},
+): Promise<number> {
+  const deps = { ...defaultDependencies(), ...overrides };
+
+  try {
+    const complianceIssues = deps.evaluateCompliance();
+    if (complianceIssues.length > 0) {
+      throw new Error(
+        `Workflow definition compliance failed: ${complianceIssues
+          .map((issue) => issue.message)
+          .join("; ")}`,
+      );
+    }
+
+    const command = parseCommand(deps.argv);
+
+    await deps.connectFn(async (client) => {
+      if (command === "ci") {
+        const result = await deps.ciFn(client, defaultCiConfig());
+        deps.writeStdout(result.stdout);
+        return;
+      }
+
+      if (command === "build-and-push") {
+        const result = await deps.buildAndPushFn(
+          client,
+          defaultBuildAndPushConfig(deps.environment),
+          deps.environment,
+        );
+        deps.writeStdout(`${result.reference}\n`);
+        return;
+      }
+
+      const workflowId = getArg("--id", deps.argv) as WorkflowId | undefined;
+      if (!workflowId) {
+        throw new Error("workflow command requires --id <workflow-id>");
+      }
+
+      const result = await deps.runWorkflowFn(client, workflowId, deps.environment);
+      if ("stdout" in result) {
+        deps.writeStdout(result.stdout);
+        return;
+      }
+
+      deps.writeStdout(`${result.reference}\n`);
+    });
+    return 0;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    deps.writeStderr(`${message}\n`);
+    return 1;
+  }
+}
+
+async function main(): Promise<void> {
+  const exitCode = await runCli();
+  if (exitCode !== 0) {
+    process.exit(exitCode);
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  void main();
+}

@@ -90,7 +90,11 @@ test("rust reusable workflow wires baseline, publish gate, and docs deployment",
   ).toBe(true);
 
   expect(docsJob?.if).toBe("inputs.publish_docs");
-  expect(docsJob?.permissions).toBeUndefined();
+  expect(docsJob?.permissions).toEqual({
+    contents: "read",
+    pages: "write",
+    "id-token": "write",
+  });
   expect(
     String((docsJob as { uses?: string } | undefined)?.uses ?? "").includes(
       ".github/workflows/rust-docs-publish.yaml",

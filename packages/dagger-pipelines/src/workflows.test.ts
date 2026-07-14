@@ -2,7 +2,11 @@ import { expect, test } from "vitest";
 
 import {
   WORKFLOW_DEFINITIONS,
+  evaluateDaggerInvocationStep,
   evaluateConditionalSecretRequirement,
+  evaluateWorkflowDefinitionCompliance,
+  hasWorkflowReference,
+  parseDaggerCallName,
   validateWorkflowDefinitions,
 } from "./workflows.js";
 
@@ -106,4 +110,135 @@ test("conditional secret helper validates publish contract snippets", () => {
     conditionSnippet: "inputs.publish",
   });
   expect(result.status).toBe("pass");
+});
+
+test("parseDaggerCallName returns the first token", () => {
+  expect(parseDaggerCallName("rust-pipeline --source=. --publish=false")).toBe(
+    "rust-pipeline",
+  );
+  expect(parseDaggerCallName("   publish-rust-crate   --source=libs/x ")).toBe(
+    "publish-rust-crate",
+  );
+  expect(parseDaggerCallName("   ")).toBe("");
+});
+
+test("workflow reference helper detects input and secret tokens", () => {
+  const raw = "if: inputs.publish\nrun: echo ${{ secrets.CARGO_REGISTRY_TOKEN }}";
+  expect(hasWorkflowReference(raw, "input", "publish")).toBe(true);
+  expect(hasWorkflowReference(raw, "secret", "CARGO_REGISTRY_TOKEN")).toBe(
+    true,
+  );
+  expect(hasWorkflowReference(raw, "input", "missing_input")).toBe(false);
+  expect(hasWorkflowReference(raw, "secret", "MISSING_SECRET")).toBe(false);
+});
+
+test("conditional secret helper reports all missing requirements", () => {
+  const result = evaluateConditionalSecretRequirement({
+    workflowFile: "rust-build-n-test.yaml",
+    workflowRaw: "jobs:\n  build:\n    steps:\n      - run: echo no refs",
+    whenInput: "publish",
+    secret: "CARGO_REGISTRY_TOKEN",
+    conditionSnippet: "inputs.publish",
+  });
+
+  expect(result.status).toBe("fail");
+  expect(result.issues.map((issue) => issue.code)).toEqual([
+    "missing-conditional-input-reference",
+    "missing-conditional-secret-reference",
+    "missing-conditional-guard",
+  ]);
+});
+
+test("dagger invocation evaluator ignores non-dagger steps", () => {
+  const result = evaluateDaggerInvocationStep({
+    workflowFile: "x.yaml",
+    jobName: "build",
+    uses: "actions/checkout@v4",
+    with: {},
+  });
+  expect(result.status).toBe("pass");
+  expect(result.issues).toEqual([]);
+});
+
+test("dagger invocation evaluator reports direct-step contract violations", () => {
+  const result = evaluateDaggerInvocationStep({
+    workflowFile: "x.yaml",
+    jobName: "build",
+    uses: "dagger/dagger-for-github@v8",
+    with: {
+      call: "   ",
+      verb: "call",
+      args: "foo",
+    },
+  });
+
+  expect(result.status).toBe("fail");
+  expect(result.issues.map((issue) => issue.code)).toEqual([
+    "missing-call",
+    "legacy-verb",
+    "legacy-args",
+    "missing-module",
+  ]);
+});
+
+test("dagger invocation evaluator enforces explicit module when required", () => {
+  const result = evaluateDaggerInvocationStep({
+    workflowFile: "x.yaml",
+    jobName: "build",
+    uses: "./.github/actions/dagger-run",
+    with: {
+      call: "rust-pipeline --source=.",
+    },
+    requireExplicitModule: true,
+  });
+
+  expect(result.status).toBe("fail");
+  expect(result.issues.map((issue) => issue.code)).toEqual(["missing-module"]);
+});
+
+test("workflow definition compliance catches empty command arrays", () => {
+  const invalidDefinitions = {
+    ...WORKFLOW_DEFINITIONS,
+    "test-ensure-repository": {
+      kind: "ci" as const,
+      config: {
+        ...WORKFLOW_DEFINITIONS["test-ensure-repository"].config,
+        lint: [],
+        test: [],
+      },
+    },
+    "docker-release": {
+      kind: "buildAndPush" as const,
+      config: {
+        ...WORKFLOW_DEFINITIONS["docker-release"].config,
+        build: [],
+      },
+    },
+  };
+
+  const issues = evaluateWorkflowDefinitionCompliance(invalidDefinitions);
+  expect(issues.map((issue) => issue.message)).toEqual(
+    expect.arrayContaining([
+      "test-ensure-repository: ci workflow must include at least one command",
+      "docker-release: buildAndPush workflow must include at least one build command",
+    ]),
+  );
+});
+
+test("workflow definition compliance flags commands with missing executable args", () => {
+  const invalidDefinitions = {
+    ...WORKFLOW_DEFINITIONS,
+    "test-pnpm-build-n-test": {
+      ...WORKFLOW_DEFINITIONS["test-pnpm-build-n-test"],
+      config: {
+        ...WORKFLOW_DEFINITIONS["test-pnpm-build-n-test"].config,
+        test: [{ name: "broken", args: [] }],
+      },
+    },
+  };
+
+  const issues = evaluateWorkflowDefinitionCompliance(invalidDefinitions);
+  expect(issues.map((issue) => issue.message)).toContain(
+    "test-pnpm-build-n-test: command 'broken' has no executable arguments",
+  );
 });

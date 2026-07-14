@@ -30,22 +30,22 @@ export type WorkflowFile =
   | "release-docker.yaml"
   | "release-pnpm.yaml"
   | "pnpm-build-n-test.yaml"
-  | "python-build-n-test.yml"
-  | "rust-build-n-test.yml"
+  | "python-build-n-test.yaml"
+  | "rust-build-n-test.yaml"
   | "test-release-compose.yaml"
   | "test-release-docker.yaml"
   | "test-release-pnpm.yaml"
   | "tagger.yaml"
   | "test-docker-release.yaml"
-  | "test-ensure-repository.yml"
+  | "test-ensure-repository.yaml"
   | "test-graphql-action.yaml"
   | "test-install-cli.yaml"
   | "test-pnpm-build-n-test.yaml"
-  | "test-python-build-n-test.yml"
-  | "test-rust-build-n-test.yml"
+  | "test-python-build-n-test.yaml"
+  | "test-rust-build-n-test.yaml"
   | "test-semver.yaml"
   | "test-setup-rust.yaml"
-  | "update-readme.yml";
+  | "update-readme.yaml";
 
 export interface CommandPreset {
   readonly id: string;

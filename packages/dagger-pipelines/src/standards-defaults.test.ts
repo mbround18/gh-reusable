@@ -129,3 +129,29 @@ test("all reusable workflows declare explicit permissions", () => {
     ).toBe(true);
   }
 });
+
+test("dagger runtime package manifests pin TypeScript below v6", () => {
+  const manifests = [
+    "package.json",
+    "packages/dagger-module/package.json",
+    "packages/dagger-pipelines/package.json",
+  ];
+
+  for (const manifestPath of manifests) {
+    const manifest = JSON.parse(readText(manifestPath)) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    const tsRange =
+      manifest.dependencies?.typescript ?? manifest.devDependencies?.typescript;
+
+    expect(
+      tsRange,
+      `${manifestPath} must declare a TypeScript dependency`,
+    ).toBeDefined();
+    expect(
+      tsRange,
+      `${manifestPath} must stay on TypeScript 5.x until Dagger supports 6+/7+ introspection APIs`,
+    ).toMatch(/\^5\./);
+  }
+});

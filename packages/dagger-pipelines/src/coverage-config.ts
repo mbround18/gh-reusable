@@ -24,22 +24,22 @@ export const WORKFLOW_FILES = [
   "release-docker.yaml",
   "release-pnpm.yaml",
   "pnpm-build-n-test.yaml",
-  "python-build-n-test.yml",
-  "rust-build-n-test.yml",
+  "python-build-n-test.yaml",
+  "rust-build-n-test.yaml",
   "test-release-compose.yaml",
   "test-release-docker.yaml",
   "test-release-pnpm.yaml",
   "tagger.yaml",
   "test-docker-release.yaml",
-  "test-ensure-repository.yml",
+  "test-ensure-repository.yaml",
   "test-graphql-action.yaml",
   "test-install-cli.yaml",
   "test-pnpm-build-n-test.yaml",
-  "test-python-build-n-test.yml",
-  "test-rust-build-n-test.yml",
+  "test-python-build-n-test.yaml",
+  "test-rust-build-n-test.yaml",
   "test-semver.yaml",
   "test-setup-rust.yaml",
-  "update-readme.yml",
+  "update-readme.yaml",
 ] as const satisfies readonly WorkflowFile[];
 
 export const COMMAND_PRESETS = [
@@ -325,9 +325,9 @@ const WORKFLOWS: Readonly<Record<WorkflowFile, WorkflowCoverageEntry>> = {
     actionCoverage: [],
     presets: {},
   },
-  "rust-build-n-test.yml": {
-    file: "rust-build-n-test.yml",
-    path: ".github/workflows/rust-build-n-test.yml",
+  "rust-build-n-test.yaml": {
+    file: "rust-build-n-test.yaml",
+    path: ".github/workflows/rust-build-n-test.yaml",
     actionCoverage: ["setup-rust"],
     presets: {
       install: ["cargo-fetch-locked"],
@@ -336,9 +336,9 @@ const WORKFLOWS: Readonly<Record<WorkflowFile, WorkflowCoverageEntry>> = {
       build: ["cargo-build-verbose", "cargo-build-release-verbose"],
     },
   },
-  "python-build-n-test.yml": {
-    file: "python-build-n-test.yml",
-    path: ".github/workflows/python-build-n-test.yml",
+  "python-build-n-test.yaml": {
+    file: "python-build-n-test.yaml",
+    path: ".github/workflows/python-build-n-test.yaml",
     actionCoverage: [],
     presets: {
       install: ["uv-sync-all-groups-frozen"],
@@ -393,9 +393,9 @@ const WORKFLOWS: Readonly<Record<WorkflowFile, WorkflowCoverageEntry>> = {
     actionCoverage: [],
     presets: {},
   },
-  "test-ensure-repository.yml": {
-    file: "test-ensure-repository.yml",
-    path: ".github/workflows/test-ensure-repository.yml",
+  "test-ensure-repository.yaml": {
+    file: "test-ensure-repository.yaml",
+    path: ".github/workflows/test-ensure-repository.yaml",
     actionCoverage: ["ensure-repository"],
     presets: {
       test: ["shell-verify-repository"],
@@ -429,9 +429,9 @@ const WORKFLOWS: Readonly<Record<WorkflowFile, WorkflowCoverageEntry>> = {
       test: ["pnpm-run-test"],
     },
   },
-  "test-python-build-n-test.yml": {
-    file: "test-python-build-n-test.yml",
-    path: ".github/workflows/test-python-build-n-test.yml",
+  "test-python-build-n-test.yaml": {
+    file: "test-python-build-n-test.yaml",
+    path: ".github/workflows/test-python-build-n-test.yaml",
     actionCoverage: [],
     presets: {
       install: ["uv-sync-all-groups-frozen"],
@@ -439,9 +439,9 @@ const WORKFLOWS: Readonly<Record<WorkflowFile, WorkflowCoverageEntry>> = {
       test: ["uv-run-pytest"],
     },
   },
-  "test-rust-build-n-test.yml": {
-    file: "test-rust-build-n-test.yml",
-    path: ".github/workflows/test-rust-build-n-test.yml",
+  "test-rust-build-n-test.yaml": {
+    file: "test-rust-build-n-test.yaml",
+    path: ".github/workflows/test-rust-build-n-test.yaml",
     actionCoverage: ["ensure-repository", "setup-rust"],
     presets: {
       install: ["cargo-fetch-locked"],
@@ -468,9 +468,9 @@ const WORKFLOWS: Readonly<Record<WorkflowFile, WorkflowCoverageEntry>> = {
       test: ["cargo-build-verbose"],
     },
   },
-  "update-readme.yml": {
-    file: "update-readme.yml",
-    path: ".github/workflows/update-readme.yml",
+  "update-readme.yaml": {
+    file: "update-readme.yaml",
+    path: ".github/workflows/update-readme.yaml",
     actionCoverage: ["github-catalog"],
     presets: {
       install: ["npm-ci"],
