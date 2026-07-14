@@ -18,11 +18,7 @@ const daggerRunActionPath = path.join(
 );
 
 function loadSurfaceReportScript(): string {
-  const action = parseYaml(readFileSync(daggerRunActionPath, "utf8")) as {
-    runs?: {
-      steps?: Array<{ id?: string; run?: string }>;
-    };
-  };
+  const action = loadDaggerRunAction();
 
   const surfaceStep = (action.runs?.steps ?? []).find(
     (step) => step.id === "surface-report",
@@ -39,6 +35,20 @@ function loadSurfaceReportScript(): string {
   }
 
   return match[1];
+}
+
+function loadDaggerRunAction(): {
+  outputs?: Record<string, { value?: string }>;
+  runs?: {
+    steps?: Array<{ id?: string; run?: string; env?: Record<string, string> }>;
+  };
+} {
+  return parseYaml(readFileSync(daggerRunActionPath, "utf8")) as {
+    outputs?: Record<string, { value?: string }>;
+    runs?: {
+      steps?: Array<{ id?: string; run?: string; env?: Record<string, string> }>;
+    };
+  };
 }
 
 function parseGitHubOutput(content: string): Record<string, string> {
@@ -144,4 +154,23 @@ test("surface-report ignores plain non-JSON stdout", () => {
   expect(result.outputs["report-markdown"]).toBe("");
   expect(result.outputs["pipeline-success"]).toBe("");
   expect(result.stderr).toBe("");
+});
+
+test("dagger-run stdout output maps to dagger-for-github output with legacy fallback", () => {
+  const action = loadDaggerRunAction();
+  const stdoutOutput = action.outputs?.stdout?.value ?? "";
+
+  expect(stdoutOutput).toContain("steps.dagger.outputs.output");
+  expect(stdoutOutput).toContain("steps.dagger.outputs.stdout");
+});
+
+test("surface-report reads dagger stdout from v8 output with legacy fallback", () => {
+  const action = loadDaggerRunAction();
+  const surfaceStep = (action.runs?.steps ?? []).find(
+    (step) => step.id === "surface-report",
+  );
+  const daggerStdout = surfaceStep?.env?.DAGGER_STDOUT ?? "";
+
+  expect(daggerStdout).toContain("steps.dagger.outputs.output");
+  expect(daggerStdout).toContain("steps.dagger.outputs.stdout");
 });
