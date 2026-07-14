@@ -65,7 +65,9 @@ concurrency:
 
 permissions:
   contents: read
-
+  pages: write
+  id-token: write
+  
 jobs:
   rust-build-and-test:
     name: "Pipeline | Rust Build & Test"
