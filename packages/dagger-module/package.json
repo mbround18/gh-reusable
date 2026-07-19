@@ -12,7 +12,7 @@
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "adm-zip": "^0.6.0",
     "env-paths": "^4.0.0",
-    "execa": "^9.6.1",
+    "execa": "^10.0.0",
     "graphql": "^17.0.2",
     "graphql-request": "^7.4.0",
     "graphql-tag": "^2.12.7",
@@ -22,7 +22,7 @@
     "semver": "^7.8.5",
     "tar": "^7.5.20",
     "toml": "^4.3.0",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "yaml": "^2.9.0"
   },
   "scripts": {
