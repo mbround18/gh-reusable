@@ -113,7 +113,7 @@ runs:
 
     - name: Build and Push Docker Image
       id: docker-push
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: ${{ steps.facts.outputs.context }}
         file: ${{ steps.facts.outputs.dockerfile }}
