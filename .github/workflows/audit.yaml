@@ -82,14 +82,14 @@ jobs:
 
       - name: Upload Semgrep SARIF
         if: ${{ inputs.create_alerts && hashFiles('.audit-reports/semgrep.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@e0647621c2984b5ed2f768cb892365bf2a616ad1 # v4.37.2, https://github.com/github/codeql-action/releases/tag/v4.37.2
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3, https://github.com/github/codeql-action/releases/tag/v4.37.2
         with:
           sarif_file: .audit-reports/semgrep.sarif
           category: audit-semgrep
 
       - name: Upload Gitleaks SARIF
         if: ${{ inputs.create_alerts && inputs.include_gitleaks && hashFiles('.audit-reports/gitleaks.sarif') != '' }}
-        uses: github/codeql-action/upload-sarif@e0647621c2984b5ed2f768cb892365bf2a616ad1 # v4.37.2, https://github.com/github/codeql-action/releases/tag/v4.37.2
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3, https://github.com/github/codeql-action/releases/tag/v4.37.2
         with:
           sarif_file: .audit-reports/gitleaks.sarif
           category: audit-gitleaks
