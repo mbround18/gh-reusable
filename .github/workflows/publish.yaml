@@ -71,7 +71,7 @@ jobs:
     if: inputs.target == 'node'
     runs-on: ${{ inputs.runs-on }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # de0fac2, https://github.com/actions/checkout/releases/latest
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # de0fac2, https://github.com/actions/checkout/releases/latest
       - id: publish
         uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         with:
@@ -113,7 +113,7 @@ jobs:
     if: inputs.target == 'rust-crate'
     runs-on: ${{ inputs.runs-on }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # de0fac2, https://github.com/actions/checkout/releases/latest
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # de0fac2, https://github.com/actions/checkout/releases/latest
       - id: publish
         uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         with:
@@ -153,7 +153,7 @@ jobs:
     if: inputs.target == 'helm-chart'
     runs-on: ${{ inputs.runs-on }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # de0fac2, https://github.com/actions/checkout/releases/latest
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # de0fac2, https://github.com/actions/checkout/releases/latest
       - id: publish
         uses: mbround18/gh-reusable/.github/actions/dagger-run@main
         with:
