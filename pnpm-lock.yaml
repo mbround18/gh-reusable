@@ -7,8 +7,8 @@ settings:
 catalogs:
   default:
     '@dagger.io/dagger':
-      specifier: 0.21.7
-      version: 0.21.7
+      specifier: 0.21.9
+      version: 0.21.9
 
 overrides:
   glob: 13.x.x
@@ -137,7 +137,7 @@ importers:
         version: 6.2.0
       '@dagger.io/dagger':
         specifier: 'catalog:'
-        version: 0.21.7
+        version: 0.21.9
       '@grpc/grpc-js':
         specifier: ^1.14.4
         version: 1.14.4
@@ -209,7 +209,7 @@ importers:
     dependencies:
       '@dagger.io/dagger':
         specifier: 'catalog:'
-        version: 0.21.7
+        version: 0.21.9
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
@@ -326,8 +326,8 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
-  '@dagger.io/dagger@0.21.7':
-    resolution: {integrity: sha512-MJBFgDo4E6uBefyKd7GnTfRt/PPYSlFRkY6C3lbHVHXNihpyz4jGit8blpGNJSr8UYMFdU/F0MUNoCY5ghhiZg==}
+  '@dagger.io/dagger@0.21.9':
+    resolution: {integrity: sha512-SYWyQwKNmHS+WoFKPHVgi8urEJwrASjgEW5JtM9yiu5bo4oVUAdqnKfvtT6HGURYDtVz2DsDz0k7Zzfdm+Th7A==}
     engines: {node: '>=20'}
 
   '@emnapi/core@1.11.1':
@@ -2305,15 +2305,15 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@dagger.io/dagger@0.21.7':
+  '@dagger.io/dagger@0.21.9':
     dependencies:
       '@grpc/grpc-js': 1.14.4
       '@lifeomic/axios-fetch': 3.1.0
       '@opentelemetry/api': 1.9.1
-      '@opentelemetry/core': 2.9.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/exporter-jaeger': 2.9.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/exporter-trace-otlp-http': 0.218.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-metrics': 2.9.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-metrics': 2.10.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-node': 0.218.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/semantic-conventions': 1.43.0
       adm-zip: 0.5.18
