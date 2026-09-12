@@ -48,7 +48,7 @@ dev = [
 [package.metadata.requires-dev]
 dev = [
     { name = "ruff", specifier = ">=0.15.18" },
-    { name = "specify-cli", git = "https://github.com/github/spec-kit.git?rev=d7699c39f2c3ab7d9c4f3eceff8f29ae1601cc3b" },
+    { name = "specify-cli", git = "https://github.com/github/spec-kit.git?rev=d848fb4e18f44640ad6b42e60a280551ee90cdce" },
 ]
 
 [[package]]
@@ -201,8 +201,8 @@ wheels = [
 
 [[package]]
 name = "specify-cli"
-version = "0.13.3.dev0"
-source = { git = "https://github.com/github/spec-kit.git?rev=d7699c39f2c3ab7d9c4f3eceff8f29ae1601cc3b#d7699c39f2c3ab7d9c4f3eceff8f29ae1601cc3b" }
+version = "1.0.7.dev0"
+source = { git = "https://github.com/github/spec-kit.git?rev=d848fb4e18f44640ad6b42e60a280551ee90cdce#d848fb4e18f44640ad6b42e60a280551ee90cdce" }
 dependencies = [
     { name = "click" },
     { name = "json5" },
