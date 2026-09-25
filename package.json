@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "description": "Workspace bootstrap for reusable actions.",
-  "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882",
+  "packageManager": "pnpm@11.28.0+sha512.8ed239371de82244b6cccf9e2023c18ea8439961f2ec3fe898913b9f7ee2e76ca0a45717580aca3c7997c135f6d4f5de4524cbeee1a2ccac430c03d134e2a48c",
   "scripts": {
     "build": "corepack pnpm -r --if-present run build",
     "test": "corepack pnpm -r --if-present run test",
